@@ -1,0 +1,728 @@
+openapi: "3.1.0"
+info:
+  title: VocaBook API
+  version: "1.0.0"
+  description: |
+    REST API for the VocaBook offline-first vocabulary phrasebook PWA.
+    All endpoints except /access-requests and /languages require a valid
+    Azure AD B2C Bearer token and allow-list membership.
+
+servers:
+  - url: /api
+    description: Azure Functions base path (Azure Static Web Apps proxy)
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Azure AD B2C JWT token
+
+  schemas:
+
+    Language:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          type: string
+          description: ISO 639-1 two-letter code
+          example: "it"
+        name:
+          type: string
+          description: English display name
+          example: "Italian"
+
+    Phrasebook:
+      type: object
+      required: [id, name, sourceLanguageCode, sourceLanguageName,
+                 targetLanguageCode, targetLanguageName, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+          example: "Italian for travel"
+        sourceLanguageCode:
+          type: string
+          example: "en"
+        sourceLanguageName:
+          type: string
+          example: "English"
+        targetLanguageCode:
+          type: string
+          example: "it"
+        targetLanguageName:
+          type: string
+          example: "Italian"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PhrasebookCreate:
+      type: object
+      required: [name, sourceLanguageCode, targetLanguageCode]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        sourceLanguageCode:
+          type: string
+          description: Must be a valid ISO 639-1 code
+        targetLanguageCode:
+          type: string
+          description: Must be a valid ISO 639-1 code
+
+    PhrasebookUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        sourceLanguageCode:
+          type: string
+        targetLanguageCode:
+          type: string
+
+    PartOfSpeech:
+      type: string
+      nullable: true
+      enum: [noun, verb, adjective, adverb, idiom, phrasal_verb, other, null]
+
+    LearningState:
+      type: string
+      enum: [new, learning, mastered]
+
+    VocabularyEntry:
+      type: object
+      required: [id, phrasebookId, sourceText, learningState, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        phrasebookId:
+          type: string
+          format: uuid
+        sourceText:
+          type: string
+          maxLength: 500
+        targetText:
+          type: string
+          maxLength: 500
+          nullable: true
+        notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 20
+        partOfSpeech:
+          $ref: "#/components/schemas/PartOfSpeech"
+        learningState:
+          $ref: "#/components/schemas/LearningState"
+        enrichmentId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    EntryCreate:
+      type: object
+      required: [phrasebookId, sourceText]
+      properties:
+        phrasebookId:
+          type: string
+          format: uuid
+        sourceText:
+          type: string
+          maxLength: 500
+        targetText:
+          type: string
+          maxLength: 500
+        notes:
+          type: string
+          maxLength: 2000
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 20
+        partOfSpeech:
+          $ref: "#/components/schemas/PartOfSpeech"
+
+    EntryUpdate:
+      type: object
+      properties:
+        sourceText:
+          type: string
+          maxLength: 500
+        targetText:
+          type: string
+          maxLength: 500
+          nullable: true
+        notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 20
+        partOfSpeech:
+          $ref: "#/components/schemas/PartOfSpeech"
+        learningState:
+          $ref: "#/components/schemas/LearningState"
+
+    AIEnrichment:
+      type: object
+      required: [id, entryId, generatedAt, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        entryId:
+          type: string
+          format: uuid
+        exampleSentences:
+          type: array
+          items:
+            type: string
+          nullable: true
+        synonyms:
+          type: array
+          items:
+            type: string
+          nullable: true
+        antonyms:
+          type: array
+          items:
+            type: string
+          nullable: true
+        register:
+          type: string
+          nullable: true
+          example: "informal"
+        collocations:
+          type: array
+          items:
+            type: string
+          nullable: true
+        falseFriendWarning:
+          type: string
+          nullable: true
+        generatedAt:
+          type: string
+          format: date-time
+        editedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    EnrichmentUpdate:
+      type: object
+      description: Partial update of AI enrichment fields (user edits). All fields optional.
+      properties:
+        exampleSentences:
+          type: array
+          items:
+            type: string
+          nullable: true
+        synonyms:
+          type: array
+          items:
+            type: string
+          nullable: true
+        antonyms:
+          type: array
+          items:
+            type: string
+          nullable: true
+        register:
+          type: string
+          nullable: true
+        collocations:
+          type: array
+          items:
+            type: string
+          nullable: true
+        falseFriendWarning:
+          type: string
+          nullable: true
+
+    UserQuota:
+      type: object
+      required: [aiQuotaUsedToday, aiQuotaLimit, aiQuotaResetAt]
+      properties:
+        aiQuotaUsedToday:
+          type: integer
+          description: Number of AI enrichment calls made today
+        aiQuotaLimit:
+          type: integer
+          description: Maximum AI enrichment calls allowed per day
+        aiQuotaResetAt:
+          type: string
+          format: date-time
+          description: UTC timestamp when the quota counter resets
+
+    AccessRequestCreate:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+
+paths:
+
+  # ── Public endpoints (no auth) ──────────────────────────────────────────────
+
+  /languages:
+    get:
+      operationId: listLanguages
+      summary: Get supported ISO 639-1 language list
+      description: Returns the list of supported languages for phrasebook creation.
+        This endpoint is unauthenticated and cached aggressively.
+      security: []
+      responses:
+        "200":
+          description: Language list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Language"
+
+  /access-requests:
+    post:
+      operationId: createAccessRequest
+      summary: Submit a private-preview access request
+      description: |
+        Unauthenticated. Records the requester's email and returns a confirmation.
+        Rate-limited to prevent automated abuse.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccessRequestCreate"
+      responses:
+        "202":
+          description: Request accepted; pending review
+        "400":
+          description: Invalid email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Too many requests
+
+  # ── Authenticated endpoints ──────────────────────────────────────────────────
+
+  /phrasebooks:
+    get:
+      operationId: listPhrasebooks
+      summary: List all phrasebooks for the authenticated user
+      responses:
+        "200":
+          description: List of phrasebooks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Phrasebook"
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not on allow-list
+
+    post:
+      operationId: createPhrasebook
+      summary: Create a new phrasebook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhrasebookCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Phrasebook"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not on allow-list
+
+  /phrasebooks/{phrasebookId}:
+    parameters:
+      - name: phrasebookId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      operationId: getPhrasebook
+      summary: Get a single phrasebook
+      responses:
+        "200":
+          description: Phrasebook
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Phrasebook"
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not on allow-list or not owner
+        "404":
+          description: Not found
+
+    put:
+      operationId: updatePhrasebook
+      summary: Update phrasebook name or language pair
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhrasebookUpdate"
+      responses:
+        "200":
+          description: Updated phrasebook
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Phrasebook"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not on allow-list or not owner
+        "404":
+          description: Not found
+
+    delete:
+      operationId: deletePhrasebook
+      summary: Delete a phrasebook and all its entries
+      description: Permanently deletes the phrasebook and cascades deletion to all
+        vocabulary entries and their enrichments. Requires explicit confirmation via
+        the request body.
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not on allow-list or not owner
+        "404":
+          description: Not found
+
+  /entries:
+    get:
+      operationId: listEntries
+      summary: List vocabulary entries (cross-phrasebook by default)
+      description: |
+        Returns entries for the authenticated user. Searches all phrasebooks by default.
+        All query parameters are combinable.
+      parameters:
+        - name: phrasebookId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter to a single phrasebook
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Full-text search across sourceText, targetText, notes, tags
+        - name: tag
+          in: query
+          schema:
+            type: string
+          description: Filter by exact tag value
+        - name: partOfSpeech
+          in: query
+          schema:
+            $ref: "#/components/schemas/PartOfSpeech"
+        - name: learningState
+          in: query
+          schema:
+            $ref: "#/components/schemas/LearningState"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Entry list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/VocabularyEntry"
+                  total:
+                    type: integer
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not on allow-list
+
+    post:
+      operationId: createEntry
+      summary: Create a vocabulary entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntryCreate"
+      responses:
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VocabularyEntry"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not on allow-list or phrasebook not owned by user
+        "404":
+          description: Phrasebook not found
+
+  /entries/{entryId}:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      operationId: getEntry
+      summary: Get a single vocabulary entry
+      responses:
+        "200":
+          description: Entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VocabularyEntry"
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not owner
+        "404":
+          description: Not found
+
+    put:
+      operationId: updateEntry
+      summary: Update a vocabulary entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntryUpdate"
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VocabularyEntry"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not owner
+        "404":
+          description: Not found
+
+    delete:
+      operationId: deleteEntry
+      summary: Delete a vocabulary entry and its enrichment
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not owner
+        "404":
+          description: Not found
+
+  /entries/{entryId}/enrich:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      operationId: enrichEntry
+      summary: Request AI enrichment for a vocabulary entry
+      description: |
+        Triggers an on-demand AI enrichment call for the specified entry.
+        Requires network connectivity (returns 503 if AI backend is unreachable).
+        Subject to per-user daily quota. Returns 429 with quota details when limit reached.
+        All AI output is sanitised before storage.
+      responses:
+        "200":
+          description: Enrichment created or refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIEnrichment"
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not owner
+        "404":
+          description: Entry not found
+        "429":
+          description: Daily AI quota exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  quota:
+                    $ref: "#/components/schemas/UserQuota"
+        "503":
+          description: AI backend unavailable
+
+  /entries/{entryId}/enrichment:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    patch:
+      operationId: updateEnrichment
+      summary: Update (user-edit) AI enrichment fields
+      description: Allows the user to edit any AI-generated enrichment field.
+        User edits supersede generated values; no original is preserved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnrichmentUpdate"
+      responses:
+        "200":
+          description: Updated enrichment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIEnrichment"
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not owner
+        "404":
+          description: Entry or enrichment not found
+
+  /users/me/quota:
+    get:
+      operationId: getUserQuota
+      summary: Get current AI usage quota for the authenticated user
+      responses:
+        "200":
+          description: Quota status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserQuota"
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Not on allow-list

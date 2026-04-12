@@ -14,6 +14,7 @@
 - Q: Should a phrasebook record language information as structured fields? → A: Both source language and target language are required fields on every phrasebook. Both are selected from the ISO 639-1 standard language list (~180 languages) presented as a searchable dropdown. No free-form fallback is permitted. This explicitly supports learners who study a language from a non-native source — e.g., an Italian speaker building an English → Danish phrasebook.
 - Q: Does search span all phrasebooks or only the currently open one? → A: Search spans all of the user's phrasebooks by default; the phrasebook filter (already in requirements) narrows results to a single phrasebook when needed.
 - Q: Should security be a first-class, non-negotiable constraint across all phases? → A: Yes. Security is non-negotiable and must be treated as the top priority at every stage of planning and implementation. The app accepts user-provided free-text input and integrates with AI, both of which are explicit attack surfaces. OWASP Top 10 compliance is a minimum baseline.
+- Q: What environment stages should the app support for development and testing? → A: Three stages: **local** (fully local, all external services mocked — no Azure required), **dev** (frontend runs locally, connected to real Azure dev resources with real user data), **prod** (fully cloud-hosted, real data, real users). Each stage has its own environment configuration; no stage shares config with another.
 
 ---
 
@@ -325,6 +326,61 @@ limited to learning-state entries, step through each entry, and toggle their sta
 - **FR-039**: The application MUST comply with OWASP Top 10 as a minimum security baseline.
   Any known violation MUST be treated as a blocking defect.
 
+**Progressive Web App**
+
+- **FR-042**: The app MUST be a standards-compliant Progressive Web App with:
+  - A complete Web App Manifest (`manifest.json`) including name, short name, icons
+    (at minimum 192px and 512px), theme colour, background colour, display mode
+    (`standalone`), and start URL.
+  - A registered Service Worker that caches all static assets and the ISO 639-1 language
+    list for offline use.
+  - Installation eligibility on all major platforms: iOS Safari ("Add to Home Screen"),
+    Android Chrome (install banner / prompt), and desktop Chrome/Edge (Install app).
+  - Standalone display mode: when launched from the home screen or desktop shortcut, the
+    app MUST run without browser chrome (no address bar, navigation bar, or tab strip).
+- **FR-043**: The app MUST be fully functional across all of the following surface types
+  without platform-specific builds or code paths:
+  - Desktop browser (Chrome, Firefox, Edge, Safari on Windows / macOS / Linux)
+  - Mobile browser (Chrome and Safari on Android and iOS)
+  - Installed PWA on desktop (Windows, macOS)
+  - Installed PWA on mobile home screen (Android, iOS)
+
+**Visual Design**
+
+- **FR-044**: The app MUST have a distinctive, colourful, and visually engaging design.
+  It MUST NOT resemble a generic productivity tool or corporate dashboard. The visual
+  identity should feel personal, warm, and expressive — consistent with the creative
+  act of language learning.
+- **FR-045**: The UI MUST use a consistent, intentional colour palette, typography, and
+  iconography system applied uniformly across all screens and device sizes.
+- **FR-046**: The app MUST be fully responsive: layouts MUST adapt gracefully between
+  mobile (320px+), tablet, and desktop viewport widths. No feature or content MUST be
+  hidden or inaccessible at any supported viewport size.
+- **FR-047**: The app MUST provide visual feedback for all asynchronous operations
+  (loading states, sync progress, AI enrichment in progress) that is consistent with
+  the overall design language.
+- **FR-048**: The app MUST support both light mode and dark mode. It MUST respect the
+  user's operating system / browser colour scheme preference (`prefers-color-scheme`
+  media query) as the default. Users MUST also be able to manually override the theme
+  via a toggle within the app; the chosen preference MUST be persisted across sessions.
+  Both modes MUST fully reflect the app's colourful, distinctive visual identity —
+  dark mode is not simply an inverted or desaturated version of light mode.
+
+- **FR-040**: The application MUST support three distinct environment stages:
+  - **local** — fully local execution with no dependency on any external Azure service.
+    All external integrations (Cosmos DB, Azure AD B2C, Azure AI Foundry) MUST be
+    replaceable with in-process mocks or stubs. Authentication is bypassed; a hardcoded
+    test user identity is used. Suitable for developing and testing core business logic,
+    UI components, and offline behaviour without an Azure account or internet access.
+  - **dev** — frontend and API run locally but connect to real Azure dev-tier resources
+    (a dedicated Cosmos DB database, a dev-registered B2C app, a dev AI Foundry deployment).
+    Enables testing with real user authentication and real data flows.
+  - **prod** — all services deployed and served from Azure (Static Web Apps, Functions,
+    Cosmos DB, B2C, AI Foundry). No local processes involved.
+- **FR-041**: Environment configuration MUST be fully controlled by environment variables
+  or environment-specific settings files. No stage-specific logic MUST be hard-coded in
+  application source. Switching stages MUST require only a configuration change.
+
 ### Key Entities
 
 - **User**: An authenticated, allow-listed learner. Identified by their OAuth identity.
@@ -371,14 +427,23 @@ limited to learning-state entries, step through each entry, and toggle their sta
   reached; the limit resets within 24 hours.
 - **SC-007**: Monthly infrastructure cost for the app remains below $100, with a target
   below $50, under anticipated private-preview traffic (up to 50 active users).
-- **SC-008**: The app installs as a PWA and is fully usable from the home screen on both
-  iOS and Android devices, including offline entry capture.
+- **SC-008**: The app is a fully compliant Progressive Web App: it installs and runs from
+  the home screen on iOS and Android, and installs as a standalone app on desktop (Windows,
+  macOS, Linux) via the browser's "Add to desktop" / "Install app" prompt. Once installed,
+  it launches without browser chrome (no address bar, no tabs) and behaves like a native
+  app. Offline entry capture works identically in both browser and installed modes.
 - **SC-009**: No user-provided or AI-generated content is rendered in the UI without
   sanitisation; the absence of XSS vulnerabilities is verified before any release.
 - **SC-010**: No API keys, secrets, or service credentials are present in any client-side
   build artefact; verified by automated secret scanning on every build.
 - **SC-011**: Every authenticated API endpoint rejects requests with invalid or expired
   tokens with a 401 response; no partial data is returned on authentication failure.
+- **SC-012**: A new user opening the app for the first time on any platform (desktop browser,
+  mobile browser, installed PWA) immediately understands the app's purpose and can navigate
+  to adding their first entry within 3 taps or clicks, with no tutorial required.
+- **SC-013**: The visual design is immediately distinctive and engaging. A first-time visitor
+  who does not know what the app does MUST be able to identify it as a personal, expressive
+  language learning tool — not a generic productivity app or a corporate dashboard.
 
 ---
 
@@ -404,5 +469,7 @@ limited to learning-state entries, step through each entry, and toggle their sta
   list (~180 languages) via a searchable dropdown; free-form language entry is not supported.
   The source language need not be the learner's native language — a polyglot may study
   Danish from English, not from Italian.
-- The app targets modern evergreen browsers on desktop and mobile; IE11 and legacy browsers
-  are not supported.
+- The app targets modern evergreen browsers on desktop (Windows, macOS, Linux) and mobile
+  (iOS Safari 16+, Android Chrome 110+). IE11 and legacy browsers are not supported.
+  All four surface types — desktop browser, mobile browser, installed desktop PWA,
+  installed mobile PWA — are first-class targets with equal feature parity.
