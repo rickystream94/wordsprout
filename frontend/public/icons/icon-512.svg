@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Book shape -->
+  <rect x="100" y="80" width="312" height="352" rx="28" fill="white" opacity="0.15"/>
+  <rect x="116" y="96" width="280" height="320" rx="20" fill="white" opacity="0.92"/>
+  <!-- Spine -->
+  <rect x="116" y="96" width="32" height="320" rx="10" fill="#7c3aed" opacity="0.25"/>
+  <!-- Lines representing text -->
+  <rect x="172" y="160" width="160" height="18" rx="9" fill="#7c3aed" opacity="0.65"/>
+  <rect x="172" y="192" width="130" height="14" rx="7" fill="#7c3aed" opacity="0.4"/>
+  <rect x="172" y="220" width="148" height="14" rx="7" fill="#7c3aed" opacity="0.4"/>
+  <rect x="172" y="248" width="120" height="14" rx="7" fill="#f59e0b" opacity="0.7"/>
+  <rect x="172" y="276" width="140" height="14" rx="7" fill="#7c3aed" opacity="0.3"/>
+  <rect x="172" y="304" width="108" height="14" rx="7" fill="#7c3aed" opacity="0.3"/>
+  <!-- Accent badge -->
+  <circle cx="368" cy="136" r="44" fill="#f59e0b"/>
+  <text x="368" y="153" text-anchor="middle" font-size="52" font-family="system-ui,sans-serif" font-weight="bold" fill="white">V</text>
+</svg>

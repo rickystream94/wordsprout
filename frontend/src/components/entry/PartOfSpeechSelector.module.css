@@ -1,0 +1,30 @@
+.wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.option {
+  padding: 4px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.option:hover:not(.selected) {
+  background: var(--bg-subtle);
+  border-color: var(--brand-400);
+  color: var(--text-primary);
+}
+
+.selected {
+  background: var(--brand-500);
+  border-color: var(--brand-500);
+  color: #fff;
+  font-weight: 600;
+}

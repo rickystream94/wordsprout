@@ -1,0 +1,164 @@
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.newBtn {
+  background: var(--brand-500);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  white-space: nowrap;
+}
+
+.newBtn:hover {
+  background: var(--brand-600);
+}
+
+.formWrapper {
+  margin-bottom: var(--space-6);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.loading {
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-8);
+}
+
+/* Phrasebook grid */
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.cardLink {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  height: 100%;
+}
+
+.cardBody {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.cardName {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.cardLangs {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.cardCount {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--brand-600);
+  background: var(--brand-50);
+  border-radius: var(--radius-full);
+  padding: 2px 10px;
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+[data-theme='dark'] .cardCount {
+  color: var(--brand-300);
+  background: color-mix(in srgb, var(--brand-500) 20%, transparent);
+}
+
+/* Empty state */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-4);
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 3.5rem;
+  line-height: 1;
+}
+
+.emptyTitle {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.emptyDesc {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  max-width: 320px;
+  margin: 0;
+}
+
+.emptyBtn {
+  margin-top: var(--space-2);
+  background: var(--brand-500);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.emptyBtn:hover {
+  background: var(--brand-600);
+}

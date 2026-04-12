@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="192" height="192" rx="40" fill="url(#bg)"/>
+  <!-- Book shape -->
+  <rect x="44" y="36" width="104" height="120" rx="10" fill="white" opacity="0.15"/>
+  <rect x="50" y="42" width="98" height="114" rx="8" fill="white" opacity="0.9"/>
+  <!-- Spine -->
+  <rect x="50" y="42" width="12" height="114" rx="4" fill="#7c3aed" opacity="0.3"/>
+  <!-- Lines representing text -->
+  <rect x="72" y="64" width="56" height="6" rx="3" fill="#7c3aed" opacity="0.6"/>
+  <rect x="72" y="78" width="46" height="5" rx="2.5" fill="#7c3aed" opacity="0.4"/>
+  <rect x="72" y="90" width="52" height="5" rx="2.5" fill="#7c3aed" opacity="0.4"/>
+  <rect x="72" y="104" width="40" height="5" rx="2.5" fill="#f59e0b" opacity="0.7"/>
+  <!-- Sparkle/star for "vocab" -->
+  <circle cx="138" cy="54" r="16" fill="#f59e0b"/>
+  <text x="138" y="60" text-anchor="middle" font-size="18" font-family="system-ui,sans-serif" font-weight="bold" fill="white">V</text>
+</svg>
