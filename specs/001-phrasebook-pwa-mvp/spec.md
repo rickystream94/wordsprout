@@ -7,6 +7,16 @@
 
 ---
 
+## Clarifications
+
+### Session 2026-04-12
+
+- Q: Should a phrasebook record language information as structured fields? → A: Both source language and target language are required fields on every phrasebook. Both are selected from the ISO 639-1 standard language list (~180 languages) presented as a searchable dropdown. No free-form fallback is permitted. This explicitly supports learners who study a language from a non-native source — e.g., an Italian speaker building an English → Danish phrasebook.
+- Q: Does search span all phrasebooks or only the currently open one? → A: Search spans all of the user's phrasebooks by default; the phrasebook filter (already in requirements) narrows results to a single phrasebook when needed.
+- Q: Should security be a first-class, non-negotiable constraint across all phases? → A: Yes. Security is non-negotiable and must be treated as the top priority at every stage of planning and implementation. The app accepts user-provided free-text input and integrates with AI, both of which are explicit attack surfaces. OWASP Top 10 compliance is a minimum baseline.
+
+---
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Capture a Vocabulary Entry (Priority: P1)
@@ -59,7 +69,8 @@ contain that substring. Applying a tag filter further narrows the results correc
 
 1. **Given** the user has 20+ entries across multiple phrasebooks, **When** they type a word
    fragment into the search field, **Then** all entries containing that fragment in any text
-   field (source, target, notes, tags) are returned within 1 second, without a network call.
+   field (source, target, notes, tags) are returned from **all phrasebooks** within 1 second,
+   without a network call.
 2. **Given** search results are displayed, **When** the user applies a tag filter, **Then**
    only entries matching both the search term and the selected tag remain visible.
 3. **Given** the search field is empty and no filters are active, **When** the user views a
@@ -219,7 +230,8 @@ limited to learning-state entries, step through each entry, and toggle their sta
 
 **Phrasebook Management**
 
-- **FR-001**: Users MUST be able to create one or more named phrasebooks.
+- **FR-001**: Users MUST be able to create one or more named phrasebooks, each with a required name, a required source language, and a required target language. Source and target languages MUST be selected from the ISO 639-1 standard language list, presented as a searchable dropdown. Free-form language input is not permitted.
+- **FR-001a**: Source and target language selections MUST be independently editable after phrasebook creation, constrained to the same ISO 639-1 list.
 - **FR-002**: Users MUST be able to rename and delete phrasebooks.
 - **FR-003**: Each phrasebook MUST be independently browsable and searchable.
 
@@ -255,10 +267,12 @@ limited to learning-state entries, step through each entry, and toggle their sta
 **Search & Filtering**
 
 - **FR-017**: Users MUST be able to perform full-text search across source text, target
-  text, notes, and tags simultaneously.
+  text, notes, and tags simultaneously. Search MUST span all of the user's phrasebooks
+  by default.
 - **FR-018**: Search results MUST appear without perceptible delay (see SC-003).
 - **FR-019**: Users MUST be able to filter entries by phrasebook, learning state, part of
-  speech, and tag (combinable filters).
+  speech, and tag (combinable filters). Applying a phrasebook filter narrows search results
+  to that phrasebook only.
 - **FR-020**: Filter and search state MUST be combinable; all active filters apply
   simultaneously.
 
@@ -289,13 +303,39 @@ limited to learning-state entries, step through each entry, and toggle their sta
 - **FR-031**: Users not on the allow-list who attempt OAuth sign-in MUST receive a clear
   "access not yet granted" message and MUST NOT have any personal data created or exposed.
 
+**Security (NON-NEGOTIABLE — applies to all phases)**
+
+- **FR-032**: All user-provided text inputs (source expression, target expression, notes,
+  tags, phrasebook name, access request email) MUST be sanitised before storage and before
+  rendering in the UI to prevent XSS and injection attacks.
+- **FR-033**: All AI-generated content MUST be sanitised before being stored or rendered;
+  AI responses MUST be treated as untrusted input regardless of the model used.
+- **FR-034**: Client-side code MUST NOT contain API keys, secrets, AI service credentials,
+  or database connection strings. All calls to external services MUST be proxied through
+  server-side functions.
+- **FR-035**: Every authenticated API endpoint MUST validate the caller's token and
+  allow-list membership before performing any operation or returning any data. No endpoint
+  may rely solely on client-supplied identity claims.
+- **FR-036**: The backend API MUST enforce per-user rate limiting on all endpoints,
+  independent of the AI-specific daily cap in FR-024.
+- **FR-037**: The access-request submission endpoint MUST be protected against automated
+  abuse (e.g., bot submissions) without requiring authenticated users.
+- **FR-038**: All data in transit MUST use TLS; unencrypted HTTP connections MUST be
+  rejected or redirected.
+- **FR-039**: The application MUST comply with OWASP Top 10 as a minimum security baseline.
+  Any known violation MUST be treated as a blocking defect.
+
 ### Key Entities
 
 - **User**: An authenticated, allow-listed learner. Identified by their OAuth identity.
   Holds a collection of phrasebooks. Has daily AI usage quota state.
 
-- **Phrasebook**: A named container owned by a user, typically representing one target
-  language. Contains vocabulary entries. Has a name and creation date.
+- **Phrasebook**: A named container owned by a user representing one explicit language pair.
+  Required fields: name, source language (ISO 639-1 code + display name), target language
+  (ISO 639-1 code + display name), creation date. A single user may have multiple
+  phrasebooks with different source languages (e.g., an Italian speaker may have both an
+  Italian → English and an English → Danish phrasebook). Language values are constrained
+  to the ISO 639-1 list; free-form language input is not supported.
 
 - **VocabularyEntry**: The core entity. Belongs to one phrasebook. Fields: source
   expression, target expression, notes (optional), tags (list), part-of-speech
@@ -333,11 +373,20 @@ limited to learning-state entries, step through each entry, and toggle their sta
   below $50, under anticipated private-preview traffic (up to 50 active users).
 - **SC-008**: The app installs as a PWA and is fully usable from the home screen on both
   iOS and Android devices, including offline entry capture.
+- **SC-009**: No user-provided or AI-generated content is rendered in the UI without
+  sanitisation; the absence of XSS vulnerabilities is verified before any release.
+- **SC-010**: No API keys, secrets, or service credentials are present in any client-side
+  build artefact; verified by automated secret scanning on every build.
+- **SC-011**: Every authenticated API endpoint rejects requests with invalid or expired
+  tokens with a 401 response; no partial data is returned on authentication failure.
 
 ---
 
 ## Assumptions
 
+- Security is non-negotiable and is the top priority at every stage of planning and
+  implementation. OWASP Top 10 compliance is the minimum baseline; known violations are
+  blocking defects that MUST be resolved before any feature is considered done.
 - Users are adult, independent language learners with at least basic digital literacy.
   The app is not designed for children or classroom delivery.
 - A single user may maintain multiple phrasebooks (one per target language is the typical
@@ -351,7 +400,9 @@ limited to learning-state entries, step through each entry, and toggle their sta
 - Spaced repetition is explicitly out of scope for the MVP; the review flow is fully manual.
 - Social features, entry sharing, and public phrasebooks are explicitly out of scope.
 - Data import/export (CSV, Anki, etc.) is out of scope for the MVP.
-- The target language of a phrasebook is a user-chosen label only; the system does not
-  validate or process it as a locale identifier.
+- Both source and target language of a phrasebook are selected from the ISO 639-1 standard
+  list (~180 languages) via a searchable dropdown; free-form language entry is not supported.
+  The source language need not be the learner's native language — a polyglot may study
+  Danish from English, not from Italian.
 - The app targets modern evergreen browsers on desktop and mobile; IE11 and legacy browsers
   are not supported.
