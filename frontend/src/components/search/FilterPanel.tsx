@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useAuth } from '../../auth/AuthProvider';
 import type { DBPhrasebook } from '../../services/db';
@@ -12,15 +13,93 @@ interface FilterPanelProps {
   onChange: (filters: ActiveFilters) => void;
 }
 
-const LEARNING_STATE_OPTIONS: { value: LearningState | ''; label: string }[] = [
-  { value: '', label: 'All states' },
+// ── Custom multi-select dropdown ──────────────────────────────────────────────
+
+interface MultiSelectOption {
+  value: string;
+  label: string;
+}
+
+interface MultiSelectDropdownProps {
+  placeholder: string;
+  options: MultiSelectOption[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+}
+
+function MultiSelectDropdown({ placeholder, options, selected, onChange }: MultiSelectDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  function toggle(value: string) {
+    onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
+  }
+
+  const label =
+    selected.length === 0
+      ? placeholder
+      : selected.length === 1
+        ? options.find((o) => o.value === selected[0])?.label ?? placeholder
+        : `${selected.length} selected`;
+
+  return (
+    <div className={styles.dropdown} ref={ref}>
+      <button
+        type="button"
+        className={`${styles.dropdownTrigger} ${selected.length > 0 ? styles.dropdownActive : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className={styles.dropdownLabel}>{label}</span>
+        {selected.length > 0 && (
+          <span className={styles.dropdownCount}>{selected.length}</span>
+        )}
+        <svg className={`${styles.dropdownChevron} ${open ? styles.dropdownChevronOpen : ''}`}
+          width="12" height="8" viewBox="0 0 12 8" fill="none" aria-hidden="true">
+          <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div className={styles.dropdownMenu} role="listbox" aria-multiselectable="true">
+          {options.map((opt) => {
+            const checked = selected.includes(opt.value);
+            return (
+              <label key={opt.value} className={`${styles.dropdownItem} ${checked ? styles.dropdownItemChecked : ''}`}>
+                <input
+                  type="checkbox"
+                  className={styles.dropdownCheckbox}
+                  checked={checked}
+                  onChange={() => toggle(opt.value)}
+                />
+                <span>{opt.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── FilterPanel ───────────────────────────────────────────────────────────────
+
+const LEARNING_STATE_OPTIONS: MultiSelectOption[] = [
   { value: 'new', label: 'New' },
   { value: 'learning', label: 'Learning' },
   { value: 'mastered', label: 'Mastered' },
 ];
 
-const PART_OF_SPEECH_OPTIONS: { value: PartOfSpeech | ''; label: string }[] = [
-  { value: '', label: 'All parts of speech' },
+const PART_OF_SPEECH_OPTIONS: MultiSelectOption[] = [
   { value: 'noun', label: 'Noun' },
   { value: 'verb', label: 'Verb' },
   { value: 'adjective', label: 'Adjective' },
@@ -54,64 +133,51 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
     [userId],
   );
 
-  const activeCount = Object.values(filters).filter(Boolean).length;
+  const phrasebookOptions: MultiSelectOption[] = (phrasebooks ?? []).map((pb) => ({
+    value: pb.id,
+    label: pb.name,
+  }));
 
-  function update(key: keyof ActiveFilters, value: string) {
-    onChange({ ...filters, [key]: value });
-  }
+  const tagOptions: MultiSelectOption[] = (allTags ?? []).map((tag) => ({
+    value: tag,
+    label: `#${tag}`,
+  }));
+
+  const activeCount =
+    filters.phrasebookIds.length +
+    filters.learningStates.length +
+    filters.partsOfSpeech.length +
+    filters.tags.length;
 
   return (
     <div className={styles.panel}>
       <div className={styles.row}>
-        {/* Phrasebook filter */}
-        <select
-          className={styles.select}
-          value={filters.phrasebookId}
-          onChange={(e) => update('phrasebookId', e.target.value)}
-          aria-label="Filter by phrasebook"
-        >
-          <option value="">All phrasebooks</option>
-          {(phrasebooks ?? []).map((pb: DBPhrasebook) => (
-            <option key={pb.id} value={pb.id}>{pb.name}</option>
-          ))}
-        </select>
-
-        {/* Learning state filter */}
-        <select
-          className={styles.select}
-          value={filters.learningState}
-          onChange={(e) => update('learningState', e.target.value)}
-          aria-label="Filter by learning state"
-        >
-          {LEARNING_STATE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-
-        {/* Part of speech filter */}
-        <select
-          className={styles.select}
-          value={filters.partOfSpeech}
-          onChange={(e) => update('partOfSpeech', e.target.value)}
-          aria-label="Filter by part of speech"
-        >
-          {PART_OF_SPEECH_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-
-        {/* Tag filter */}
-        <select
-          className={styles.select}
-          value={filters.tag}
-          onChange={(e) => update('tag', e.target.value)}
-          aria-label="Filter by tag"
-        >
-          <option value="">All tags</option>
-          {(allTags ?? []).map((tag: string) => (
-            <option key={tag} value={tag}>#{tag}</option>
-          ))}
-        </select>
+        <MultiSelectDropdown
+          placeholder="All phrasebooks"
+          options={phrasebookOptions}
+          selected={filters.phrasebookIds}
+          onChange={(v) => onChange({ ...filters, phrasebookIds: v })}
+        />
+        <MultiSelectDropdown
+          placeholder="All states"
+          options={LEARNING_STATE_OPTIONS}
+          selected={filters.learningStates as string[]}
+          onChange={(v) => onChange({ ...filters, learningStates: v as LearningState[] })}
+        />
+        <MultiSelectDropdown
+          placeholder="All parts of speech"
+          options={PART_OF_SPEECH_OPTIONS}
+          selected={filters.partsOfSpeech as string[]}
+          onChange={(v) => onChange({ ...filters, partsOfSpeech: v as PartOfSpeech[] })}
+        />
+        {tagOptions.length > 0 && (
+          <MultiSelectDropdown
+            placeholder="All tags"
+            options={tagOptions}
+            selected={filters.tags}
+            onChange={(v) => onChange({ ...filters, tags: v })}
+          />
+        )}
       </div>
 
       {activeCount > 0 && (

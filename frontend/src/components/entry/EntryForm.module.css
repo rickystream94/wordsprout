@@ -115,7 +115,7 @@
 
 .segmentActive {
   background: var(--brand-500);
-  color: #fff;
+  color: var(--text-on-brand);
   font-weight: 600;
 }
 
@@ -210,7 +210,7 @@
 
 .submitBtn {
   background: var(--brand-500);
-  color: #fff;
+  color: var(--text-on-brand);
   border: none;
   border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-5);

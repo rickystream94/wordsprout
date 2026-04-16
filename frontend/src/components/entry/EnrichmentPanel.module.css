@@ -39,7 +39,7 @@
 .enrichBtn {
   padding: var(--space-2) var(--space-4);
   background: var(--color-primary);
-  color: #fff;
+  color: var(--text-on-brand);
   border: none;
   border-radius: var(--radius-md);
   font-size: var(--text-sm);

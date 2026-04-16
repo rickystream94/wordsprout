@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import EntryForm, { type EntryFormData } from '../components/entry/EntryForm';
@@ -13,6 +13,7 @@ import {
   getEntriesByPhrasebook,
   getPhrasebook,
   updateEntry,
+  updatePhrasebook,
   type DBEntry,
 } from '../services/db';
 import { enqueueMutation } from '../services/sync';
@@ -33,6 +34,9 @@ export default function PhrasebookView() {
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState<DBEntry | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState('');
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   if (phrasebook === undefined || entries === undefined) {
     return <main className={styles.page}><p className={styles.loading}>Loading…</p></main>;
@@ -98,6 +102,21 @@ export default function PhrasebookView() {
     navigate('/');
   }
 
+  function startEditingName() {
+    setNameValue(phrasebook.name);
+    setEditingName(true);
+    setTimeout(() => nameInputRef.current?.select(), 0);
+  }
+
+  async function commitNameEdit() {
+    const trimmed = nameValue.trim();
+    if (trimmed && trimmed !== phrasebook.name && id) {
+      await updatePhrasebook(id, { name: trimmed });
+      await enqueueMutation(`${API_BASE}/phrasebooks/${id}`, 'PATCH', { name: trimmed });
+    }
+    setEditingName(false);
+  }
+
   return (
     <main className={styles.page}>
       {/* Header */}
@@ -106,13 +125,40 @@ export default function PhrasebookView() {
           <Link to="/" className={styles.backLink}>← Phrasebooks</Link>
         </div>
         <div className={styles.titleRow}>
-          <h1 className={styles.title}>{phrasebook.name}</h1>
+          {editingName ? (
+            <input
+              ref={nameInputRef}
+              className={styles.titleInput}
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onBlur={commitNameEdit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); commitNameEdit(); }
+                if (e.key === 'Escape') setEditingName(false);
+              }}
+              maxLength={120}
+              aria-label="Phrasebook name"
+            />
+          ) : (
+            <h1
+              className={styles.title}
+              onClick={startEditingName}
+              title="Click to rename"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') startEditingName(); }}
+            >
+              {phrasebook.name}
+              <svg className={styles.editNameIcon} width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61a.75.75 0 0 1-.38.2l-3.5.7a.75.75 0 0 1-.88-.88l.7-3.5a.75.75 0 0 1 .2-.38l8.61-8.61zm1.414 1.06a.25.25 0 0 0-.354 0L3 11.56v1.44h1.44L13.5 3.96l-1.086-1.06z"/></svg>
+            </h1>
+          )}
           <button
             className={styles.deletePhrasebookBtn}
             onClick={() => setConfirmDelete(true)}
             aria-label="Delete phrasebook"
           >
-            Delete
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15Z"/></svg>
+            Delete phrasebook
           </button>
         </div>
         <p className={styles.langs}>

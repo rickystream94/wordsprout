@@ -84,7 +84,7 @@ function LanguageSelector({ label, value, languages, onChange, id }: LanguageSel
             autoFocus
           />
           <ul className={styles.optionList}>
-            {filtered.slice(0, 80).map((l) => (
+            {filtered.map((l) => (
               <li
                 key={l.code}
                 role="option"

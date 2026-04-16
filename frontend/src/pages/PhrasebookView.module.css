@@ -48,17 +48,63 @@
   color: var(--text-primary);
   margin: 0;
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  margin-left: -4px;
+  transition: background var(--transition-fast);
+}
+
+.title:hover {
+  background: var(--bg-subtle);
+}
+
+.editNameIcon {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.title:hover .editNameIcon {
+  opacity: 1;
+}
+
+.titleInput {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  border: 1px solid var(--brand-500);
+  border-radius: var(--radius-md);
+  padding: 2px var(--space-3);
+  outline: none;
+  flex: 1;
+  font-family: inherit;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-500) 20%, transparent);
 }
 
 .deletePhrasebookBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   background: transparent;
   border: 1px solid var(--danger-400);
-  color: var(--danger-500);
+  color: var(--danger-600);
   border-radius: var(--radius-md);
   padding: var(--space-1) var(--space-3);
   font-size: var(--text-sm);
+  font-weight: 500;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+[data-theme='dark'] .deletePhrasebookBtn {
+  border-color: var(--danger-400);
+  color: var(--danger-400);
 }
 
 .deletePhrasebookBtn:hover {
@@ -164,7 +210,7 @@
   height: 56px;
   border-radius: var(--radius-full);
   background: var(--brand-500);
-  color: #fff;
+  color: var(--text-on-brand);
   border: none;
   font-size: 1.75rem;
   line-height: 1;

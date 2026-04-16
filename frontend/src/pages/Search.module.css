@@ -21,3 +21,11 @@
   gap: var(--space-3);
   margin-bottom: var(--space-6);
 }
+
+.formWrapper {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  margin-bottom: var(--space-6);
+}

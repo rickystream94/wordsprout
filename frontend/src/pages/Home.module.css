@@ -22,7 +22,7 @@
 
 .newBtn {
   background: var(--brand-500);
-  color: #fff;
+  color: var(--text-on-brand);
   border: none;
   border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-4);
@@ -65,12 +65,13 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+  transition: box-shadow var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
 }
 
 .card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
+  border-color: var(--brand-400);
 }
 
 .cardLink {
@@ -78,6 +79,10 @@
   text-decoration: none;
   color: inherit;
   height: 100%;
+}
+
+.cardLink:hover {
+  text-decoration: none;
 }
 
 .cardBody {
@@ -149,7 +154,7 @@
 .emptyBtn {
   margin-top: var(--space-2);
   background: var(--brand-500);
-  color: #fff;
+  color: var(--text-on-brand);
   border: none;
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-6);
