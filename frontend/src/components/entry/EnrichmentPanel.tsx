@@ -133,7 +133,8 @@ export default function EnrichmentPanel({
             disabled={!isOnline || loading}
             aria-busy={loading}
           >
-            {loading ? 'Enriching…' : !isOnline ? 'Offline — connect to enrich' : 'Enrich'}
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.53 1.282a.5.5 0 0 1 .94 0l1.363 3.738 3.738 1.363a.5.5 0 0 1 0 .94l-3.738 1.363-1.363 3.738a.5.5 0 0 1-.94 0L6.167 8.686 2.43 7.323a.5.5 0 0 1 0-.94l3.738-1.363zM2.5 1a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1H3v1a.5.5 0 0 1-1 0V3.5h-1a.5.5 0 0 1 0-1H2v-1A.5.5 0 0 1 2.5 1zm10 9a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1h-1v1a.5.5 0 0 1-1 0v-1h-1a.5.5 0 0 1 0-1h1v-1a.5.5 0 0 1 .5-.5z"/></svg>
+          {loading ? 'Enriching…' : !isOnline ? 'Offline — connect to enrich' : 'Enrich'}
           </button>
           {error && <p className={styles.error}>{error}</p>}
         </div>
@@ -155,26 +156,13 @@ export default function EnrichmentPanel({
             aria-busy={loading}
             title="Re-generate enrichment"
           >
-            {loading ? '⟳ Regenerating…' : '⟳ Re-enrich'}
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.53 1.282a.5.5 0 0 1 .94 0l1.363 3.738 3.738 1.363a.5.5 0 0 1 0 .94l-3.738 1.363-1.363 3.738a.5.5 0 0 1-.94 0L6.167 8.686 2.43 7.323a.5.5 0 0 1 0-.94l3.738-1.363zM2.5 1a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1H3v1a.5.5 0 0 1-1 0V3.5h-1a.5.5 0 0 1 0-1H2v-1A.5.5 0 0 1 2.5 1zm10 9a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1h-1v1a.5.5 0 0 1-1 0v-1h-1a.5.5 0 0 1 0-1h1v-1a.5.5 0 0 1 .5-.5z"/></svg>
+            {loading ? 'Regenerating…' : 'Re-enrich'}
           </button>
         </div>
       </div>
 
       {error && <p className={styles.error}>{error}</p>}
-
-      {enrichment.register && (
-        <div className={styles.field}>
-          <span className={styles.fieldLabel}>Register</span>
-          <input
-            className={styles.input}
-            defaultValue={enrichment.register}
-            onBlur={(e) => {
-              const v = e.target.value.trim();
-              if (v !== enrichment.register) patchField({ register: v || undefined });
-            }}
-          />
-        </div>
-      )}
 
       {enrichment.falseFriendWarning && (
         <div className={`${styles.field} ${styles.warning}`}>
@@ -213,6 +201,20 @@ export default function EnrichmentPanel({
         values={enrichment.collocations}
         onChange={(collocations) => patchField({ collocations })}
       />
+
+      {enrichment.register && (
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>Register</span>
+          <input
+            className={styles.input}
+            defaultValue={enrichment.register}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v !== enrichment.register) patchField({ register: v || undefined });
+            }}
+          />
+        </div>
+      )}
 
       <p className={styles.meta}>
         Generated {new Date(enrichment.generatedAt).toLocaleDateString()}

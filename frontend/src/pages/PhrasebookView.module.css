@@ -234,3 +234,35 @@
     right: var(--space-5);
   }
 }
+
+/* Sort controls */
+.listHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.sortLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.sortSelect {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 3px var(--space-3);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.sortSelect:hover {
+  border-color: var(--brand-400);
+}

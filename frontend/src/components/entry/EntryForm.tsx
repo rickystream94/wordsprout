@@ -51,6 +51,7 @@ export default function EntryForm({ onDone, initialValues }: EntryFormProps) {
   function validate(): boolean {
     const errs: Record<string, string> = {};
     if (!sourceText.trim()) errs['sourceText'] = 'Source text is required';
+    if (!targetText.trim()) errs['targetText'] = 'Target text is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -95,17 +96,18 @@ export default function EntryForm({ onDone, initialValues }: EntryFormProps) {
       {/* Target text */}
       <div className={styles.field}>
         <label htmlFor="entry-target" className={styles.label}>
-          Target text <span className={styles.optional}>(optional)</span>
+          Target text <span className={styles.required}>*</span>
         </label>
         <input
           id="entry-target"
-          className={styles.input}
+          className={`${styles.input} ${errors['targetText'] ? styles.inputError : ''}`}
           type="text"
           value={targetText}
           onChange={(e) => setTargetText(e.target.value)}
           placeholder="e.g. serendipità"
           maxLength={500}
         />
+        {errors['targetText'] && <p className={styles.errorMsg}>{errors['targetText']}</p>}
       </div>
 
       {/* Notes */}
@@ -130,11 +132,13 @@ export default function EntryForm({ onDone, initialValues }: EntryFormProps) {
         <PartOfSpeechSelector value={partOfSpeech} onChange={setPartOfSpeech} />
       </div>
 
-      {/* Learning state */}
-      <div className={styles.field}>
-        <span className={styles.label}>Learning state</span>
-        <LearningStateToggle value={learningState} onChange={setLearningState} />
-      </div>
+      {/* Learning state — only editable when modifying an existing entry */}
+      {isEditing && (
+        <div className={styles.field}>
+          <span className={styles.label}>Learning state</span>
+          <LearningStateToggle value={learningState} onChange={setLearningState} />
+        </div>
+      )}
 
       {/* Tags */}
       <div className={styles.field}>

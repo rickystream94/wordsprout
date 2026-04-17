@@ -20,6 +20,21 @@ import { enqueueMutation } from '../services/sync';
 import { randomUUID } from '../utils/uuid';
 import styles from './PhrasebookView.module.css';
 
+type SortOption = 'createdAt_desc' | 'createdAt_asc' | 'sourceText_asc' | 'sourceText_desc' | 'targetText_asc' | 'targetText_desc';
+
+function applySortEntries(entries: DBEntry[], sort: SortOption): DBEntry[] {
+  return [...entries].sort((a, b) => {
+    switch (sort) {
+      case 'createdAt_asc':  return a.createdAt.localeCompare(b.createdAt);
+      case 'createdAt_desc': return b.createdAt.localeCompare(a.createdAt);
+      case 'sourceText_asc': return a.sourceText.localeCompare(b.sourceText);
+      case 'sourceText_desc': return b.sourceText.localeCompare(a.sourceText);
+      case 'targetText_asc': return (a.targetText ?? '').localeCompare(b.targetText ?? '');
+      case 'targetText_desc': return (b.targetText ?? '').localeCompare(a.targetText ?? '');
+    }
+  });
+}
+
 export default function PhrasebookView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -37,6 +52,7 @@ export default function PhrasebookView() {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const [sort, setSort] = useState<SortOption>('createdAt_desc');
 
   if (phrasebook === undefined || entries === undefined) {
     return <main className={styles.page}><p className={styles.loading}>Loading…</p></main>;
@@ -193,14 +209,30 @@ export default function PhrasebookView() {
 
       {/* FAB — add entry */}
       {!showEntryForm && !editingEntry && (
-        <button className={styles.fab} onClick={() => setShowEntryForm(true)} aria-label="Add entry">
+        <button className={styles.fab} onClick={() => setShowEntryForm(true)} aria-label="Add entry" title="Add new entry">
           +
         </button>
       )}
 
       {/* Entry list */}
+      <div className={styles.listHeader}>
+        <span className={styles.sortLabel}>Sort by</span>
+        <select
+          className={styles.sortSelect}
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortOption)}
+          aria-label="Sort entries"
+        >
+          <option value="createdAt_desc">Newest first</option>
+          <option value="createdAt_asc">Oldest first</option>
+          <option value="sourceText_asc">Source A→Z</option>
+          <option value="sourceText_desc">Source Z→A</option>
+          <option value="targetText_asc">Target A→Z</option>
+          <option value="targetText_desc">Target Z→A</option>
+        </select>
+      </div>
       <EntryList
-        entries={entries}
+        entries={applySortEntries(entries, sort)}
         onEdit={(entry) => { setShowEntryForm(false); setEditingEntry(entry); }}
         onDelete={handleDeleteEntry}
       />

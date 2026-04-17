@@ -137,8 +137,27 @@ export const entriesApi = {
 
 // AI enrichment
 export const enrichApi = {
-  enrich: (entryId: string) =>
-    apiFetch<DBEnrichment>(`/entries/${entryId}/enrich`, { method: 'POST' }),
+  enrich: (entryId: string): Promise<DBEnrichment> => {
+    if (IS_LOCAL) {
+      const now = new Date().toISOString();
+      return Promise.resolve({
+        id: `enrichment-${entryId}`,
+        userId: 'test-user-local',
+        entryId,
+        exampleSentences: [
+          'She felt a sense of serendipity when she found the book she had been looking for.',
+          'The discovery was pure serendipity — no one had planned it.',
+        ],
+        synonyms: ['happy accident', 'fortunate coincidence', 'luck'],
+        antonyms: ['misfortune', 'bad luck'],
+        register: 'neutral',
+        collocations: ['pure serendipity', 'by serendipity', 'serendipitous moment'],
+        falseFriendWarning: undefined,
+        generatedAt: now,
+      });
+    }
+    return apiFetch<DBEnrichment>(`/entries/${entryId}/enrich`, { method: 'POST' });
+  },
   patchEnrichment: (entryId: string, data: Partial<DBEnrichment>) =>
     apiFetch<DBEnrichment>(`/entries/${entryId}/enrichment`, {
       method: 'PATCH',

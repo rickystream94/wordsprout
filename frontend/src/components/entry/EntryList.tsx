@@ -21,6 +21,11 @@ const STATE_LABELS: Record<LearningState, string> = {
   mastered: 'Mastered',
 };
 
+const DATE_FMT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
+function formatDate(iso: string): string {
+  try { return DATE_FMT.format(new Date(iso)); } catch { return ''; }
+}
+
 export default function EntryList({ entries, onEdit, onDelete, phrasebooks }: EntryListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const isOnline = navigator.onLine;
@@ -71,6 +76,7 @@ function EntryCard({
 }) {
   const [enrichment, setEnrichment] = useState<DBEnrichment | undefined>(undefined);
   const [enrichmentLoaded, setEnrichmentLoaded] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   async function handleToggle() {
     if (!isExpanded && !enrichmentLoaded) {
@@ -113,6 +119,7 @@ function EntryCard({
           {entry.partOfSpeech && (
             <span className={styles.posBadge}>{entry.partOfSpeech.replace('_', ' ')}</span>
           )}
+          <span className={styles.createdAt}>{formatDate(entry.createdAt)}</span>
         </div>
 
         {entry.notes && <p className={styles.notes}>{entry.notes}</p>}
@@ -147,7 +154,7 @@ function EntryCard({
 
           {(onEdit || onDelete) && (
             <div className={styles.actions}>
-              {onEdit && (
+              {onEdit && !confirmingDelete && (
                 <button
                   className={styles.actionBtn}
                   onClick={(e) => { e.stopPropagation(); onEdit(entry); }}
@@ -157,15 +164,32 @@ function EntryCard({
                   Edit
                 </button>
               )}
-              {onDelete && (
+              {onDelete && !confirmingDelete && (
                 <button
                   className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                  onClick={(e) => { e.stopPropagation(); onDelete(entry); }}
+                  onClick={(e) => { e.stopPropagation(); setConfirmingDelete(true); }}
                   aria-label="Delete entry"
                 >
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15Z"/></svg>
                   Delete
                 </button>
+              )}
+              {onDelete && confirmingDelete && (
+                <div className={styles.confirmRow} onClick={(e) => e.stopPropagation()}>
+                  <span className={styles.confirmText}>Delete this entry?</span>
+                  <button
+                    className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                    onClick={() => onDelete(entry)}
+                  >
+                    Yes, delete
+                  </button>
+                  <button
+                    className={styles.actionBtn}
+                    onClick={() => setConfirmingDelete(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
               )}
             </div>
           )}
