@@ -83,32 +83,35 @@
   padding: 2px 10px;
 }
 
-.state_new {
-  background: color-mix(in srgb, var(--neutral-400) 20%, transparent);
-  color: var(--neutral-600);
+.state_dormant {
+  background: color-mix(in srgb, #94a3b8 18%, transparent);
+  color: #475569;
 }
+[data-theme='dark'] .state_dormant { color: #94a3b8; }
 
-[data-theme='dark'] .state_new {
-  color: var(--neutral-300);
+.state_sprouting {
+  background: color-mix(in srgb, #34d399 15%, transparent);
+  color: #065f46;
 }
+[data-theme='dark'] .state_sprouting { color: #34d399; }
 
-.state_learning {
-  background: color-mix(in srgb, var(--brand-500) 15%, transparent);
-  color: var(--brand-700);
+.state_echoing {
+  background: color-mix(in srgb, #f59e0b 15%, transparent);
+  color: #b45309;
 }
+[data-theme='dark'] .state_echoing { color: #fcd34d; }
 
-[data-theme='dark'] .state_learning {
-  color: var(--brand-300);
+.state_inscribed {
+  background: color-mix(in srgb, #818cf8 15%, transparent);
+  color: #4338ca;
 }
+[data-theme='dark'] .state_inscribed { color: #a5b4fc; }
 
-.state_mastered {
-  background: color-mix(in srgb, var(--success-500) 15%, transparent);
-  color: var(--success-700);
+.state_engraved {
+  background: color-mix(in srgb, #10b981 15%, transparent);
+  color: #047857;
 }
-
-[data-theme='dark'] .state_mastered {
-  color: var(--success-400);
-}
+[data-theme='dark'] .state_engraved { color: #34d399; }
 
 .posBadge {
   font-size: var(--text-xs);

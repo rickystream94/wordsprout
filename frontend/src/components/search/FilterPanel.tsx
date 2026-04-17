@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useAuth } from '../../auth/AuthProvider';
 import type { DBPhrasebook } from '../../services/db';
 import { db } from '../../services/db';
-import type { LearningState, PartOfSpeech } from '../../types/models';
+import type { ScoreRange } from '../../services/scoring';
+import type { PartOfSpeech } from '../../types/models';
 import type { ActiveFilters } from './filterTypes';
 import { EMPTY_FILTERS } from './filterTypes';
 import styles from './FilterPanel.module.css';
@@ -94,9 +95,11 @@ function MultiSelectDropdown({ placeholder, options, selected, onChange }: Multi
 // ── FilterPanel ───────────────────────────────────────────────────────────────
 
 const LEARNING_STATE_OPTIONS: MultiSelectOption[] = [
-  { value: 'new', label: 'New' },
-  { value: 'learning', label: 'Learning' },
-  { value: 'mastered', label: 'Mastered' },
+  { value: 'dormant',   label: '🌑 Dormant' },
+  { value: 'sprouting', label: '🌱 Sprouting' },
+  { value: 'echoing',   label: '💬 Echoing' },
+  { value: 'inscribed', label: '✏️ Inscribed' },
+  { value: 'engraved',  label: '🧠 Engraved' },
 ];
 
 const PART_OF_SPEECH_OPTIONS: MultiSelectOption[] = [
@@ -145,7 +148,7 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
 
   const activeCount =
     filters.phrasebookIds.length +
-    filters.learningStates.length +
+    filters.scoreRanges.length +
     filters.partsOfSpeech.length +
     filters.tags.length;
 
@@ -161,8 +164,8 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
         <MultiSelectDropdown
           placeholder="All states"
           options={LEARNING_STATE_OPTIONS}
-          selected={filters.learningStates as string[]}
-          onChange={(v) => onChange({ ...filters, learningStates: v as LearningState[] })}
+          selected={filters.scoreRanges as string[]}
+          onChange={(v) => onChange({ ...filters, scoreRanges: v as ScoreRange[] })}
         />
         <MultiSelectDropdown
           placeholder="All parts of speech"

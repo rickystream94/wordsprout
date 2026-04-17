@@ -80,7 +80,8 @@ export default function PhrasebookView() {
       notes: data.notes || undefined,
       tags: data.tags,
       partOfSpeech: data.partOfSpeech || undefined,
-      learningState: data.learningState,
+      learningScore: 0,
+      lastReviewedDate: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -100,7 +101,6 @@ export default function PhrasebookView() {
       notes: data.notes || undefined,
       tags: data.tags,
       partOfSpeech: data.partOfSpeech || undefined,
-      learningState: data.learningState,
     };
     await updateEntry(entry.id, changes);
     await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'PUT', { ...entry, ...changes });

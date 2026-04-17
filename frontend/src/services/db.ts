@@ -1,6 +1,5 @@
 import Dexie, { type Table } from 'dexie';
 import type {
-  LearningState,
   MutationMethod,
   PartOfSpeech,
   SyncStatus,
@@ -30,7 +29,8 @@ export interface DBEntry {
   notes?: string;
   tags: string[];
   partOfSpeech?: PartOfSpeech;
-  learningState: LearningState;
+  learningScore: number;           // integer 0–100
+  lastReviewedDate: string | null; // 'YYYY-MM-DD' local date, null = never
   enrichmentId?: string;
   createdAt: string;
   updatedAt: string;
@@ -88,6 +88,25 @@ class VocaBookDB extends Dexie {
       pendingSync: '++id, status, createdAt',
       meta: 'key',
     });
+
+    this.version(2)
+      .stores({
+        phrasebooks: 'id, userId, createdAt, updatedAt',
+        entries:
+          'id, userId, phrasebookId, learningScore, partOfSpeech, createdAt, updatedAt, *tags',
+        enrichments: 'id, userId, entryId',
+        pendingSync: '++id, status, createdAt',
+        meta: 'key',
+      })
+      .upgrade(async (tx) => {
+        const MIGRATION_MAP: Record<string, number> = { new: 0, learning: 30, mastered: 90 };
+        await tx.table('entries').toCollection().modify((entry) => {
+          const oldState = (entry as Record<string, unknown>)['learningState'] as string | undefined;
+          entry.learningScore = oldState !== undefined ? (MIGRATION_MAP[oldState] ?? 0) : 0;
+          entry.lastReviewedDate = null;
+          delete (entry as Record<string, unknown>)['learningState'];
+        });
+      });
   }
 }
 
@@ -191,25 +210,47 @@ export async function getEnrichment(entryId: string): Promise<DBEnrichment | und
   return db.enrichments.where('entryId').equals(entryId).first();
 }
 
-// ─── Review helpers (used by US6) ──────────────────────────────────────────
+// ─── Review helpers ───────────────────────────────────────────────────────────
 
-export async function getEntriesByLearningState(
+/** Returns entries within an inclusive learningScore range for a user. */
+export async function getEntriesByScoreRange(
   userId: string,
-  learningState: LearningState | null,
+  minScore: number,
+  maxScore: number,
 ): Promise<DBEntry[]> {
-  if (learningState === null) {
-    return db.entries.where('userId').equals(userId).toArray();
-  }
   return db.entries
-    .where('[userId+learningState]')
-    .equals([userId, learningState])
-    .toArray()
-    .catch(() =>
-      // Fall back to full scan if compound index not available
-      db.entries
-        .where('userId')
-        .equals(userId)
-        .filter((e) => e.learningState === learningState)
-        .toArray(),
-    );
+    .where('userId')
+    .equals(userId)
+    .filter((e) => e.learningScore >= minScore && e.learningScore <= maxScore)
+    .toArray();
+}
+
+/** Loads candidate entries for a review session.
+ *  - 'random': full entry pool, returned shuffled, up to `size`
+ *  - 'targeted': prioritise low-score entries (score < 80), falling back to all
+ */
+export async function getEntriesForSession(
+  userId: string,
+  type: 'random' | 'targeted',
+  size: number,
+  phrasebookId?: string,
+): Promise<DBEntry[]> {
+  const all = await db.entries.where('userId').equals(userId).toArray();
+  const pool0 = phrasebookId ? all.filter((e) => e.phrasebookId === phrasebookId) : all;
+  if (pool0.length === 0) return [];
+
+  let pool: DBEntry[];
+  if (type === 'targeted') {
+    const weak = pool0.filter((e) => e.learningScore < 80);
+    pool = weak.length > 0 ? weak : pool0;
+  } else {
+    pool = pool0;
+  }
+
+  // Fisher-Yates shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, size);
 }

@@ -64,7 +64,8 @@ async function createEntry(req: HttpRequest, _ctx: InvocationContext): Promise<H
     notes: body.notes ? sanitise(body.notes) : undefined,
     tags: sanitiseArray(body.tags ?? []),
     partOfSpeech: body.partOfSpeech,
-    learningState: body.learningState ?? 'new',
+    learningScore: 0,
+    lastReviewedDate: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -117,7 +118,6 @@ async function listEntries(req: HttpRequest, _ctx: InvocationContext): Promise<H
   const learningState = req.query.get('learningState');
   const partOfSpeech = req.query.get('partOfSpeech');
   if (phrasebookId) filters['phrasebookId'] = phrasebookId;
-  if (learningState) filters['learningState'] = learningState;
   if (partOfSpeech) filters['partOfSpeech'] = partOfSpeech;
 
   const results = await cosmosClient.queryByPartition<VocabularyEntry>(token.sub, filters);
@@ -143,6 +143,27 @@ async function updateEntry(req: HttpRequest, _ctx: InvocationContext): Promise<H
   if (existing.userId !== token.sub) return apiError(403, 'Access denied');
 
   const body = (await req.json()) as Partial<VocabularyEntry>;
+
+  // Validate learningScore delta (FR-021)
+  if (body.learningScore !== undefined) {
+    const newScore = Number(body.learningScore);
+    if (!Number.isInteger(newScore) || newScore < 0 || newScore > 100)
+      return apiError(400, 'learningScore must be an integer between 0 and 100');
+    const delta = newScore - (existing.learningScore ?? 0);
+    if (delta < -5 || delta > 10)
+      return apiError(400, 'learningScore delta must be between -5 and +10');
+  }
+
+  // Validate lastReviewedDate daily uniqueness (FR-022)
+  if (body.lastReviewedDate !== undefined && body.lastReviewedDate !== null) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(body.lastReviewedDate))
+      return apiError(400, 'lastReviewedDate must be YYYY-MM-DD or null');
+    if (
+      body.learningScore !== undefined &&
+      body.lastReviewedDate === existing.lastReviewedDate
+    ) return apiError(400, 'Entry already reviewed today');
+  }
+
   const updated: VocabularyEntry = {
     ...existing,
     sourceText: body.sourceText !== undefined ? sanitise(body.sourceText) : existing.sourceText,
@@ -150,7 +171,8 @@ async function updateEntry(req: HttpRequest, _ctx: InvocationContext): Promise<H
     notes: body.notes !== undefined ? sanitise(body.notes ?? '') || undefined : existing.notes,
     tags: body.tags !== undefined ? sanitiseArray(body.tags) : existing.tags,
     partOfSpeech: body.partOfSpeech !== undefined ? body.partOfSpeech : existing.partOfSpeech,
-    learningState: body.learningState ?? existing.learningState,
+    learningScore: body.learningScore !== undefined ? Number(body.learningScore) : existing.learningScore,
+    lastReviewedDate: body.lastReviewedDate !== undefined ? body.lastReviewedDate : existing.lastReviewedDate,
     updatedAt: new Date().toISOString(),
   };
 

@@ -1,8 +1,6 @@
 // Client-side type definitions — mirrors api/src/models/types.ts
 // Keep in sync manually until a shared package is justified.
 
-export type LearningState = 'new' | 'learning' | 'mastered';
-
 export type PartOfSpeech =
   | 'noun'
   | 'verb'

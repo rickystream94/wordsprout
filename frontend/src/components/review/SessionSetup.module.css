@@ -1,0 +1,177 @@
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.heading {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Phrasebook selector */
+.phrasebookSelect {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-base);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.phrasebookSelect:focus {
+  border-color: var(--brand-500);
+}
+
+/* Session type options */
+.typeOptions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.typeOption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.typeOption:hover {
+  background: var(--bg-subtle);
+}
+
+.typeOption.selected {
+  border-color: var(--brand-500);
+  background: color-mix(in srgb, var(--brand-500) 12%, transparent);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .typeOption:hover {
+  background: var(--bg-subtle);
+}
+
+[data-theme='dark'] .typeOption.selected {
+  border-color: var(--brand-400);
+  background: color-mix(in srgb, var(--brand-400) 18%, transparent);
+  color: var(--text-primary);
+}
+
+.hiddenRadio {
+  display: none;
+}
+
+.typeOption strong {
+  color: var(--text-primary);
+}
+
+.typeDesc {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Size options */
+.sizeOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sizeBtn {
+  padding: var(--space-2) var(--space-5);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: transparent;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.sizeBtn:hover:not(:disabled) {
+  background: var(--bg-hover, #f8fafc);
+  color: var(--text-primary);
+}
+
+.sizeBtn.sizeSelected {
+  border-color: var(--brand-500);
+  color: var(--brand-600);
+  background: color-mix(in srgb, var(--brand-500) 12%, transparent);
+}
+
+[data-theme='dark'] .sizeBtn.sizeSelected {
+  border-color: var(--brand-400);
+  color: var(--brand-300);
+  background: color-mix(in srgb, var(--brand-400) 18%, transparent);
+}
+
+[data-theme='dark'] .sizeBtn:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+.sizeBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.sizeNote {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Start button */
+.startBtn {
+  padding: var(--space-4) var(--space-8);
+  background: var(--brand-500);
+  color: var(--text-on-brand);
+  border: none;
+  border-radius: var(--radius-full);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  align-self: flex-start;
+}
+
+.startBtn:hover:not(:disabled) {
+  background: var(--brand-600);
+}
+
+.startBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.emptyNote {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0;
+}

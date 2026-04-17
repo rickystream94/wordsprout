@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '../../auth/AuthProvider';
 import type { DBEntry } from '../../services/db';
 import { getTagSuggestions } from '../../services/db';
-import type { LearningState, PartOfSpeech } from '../../types/models';
-import LearningStateToggle from './LearningStateToggle';
+import type { PartOfSpeech } from '../../types/models';
 import PartOfSpeechSelector from './PartOfSpeechSelector';
 import TagInput from './TagInput';
 import styles from './EntryForm.module.css';
@@ -14,7 +13,6 @@ export interface EntryFormData {
   sourceText: string;
   targetText: string;
   notes: string;
-  learningState: LearningState;
   partOfSpeech: PartOfSpeech | '';
   tags: string[];
 }
@@ -33,9 +31,6 @@ export default function EntryForm({ onDone, initialValues }: EntryFormProps) {
   const [sourceText, setSourceText] = useState(initialValues?.sourceText ?? '');
   const [targetText, setTargetText] = useState(initialValues?.targetText ?? '');
   const [notes, setNotes] = useState(initialValues?.notes ?? '');
-  const [learningState, setLearningState] = useState<LearningState>(
-    initialValues?.learningState ?? 'new',
-  );
   const [partOfSpeech, setPartOfSpeech] = useState<PartOfSpeech | ''>(
     initialValues?.partOfSpeech ?? '',
   );
@@ -63,7 +58,6 @@ export default function EntryForm({ onDone, initialValues }: EntryFormProps) {
       sourceText: sanitise(sourceText),
       targetText: sanitise(targetText),
       notes: sanitise(notes),
-      learningState,
       partOfSpeech,
       tags,
     });
@@ -131,14 +125,6 @@ export default function EntryForm({ onDone, initialValues }: EntryFormProps) {
         <span className={styles.label}>Part of speech</span>
         <PartOfSpeechSelector value={partOfSpeech} onChange={setPartOfSpeech} />
       </div>
-
-      {/* Learning state — only editable when modifying an existing entry */}
-      {isEditing && (
-        <div className={styles.field}>
-          <span className={styles.label}>Learning state</span>
-          <LearningStateToggle value={learningState} onChange={setLearningState} />
-        </div>
-      )}
 
       {/* Tags */}
       <div className={styles.field}>

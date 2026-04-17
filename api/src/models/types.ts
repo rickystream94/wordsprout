@@ -2,8 +2,6 @@
 
 export type AppEnv = 'local' | 'dev' | 'prod';
 
-export type LearningState = 'new' | 'learning' | 'mastered';
-
 export type PartOfSpeech =
   | 'noun'
   | 'verb'
@@ -60,7 +58,8 @@ export interface VocabularyEntry extends CosmosDocument {
   notes?: string;
   tags: string[];
   partOfSpeech?: PartOfSpeech;
-  learningState: LearningState;
+  learningScore: number;          // integer 0–100
+  lastReviewedDate: string | null; // 'YYYY-MM-DD' local date, null = never reviewed
   enrichmentId?: string;
 }
 

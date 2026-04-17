@@ -11,6 +11,7 @@ import { API_BASE } from '../config/env';
 import { db, deleteEntry, updateEntry, type DBEntry, type DBPhrasebook } from '../services/db';
 import { enqueueMutation } from '../services/sync';
 import { searchIds } from '../services/search';
+import { scoreToRange } from '../services/scoring';
 import styles from './Search.module.css';
 
 type SortOption = 'createdAt_desc' | 'createdAt_asc' | 'sourceText_asc' | 'sourceText_desc' | 'targetText_asc' | 'targetText_desc';
@@ -52,7 +53,7 @@ export default function Search() {
 
   let results: DBEntry[] = loadedEntries;
   if (filters.phrasebookIds.length) results = results.filter((e) => filters.phrasebookIds.includes(e.phrasebookId));
-  if (filters.learningStates.length) results = results.filter((e) => filters.learningStates.includes(e.learningState));
+  if (filters.scoreRanges.length) results = results.filter((e) => filters.scoreRanges.includes(scoreToRange(e.learningScore)));
   if (filters.partsOfSpeech.length) results = results.filter((e) => e.partOfSpeech != null && filters.partsOfSpeech.includes(e.partOfSpeech));
   if (filters.tags.length) results = results.filter((e) => filters.tags.some((t) => e.tags.includes(t)));
   if (deferredQuery.trim()) {
@@ -70,7 +71,7 @@ export default function Search() {
   const hasFilters =
     query.trim() ||
     filters.phrasebookIds.length > 0 ||
-    filters.learningStates.length > 0 ||
+    filters.scoreRanges.length > 0 ||
     filters.partsOfSpeech.length > 0 ||
     filters.tags.length > 0;
   const isEmpty = allEntries !== undefined && loadedEntries.length === 0;
@@ -85,7 +86,6 @@ export default function Search() {
       notes: data.notes || undefined,
       tags: data.tags,
       partOfSpeech: data.partOfSpeech || undefined,
-      learningState: data.learningState,
     };
     await updateEntry(entry.id, changes);
     await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'PUT', { ...entry, ...changes });

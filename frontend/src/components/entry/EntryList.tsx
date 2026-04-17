@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { getEnrichment, updateEntry, type DBEnrichment, type DBEntry } from '../../services/db';
-import { enqueueMutation } from '../../services/sync';
-import type { LearningState } from '../../types/models';
-import { API_BASE } from '../../config/env';
+import { getEnrichment, type DBEnrichment, type DBEntry } from '../../services/db';
+import { scoreToRange } from '../../services/scoring';
 import EnrichmentPanel from './EnrichmentPanel';
-import LearningStateToggle from './LearningStateToggle';
+import LearningScoreBar from './LearningScoreBar';
 import styles from './EntryList.module.css';
 
 interface EntryListProps {
@@ -14,12 +12,6 @@ interface EntryListProps {
   /** Optional id→name map; when provided each card shows its phrasebook name */
   phrasebooks?: Record<string, string>;
 }
-
-const STATE_LABELS: Record<LearningState, string> = {
-  new: 'New',
-  learning: 'Learning',
-  mastered: 'Mastered',
-};
 
 const DATE_FMT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 function formatDate(iso: string): string {
@@ -87,11 +79,6 @@ function EntryCard({
     onToggle();
   }
 
-  async function handleStateChange(newState: LearningState) {
-    await updateEntry(entry.id, { learningState: newState });
-    await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'PUT', { ...entry, learningState: newState });
-  }
-
   return (
     <li className={`${styles.card} ${isExpanded ? styles.cardExpanded : ''}`}>
       <div
@@ -113,8 +100,8 @@ function EntryCard({
           {phrasebookName && (
             <span className={styles.phrasebookBadge}>{phrasebookName}</span>
           )}
-          <span className={`${styles.stateBadge} ${styles[`state_${entry.learningState}`]}`}>
-            {STATE_LABELS[entry.learningState]}
+          <span className={`${styles.stateBadge} ${styles[`state_${scoreToRange(entry.learningScore)}`]}`}>
+            {{ dormant: '🌑 Dormant', sprouting: '🌱 Sprouting', echoing: '💬 Echoing', inscribed: '✏️ Inscribed', engraved: '🧠 Engraved' }[scoreToRange(entry.learningScore)]}
           </span>
           {entry.partOfSpeech && (
             <span className={styles.posBadge}>{entry.partOfSpeech.replace('_', ' ')}</span>
@@ -135,14 +122,10 @@ function EntryCard({
 
       {isExpanded && (
         <div className={styles.expanded}>
-          {/* Learning state toggle */}
+          {/* Learning score bar */}
           <div className={styles.stateRow}>
-            <span className={styles.stateRowLabel}>Learning state</span>
-            <LearningStateToggle
-              value={entry.learningState}
-              onChange={handleStateChange}
-              compact
-            />
+            <span className={styles.stateRowLabel}>Learning score</span>
+            <LearningScoreBar score={entry.learningScore} />
           </div>
 
           <EnrichmentPanel

@@ -1,15 +1,16 @@
-import type { LearningState, PartOfSpeech } from '../../types/models';
+import type { ScoreRange } from '../../services/scoring';
+import type { PartOfSpeech } from '../../types/models';
 
 export interface ActiveFilters {
   phrasebookIds: string[];
-  learningStates: LearningState[];
+  scoreRanges: ScoreRange[];
   partsOfSpeech: PartOfSpeech[];
   tags: string[];
 }
 
 export const EMPTY_FILTERS: ActiveFilters = {
   phrasebookIds: [],
-  learningStates: [],
+  scoreRanges: [],
   partsOfSpeech: [],
   tags: [],
 };

@@ -1,0 +1,51 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-border, #e2e8f0);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Range variants — 5 checkpoints */
+.dormant .fill   { background: #94a3b8; }
+.dormant .label  { color: #64748b; }
+[data-theme='dark'] .dormant .label  { color: #94a3b8; }
+
+.sprouting .fill  { background: #34d399; }
+.sprouting .label { color: #059669; }
+[data-theme='dark'] .sprouting .label { color: #34d399; }
+
+.echoing .fill  { background: #f59e0b; }
+.echoing .label { color: #b45309; }
+[data-theme='dark'] .echoing .label { color: #fcd34d; }
+
+.inscribed .fill  { background: #818cf8; }
+.inscribed .label { color: #4f46e5; }
+[data-theme='dark'] .inscribed .label { color: #a5b4fc; }
+
+.engraved .fill  { background: #10b981; }
+.engraved .label { color: #047857; }
+[data-theme='dark'] .engraved .label { color: #34d399; }
