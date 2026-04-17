@@ -59,7 +59,7 @@ Each entry may include:
 - Target language expression
 - Optional notes and usage context
 - Creation date
-- Learning state (new, learning, mastered, etc.)
+- **Learning score** (0–100) with 5 memory-inspired checkpoints: 🌑 Dormant · 🌱 Sprouting · 💬 Echoing · ✏️ Inscribed · 🧠 Engraved
 
 ---
 
@@ -101,7 +101,7 @@ A core experience of the app.
   - language / phrasebook
   - part of speech
   - tag(s)
-  - learning status
+  - learning score checkpoint (Dormant / Sprouting / Echoing / Inscribed / Engraved)
 - Works **offline**, powered by IndexedDB on the client
 - Feels like browsing a personal notebook, not querying a database
 
@@ -109,12 +109,15 @@ A core experience of the app.
 
 ### Review & Learning
 
-- Manual review sessions
-- Optional spaced repetition logic (future enhancement)
-- Progress indicators:
-  - words added
-  - active streaks
-  - mastery milestones
+- Typed-translation flashcard sessions, scoped to a phrasebook
+- Gamified scoring: correct answers gain points, wrong / revealed answers deduct points
+- Hints reveal characters one by one (small score penalty per hint used)
+- Typo tolerance: close-but-not-exact answers accepted with a reduced gain
+- Reveal button shows the answer immediately at the cost of a full wrong penalty
+- Animated score-delta feedback after each card
+- Daily review limit: score changes only once per entry per day
+- Non-transactional: each card's score is persisted immediately (partial sessions are saved)
+- Progress indicated by the 5-checkpoint learning score bar on every entry
 
 ---
 

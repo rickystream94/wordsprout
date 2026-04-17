@@ -16,11 +16,13 @@
 
 **Score ranges (display + session filtering)**:
 
-| Range name | Score | Behaviour |
+| Range name | Score | Emoji |
 |---|---|---|
-| New | 0–25 | Eligible for Targeted sessions |
-| Learning | 26–79 | Eligible for Targeted sessions |
-| Mastered | 80–100 | Eligible only for Random sessions |
+| Dormant | 0–19 | 🌑 |
+| Sprouting | 20–39 | 🌱 |
+| Echoing | 40–59 | 💬 |
+| Inscribed | 60–79 | ✏️ |
+| Engraved | 80–100 | 🧠 |
 
 **Cosmos DB document** (no separate collection — field change only):
 
