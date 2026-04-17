@@ -198,6 +198,16 @@
   margin: 0;
 }
 
+.answerSep {
+  color: var(--text-muted);
+}
+
+.primaryBadge {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
 /* ─── Score-change feedback ────────────────────────────────────────────── */
 
 .scoreChange {

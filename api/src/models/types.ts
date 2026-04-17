@@ -7,8 +7,15 @@ export type PartOfSpeech =
   | 'verb'
   | 'adjective'
   | 'adverb'
+  | 'pronoun'
+  | 'preposition'
+  | 'conjunction'
+  | 'article'
+  | 'interjection'
+  | 'numeral'
   | 'idiom'
   | 'phrasal_verb'
+  | 'expression'
   | 'other';
 
 export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';

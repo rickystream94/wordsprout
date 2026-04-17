@@ -68,21 +68,37 @@ export function getHint(answer: string, revealCount: number): string {
 
 export type EvalResult = 'correct' | 'typo' | 'wrong';
 
+export interface EvalOutcome {
+  result: EvalResult;
+  /** true when the match was against a synonym rather than the primary targetText */
+  isSynonymHit: boolean;
+}
+
 /**
- * Compare the user's input against the expected answer.
- * Returns 'correct' if exact (after normalize), 'typo' if within allowed
- * edit distance, 'wrong' otherwise.
+ * Compare the user's input against one or more acceptable answers (primary + synonyms).
+ * Exact matches are tried first across all answers, then typo matches.
+ * Returns the best outcome found.
  */
-export function evaluateAnswer(input: string, answer: string): EvalResult {
+export function evaluateAnswer(input: string, answers: string[]): EvalOutcome {
   const normInput = normalize(input);
-  const normAnswer = normalize(answer);
 
-  if (normInput === normAnswer) return 'correct';
+  // Pass 1: exact match
+  for (let i = 0; i < answers.length; i++) {
+    if (normInput === normalize(answers[i])) {
+      return { result: 'correct', isSynonymHit: i > 0 };
+    }
+  }
 
-  const allowed = maxTypos(normAnswer);
-  if (distance(normInput, normAnswer) <= allowed) return 'typo';
+  // Pass 2: typo tolerance
+  for (let i = 0; i < answers.length; i++) {
+    const normAnswer = normalize(answers[i]);
+    const allowed = maxTypos(normAnswer);
+    if (distance(normInput, normAnswer) <= allowed) {
+      return { result: 'typo', isSynonymHit: i > 0 };
+    }
+  }
 
-  return 'wrong';
+  return { result: 'wrong', isSynonymHit: false };
 }
 
 // ─── Score delta computation ───────────────────────────────────────────────────

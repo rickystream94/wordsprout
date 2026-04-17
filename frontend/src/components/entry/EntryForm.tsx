@@ -20,13 +20,30 @@ export interface EntryFormData {
 interface EntryFormProps {
   onDone: (data?: EntryFormData) => void;
   initialValues?: Partial<DBEntry>;
+  /** Existing entries in the same phrasebook — used for duplicate detection */
+  existingEntries?: DBEntry[];
 }
 
 function sanitise(text: string): string {
   return DOMPurify.sanitize(text).trim();
 }
 
-export default function EntryForm({ onDone, initialValues }: EntryFormProps) {
+/**
+ * Normalize vocabulary text for storage and duplicate detection:
+ * lowercase, trim, collapse spaces, strip leading/trailing non-word punctuation.
+ * Preserves Unicode letters, numbers, apostrophes, hyphens and diacritics.
+ * Does NOT touch notes — those remain free text.
+ */
+function normalizeEntryText(text: string): string {
+  return text
+    .trim()
+    .replace(/\s+/g, ' ')
+    // Strip leading/trailing chars that are not Unicode letters, digits, apostrophe or hyphen
+    .replace(/^[^\p{L}\p{N}'\-]+|[^\p{L}\p{N}'\-]+$/gu, '')
+    .toLowerCase();
+}
+
+export default function EntryForm({ onDone, initialValues, existingEntries }: EntryFormProps) {
   const { userId } = useAuth();
   const [sourceText, setSourceText] = useState(initialValues?.sourceText ?? '');
   const [targetText, setTargetText] = useState(initialValues?.targetText ?? '');
@@ -47,6 +64,29 @@ export default function EntryForm({ onDone, initialValues }: EntryFormProps) {
     const errs: Record<string, string> = {};
     if (!sourceText.trim()) errs['sourceText'] = 'Source text is required';
     if (!targetText.trim()) errs['targetText'] = 'Target text is required';
+
+    if (existingEntries && !errs['sourceText'] && !errs['targetText']) {
+      const selfId = initialValues?.id;
+      const normSrc = normalizeEntryText(sanitise(sourceText));
+      const normTgt = normalizeEntryText(sanitise(targetText));
+
+      const dupSrc = existingEntries.find(
+        (e) => e.id !== selfId && normalizeEntryText(e.sourceText) === normSrc,
+      );
+      if (dupSrc) {
+        errs['sourceText'] = `An entry with this source text already exists. Consider editing “${dupSrc.sourceText}” to add synonyms instead.`;
+      }
+
+      if (!errs['sourceText']) {
+        const dupTgt = existingEntries.find(
+          (e) => e.id !== selfId && !!e.targetText && normalizeEntryText(e.targetText) === normTgt,
+        );
+        if (dupTgt) {
+          errs['targetText'] = `An entry with this translation already exists. Consider editing “${dupTgt.sourceText}” to add synonyms instead.`;
+        }
+      }
+    }
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -55,8 +95,8 @@ export default function EntryForm({ onDone, initialValues }: EntryFormProps) {
     e.preventDefault();
     if (!validate()) return;
     onDone({
-      sourceText: sanitise(sourceText),
-      targetText: sanitise(targetText),
+      sourceText: normalizeEntryText(sanitise(sourceText)),
+      targetText: normalizeEntryText(sanitise(targetText)),
       notes: sanitise(notes),
       partOfSpeech,
       tags,

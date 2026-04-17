@@ -15,6 +15,10 @@ export interface ReviewCardProps {
   evalResult?: EvalResult | 'revealed';
   /** The correct answer, shown after wrong/revealed evaluation */
   correctAnswer?: string;
+  /** All valid answers (primary + synonyms) for result display */
+  allAnswers?: string[];
+  /** True when a synonym (not the primary target) was matched */
+  isSynonymHit?: boolean;
   /** Score delta applied this round; undefined while waiting or if reviewed today */
   scoreDelta?: number;
   /** Score before this round */
@@ -32,6 +36,8 @@ export default function ReviewCard({
   onHint,
   evalResult,
   correctAnswer,
+  allAnswers,
+  isSynonymHit,
   scoreDelta,
   oldScore,
   newScore,
@@ -66,6 +72,15 @@ export default function ReviewCard({
 
   const isGain = (scoreDelta ?? 0) > 0;
   const isLoss = (scoreDelta ?? 0) < 0;
+
+  // When every grapheme hint has been used the answer is fully revealed —
+  // treat it as a peek automatically so the user can't submit a cheat answer.
+  const allHintsUsed = graphemes.length > 0 && hintsUsed >= graphemes.length;
+  useEffect(() => {
+    if (!answered && allHintsUsed) {
+      onReveal();
+    }
+  }, [allHintsUsed, answered, onReveal]);
 
   useEffect(() => {
     if (!answered) {
@@ -155,14 +170,24 @@ export default function ReviewCard({
                   : styles.wrong
             }`}
           >
-            {evalResult === 'correct' && (hintsUsed > 0 ? '🎉 Correct! (hint used — reduced gain)' : '🎉 Correct!')}
-            {evalResult === 'typo' && '🤏 Almost! Accepted with a small deduction'}
+            {evalResult === 'correct' && !isSynonymHit && (hintsUsed > 0 ? '🎉 Correct! (hint used — reduced gain)' : '🎉 Correct!')}
+            {evalResult === 'correct' && isSynonymHit && '🎉 Correct — you used a synonym!'}
+            {evalResult === 'typo' && !isSynonymHit && '🤏 Almost! Accepted with a small deduction'}
+            {evalResult === 'typo' && isSynonymHit && '🤏 Almost — matched a synonym with a small deduction'}
             {evalResult === 'wrong' && '😬 Not quite — keep pushing!'}
             {evalResult === 'revealed' && '👁️ Peeked — full deduction applied'}
           </p>
-          {(evalResult === 'wrong' || evalResult === 'revealed') && correctAnswer && (
+          {(evalResult === 'wrong' || evalResult === 'revealed' || evalResult === 'correct' || evalResult === 'typo') &&
+            allAnswers && allAnswers.length > 0 && (
             <p className={styles.correctAnswer}>
-              ✏️ Answer: <strong>{correctAnswer}</strong>
+              ✏️ Valid answer{allAnswers.length > 1 ? 's' : ''}:{' '}
+              {allAnswers.map((a, i) => (
+                <span key={i}>
+                  {i > 0 && <span className={styles.answerSep}> · </span>}
+                  <strong>{a}</strong>
+                  {i === 0 && allAnswers.length > 1 && <span className={styles.primaryBadge}> (main)</span>}
+                </span>
+              ))}
             </p>
           )}
           {!reviewedToday && newScore !== undefined && oldScore !== undefined && (

@@ -17,6 +17,7 @@ import {
   type DBEntry,
 } from '../services/db';
 import { enqueueMutation } from '../services/sync';
+import { indexEntry, removeFromIndex } from '../services/search';
 import { randomUUID } from '../utils/uuid';
 import styles from './PhrasebookView.module.css';
 
@@ -88,6 +89,7 @@ export default function PhrasebookView() {
 
     await createEntry(newEntry);
     await enqueueMutation(`${API_BASE}/entries`, 'POST', newEntry);
+    void indexEntry(newEntry);
   }
 
   async function handleEditEntry(data?: EntryFormData) {
@@ -104,11 +106,13 @@ export default function PhrasebookView() {
     };
     await updateEntry(entry.id, changes);
     await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'PUT', { ...entry, ...changes });
+    void indexEntry({ ...entry, ...changes });
   }
 
   async function handleDeleteEntry(entry: DBEntry) {
     await deleteEntry(entry.id);
     await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'DELETE');
+    removeFromIndex(entry.id);
   }
 
   async function handleDeletePhrasebook() {
@@ -203,6 +207,7 @@ export default function PhrasebookView() {
           <EntryForm
             onDone={editingEntry ? handleEditEntry : handleNewEntry}
             initialValues={editingEntry ?? undefined}
+            existingEntries={entries}
           />
         </div>
       )}

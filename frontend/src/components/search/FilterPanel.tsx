@@ -103,13 +103,20 @@ const LEARNING_STATE_OPTIONS: MultiSelectOption[] = [
 ];
 
 const PART_OF_SPEECH_OPTIONS: MultiSelectOption[] = [
-  { value: 'noun', label: 'Noun' },
-  { value: 'verb', label: 'Verb' },
-  { value: 'adjective', label: 'Adjective' },
-  { value: 'adverb', label: 'Adverb' },
-  { value: 'idiom', label: 'Idiom' },
+  { value: 'noun',         label: 'Noun' },
+  { value: 'verb',         label: 'Verb' },
+  { value: 'adjective',    label: 'Adjective' },
+  { value: 'adverb',       label: 'Adverb' },
+  { value: 'pronoun',      label: 'Pronoun' },
+  { value: 'preposition',  label: 'Preposition' },
+  { value: 'conjunction',  label: 'Conjunction' },
+  { value: 'article',      label: 'Article' },
+  { value: 'interjection', label: 'Interjection' },
+  { value: 'numeral',      label: 'Numeral' },
+  { value: 'idiom',        label: 'Idiom' },
   { value: 'phrasal_verb', label: 'Phrasal Verb' },
-  { value: 'other', label: 'Other' },
+  { value: 'expression',   label: 'Expression' },
+  { value: 'other',        label: 'Other' },
 ];
 
 export default function FilterPanel({ filters, onChange }: FilterPanelProps) {

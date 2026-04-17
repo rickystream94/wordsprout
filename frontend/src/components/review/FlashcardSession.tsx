@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import type { DBEntry } from '../../services/db';
-import { updateEntry } from '../../services/db';
+import type { DBEntry, DBEnrichment } from '../../services/db';
+import { db, updateEntry } from '../../services/db';
 import { enqueueMutation } from '../../services/sync';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { API_BASE } from '../../config/env';
 import {
   applyDelta,
@@ -10,6 +11,7 @@ import {
   splitGraphemes,
   todayKey,
   type EvalResult,
+  type EvalOutcome,
 } from '../../services/scoring';
 import ReviewCard from '../entry/ReviewCard';
 import styles from './FlashcardSession.module.css';
@@ -24,6 +26,7 @@ export interface SessionResult {
   evalResult: EvalResult | 'revealed';
   oldScore: number;
   newScore: number;
+  isSynonymHit: boolean;
 }
 
 export default function FlashcardSession({ entries, onDone }: FlashcardSessionProps) {
@@ -32,25 +35,41 @@ export default function FlashcardSession({ entries, onDone }: FlashcardSessionPr
   const [evalResult, setEvalResult] = useState<EvalResult | 'revealed' | undefined>(undefined);
   const [results, setResults] = useState<SessionResult[]>([]);
   const [currentResult, setCurrentResult] = useState<{ delta: number; oldScore: number; newScore: number } | undefined>(undefined);
+  const [currentSynonymHit, setCurrentSynonymHit] = useState(false);
+
+  // Load enrichments for all session entries to support synonym matching
+  const enrichments = useLiveQuery(
+    () => db.enrichments.where('entryId').anyOf(entries.map((e) => e.id)).toArray(),
+    [entries],
+  );
+  const enrichmentMap: Record<string, DBEnrichment> = {};
+  if (enrichments) {
+    for (const e of enrichments) enrichmentMap[e.entryId] = e;
+  }
 
   const current = entries[index];
 
   if (!current) {
-    // Session complete — should not reach here, parent handles via onDone
     return null;
   }
 
   const reviewedToday = current.lastReviewedDate === todayKey();
 
+  /** All valid answers: primary targetText + AI synonyms (if any) */
+  const validAnswers = [
+    current.targetText,
+    ...(enrichmentMap[current.id]?.synonyms ?? []),
+  ].filter((v): v is string => !!v);
+
   function handleSubmit(input: string) {
     if (!current || evalResult !== undefined) return;
 
-    const answer = current.targetText ?? '';
-    const result = evaluateAnswer(input, answer);
+    const { result, isSynonymHit }: EvalOutcome = evaluateAnswer(input, validAnswers);
     setEvalResult(result);
+    setCurrentSynonymHit(isSynonymHit);
 
     if (!reviewedToday) {
-      const graphemeCount = splitGraphemes(answer).length;
+      const graphemeCount = splitGraphemes(validAnswers[0] ?? '').length;
       const delta = computeScoreDelta({ result, hintsUsed, graphemeCount });
       const newScore = applyDelta(current.learningScore, delta);
       const today = todayKey();
@@ -66,14 +85,14 @@ export default function FlashcardSession({ entries, onDone }: FlashcardSessionPr
 
       setResults((prev) => [
         ...prev,
-        { entry: current, evalResult: result, oldScore: current.learningScore, newScore },
+        { entry: current, evalResult: result, oldScore: current.learningScore, newScore, isSynonymHit },
       ]);
       setCurrentResult({ delta, oldScore: current.learningScore, newScore });
     } else {
       // Reviewed today — no score change
       setResults((prev) => [
         ...prev,
-        { entry: current, evalResult: result, oldScore: current.learningScore, newScore: current.learningScore },
+        { entry: current, evalResult: result, oldScore: current.learningScore, newScore: current.learningScore, isSynonymHit },
       ]);
     }
   }
@@ -101,13 +120,13 @@ export default function FlashcardSession({ entries, onDone }: FlashcardSessionPr
 
       setResults((prev) => [
         ...prev,
-        { entry: current, evalResult: 'revealed', oldScore: current.learningScore, newScore },
+        { entry: current, evalResult: 'revealed', oldScore: current.learningScore, newScore, isSynonymHit: false },
       ]);
       setCurrentResult({ delta, oldScore: current.learningScore, newScore });
     } else {
       setResults((prev) => [
         ...prev,
-        { entry: current, evalResult: 'revealed', oldScore: current.learningScore, newScore: current.learningScore },
+        { entry: current, evalResult: 'revealed', oldScore: current.learningScore, newScore: current.learningScore, isSynonymHit: false },
       ]);
     }
 
@@ -126,6 +145,7 @@ export default function FlashcardSession({ entries, onDone }: FlashcardSessionPr
       setHintsUsed(0);
       setEvalResult(undefined);
       setCurrentResult(undefined);
+      setCurrentSynonymHit(false);
     }
   }
 
@@ -155,7 +175,8 @@ export default function FlashcardSession({ entries, onDone }: FlashcardSessionPr
         onReveal={handleReveal}
         onHint={handleHint}
         evalResult={evalResult}
-        correctAnswer={current.targetText}
+        allAnswers={validAnswers}
+        isSynonymHit={currentSynonymHit}
         scoreDelta={currentResult?.delta}
         oldScore={currentResult?.oldScore}
         newScore={currentResult?.newScore}

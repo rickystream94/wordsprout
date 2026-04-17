@@ -13,6 +13,20 @@ function sanitiseArray(values: string[]): string[] {
   return values.map(sanitise).filter(Boolean);
 }
 
+/**
+ * Normalize vocabulary entry text: lowercase, trim, collapse spaces,
+ * strip leading/trailing non-word punctuation.
+ * Preserves Unicode letters, numbers, apostrophes, hyphens and diacritics.
+ * Applied to sourceText and targetText only — not notes.
+ */
+function normalizeEntryText(text: string): string {
+  return text
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/^[^\p{L}\p{N}'\-]+|[^\p{L}\p{N}'\-]+$/gu, '')
+    .toLowerCase();
+}
+
 function apiError(statusCode: number, message: string): HttpResponseInit {
   return {
     status: statusCode,
@@ -38,7 +52,7 @@ async function createEntry(req: HttpRequest, _ctx: InvocationContext): Promise<H
 
   const body = (await req.json()) as Partial<VocabularyEntry>;
   const phrasebookId = sanitise(body.phrasebookId ?? '');
-  const sourceText = sanitise(body.sourceText ?? '');
+  const sourceText = normalizeEntryText(sanitise(body.sourceText ?? ''));
 
   if (!phrasebookId || !sourceText) {
     return apiError(400, 'phrasebookId and sourceText are required');
@@ -53,6 +67,19 @@ async function createEntry(req: HttpRequest, _ctx: InvocationContext): Promise<H
     return apiError(403, 'Access denied');
   }
 
+  // Server-side duplicate detection within the same phrasebook
+  const existing = await cosmosClient.queryByPartition<VocabularyEntry>(token.sub, {
+    type: 'entry',
+    phrasebookId,
+  });
+  const rawTargetText = body.targetText ? normalizeEntryText(sanitise(body.targetText)) : undefined;
+  const dupSrc = existing.find((e) => normalizeEntryText(e.sourceText) === sourceText);
+  if (dupSrc) return apiError(409, 'An entry with this source text already exists in the phrasebook.');
+  if (rawTargetText) {
+    const dupTgt = existing.find((e) => e.targetText && normalizeEntryText(e.targetText) === rawTargetText);
+    if (dupTgt) return apiError(409, 'An entry with this translation already exists in the phrasebook.');
+  }
+
   const now = new Date().toISOString();
   const entry: VocabularyEntry = {
     id: randomUUID(),
@@ -60,7 +87,7 @@ async function createEntry(req: HttpRequest, _ctx: InvocationContext): Promise<H
     type: 'entry',
     phrasebookId,
     sourceText,
-    targetText: body.targetText ? sanitise(body.targetText) : undefined,
+    targetText: rawTargetText,
     notes: body.notes ? sanitise(body.notes) : undefined,
     tags: sanitiseArray(body.tags ?? []),
     partOfSpeech: body.partOfSpeech,

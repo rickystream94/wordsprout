@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useDeferredValue, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import EmptyState from '../components/common/EmptyState';
 import EntryForm, { type EntryFormData } from '../components/entry/EntryForm';
@@ -8,9 +8,9 @@ import FilterPanel from '../components/search/FilterPanel';
 import { EMPTY_FILTERS, type ActiveFilters } from '../components/search/filterTypes';
 import SearchBar from '../components/search/SearchBar';
 import { API_BASE } from '../config/env';
-import { db, deleteEntry, updateEntry, type DBEntry, type DBPhrasebook } from '../services/db';
+import { db, deleteEntry, updateEntry, type DBEntry, type DBEnrichment, type DBPhrasebook } from '../services/db';
 import { enqueueMutation } from '../services/sync';
-import { searchIds } from '../services/search';
+import { searchIds, substringMatch, indexEntry, removeFromIndex, rebuildIndex } from '../services/search';
 import { scoreToRange } from '../services/scoring';
 import styles from './Search.module.css';
 
@@ -48,6 +48,26 @@ export default function Search() {
     [userId],
   );
 
+  const allEnrichments = useLiveQuery<DBEnrichment[]>(
+    () => (userId ? db.enrichments.where('userId').equals(userId).toArray() : Promise.resolve([])),
+    [userId],
+  );
+
+  const synonymMap = useMemo<Record<string, string[]>>(() => {
+    const map: Record<string, string[]> = {};
+    for (const e of allEnrichments ?? []) map[e.entryId] = e.synonyms;
+    return map;
+  }, [allEnrichments]);
+
+  // Rebuild index once the user's entries have loaded (fixes empty-index-on-startup bug)
+  const indexReady = useRef(false);
+  useEffect(() => {
+    if (!indexReady.current && userId && allEntries && allEntries.length > 0) {
+      indexReady.current = true;
+      rebuildIndex(userId).catch(console.error);
+    }
+  }, [userId, allEntries]);
+
   // Compute results inline — avoids stale-closure issues with useMemo + useLiveQuery
   const loadedEntries = allEntries ?? [];
 
@@ -57,8 +77,10 @@ export default function Search() {
   if (filters.partsOfSpeech.length) results = results.filter((e) => e.partOfSpeech != null && filters.partsOfSpeech.includes(e.partOfSpeech));
   if (filters.tags.length) results = results.filter((e) => filters.tags.some((t) => e.tags.includes(t)));
   if (deferredQuery.trim()) {
-    const ids = searchIds(deferredQuery);
-    results = results.filter((e) => ids.has(e.id));
+    const miniIds = searchIds(deferredQuery);
+    const subIds = substringMatch(deferredQuery, loadedEntries, synonymMap);
+    const combined = new Set([...miniIds, ...subIds]);
+    results = results.filter((e) => combined.has(e.id));
   }
   results = applySortEntries(results, sort);
 
@@ -89,11 +111,13 @@ export default function Search() {
     };
     await updateEntry(entry.id, changes);
     await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'PUT', { ...entry, ...changes });
+    void indexEntry({ ...entry, ...changes });
   }
 
   async function handleDeleteEntry(entry: DBEntry) {
     await deleteEntry(entry.id);
     await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'DELETE');
+    removeFromIndex(entry.id);
   }
 
   return (
@@ -126,7 +150,7 @@ export default function Search() {
 
       {editingEntry && (
         <div className={styles.formWrapper}>
-          <EntryForm onDone={handleEditEntry} initialValues={editingEntry} />
+          <EntryForm onDone={handleEditEntry} initialValues={editingEntry} existingEntries={loadedEntries} />
         </div>
       )}
 
