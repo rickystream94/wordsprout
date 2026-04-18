@@ -42,25 +42,23 @@ export default function SyncIndicator() {
   );
 
   const failedMutations = useLiveQuery(
-    () => (showDetails ? getFailedMutations() : Promise.resolve([])),
-    [showDetails],
+    () => (isOpen ? getFailedMutations() : Promise.resolve([])),
+    [isOpen],
     [],
   );
 
   const pendingMutations = useLiveQuery(
-    () => (showDetails ? getPendingMutations() : Promise.resolve([])),
-    [showDetails],
+    () => (isOpen ? getPendingMutations() : Promise.resolve([])),
+    [isOpen],
     [],
   );
 
   const hasFailed = (failedCount ?? 0) > 0;
   const hasPending = (pendingCount ?? 0) > 0;
 
-  // Auto-close panel once all mutations resolve so it doesn't re-open on the
-  // next enqueue (showDetails persists across renders since AppShell stays mounted)
-  useEffect(() => {
-    if (!hasPending && !hasFailed) setShowDetails(false);
-  }, [hasPending, hasFailed]);
+  // Derive open state — panel is only visible when there's something to show AND
+  // the user has toggled it open. No effect needed; avoids synchronous setState in effect.
+  const isOpen = showDetails && (hasPending || hasFailed);
 
   if (!hasPending && !hasFailed) return null;
 
@@ -88,7 +86,7 @@ export default function SyncIndicator() {
         )}
       </button>
 
-      {showDetails && hasFailed && (
+      {isOpen && hasFailed && (
         <div className={styles.details} role="dialog" aria-label="Sync failures">
           <div className={styles.detailsHeader}>
             <strong>Failed sync operations</strong>
@@ -127,7 +125,7 @@ export default function SyncIndicator() {
         </div>
       )}
 
-      {showDetails && !hasFailed && hasPending && (
+      {isOpen && !hasFailed && hasPending && (
         <div className={styles.details} role="dialog" aria-label="Pending sync operations">
           <div className={styles.detailsHeader}>
             <strong>{pendingCount} {pendingCount === 1 ? 'change' : 'changes'} pending</strong>
