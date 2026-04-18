@@ -42,14 +42,14 @@ export default function SyncIndicator() {
   );
 
   const failedMutations = useLiveQuery(
-    () => (isOpen ? getFailedMutations() : Promise.resolve([])),
-    [isOpen],
+    () => (showDetails ? getFailedMutations() : Promise.resolve([])),
+    [showDetails],
     [],
   );
 
   const pendingMutations = useLiveQuery(
-    () => (isOpen ? getPendingMutations() : Promise.resolve([])),
-    [isOpen],
+    () => (showDetails ? getPendingMutations() : Promise.resolve([])),
+    [showDetails],
     [],
   );
 
