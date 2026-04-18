@@ -1,0 +1,156 @@
+name: CD — Deploy to PROD
+
+on:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: prod-deploy
+  cancel-in-progress: false
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Build API; upload as an artifact for the deploy job.
+  # Frontend is built in the deploy job so it can use the live SWA hostname
+  # (from the infra deployment output) as VITE_REDIRECT_URI — no stored value needed.
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-api:
+    name: Build API
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: api
+
+      - name: Build API
+        run: npm run build
+        working-directory: api
+
+      - name: Upload API artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-dist
+          path: api/dist
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Deploy to PROD using OIDC — no long-lived secrets, no GitHub variables.
+  # All config is read from infra/config.json. The SWA hostname is obtained from
+  # the infra deployment output and used to build the frontend in the same job.
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to PROD
+    runs-on: ubuntu-latest
+    needs: build-api
+    permissions:
+      id-token: write   # Required for OIDC token exchange
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read config.json
+        id: cfg
+        run: |
+          cfg=$(cat infra/config.json)
+          echo "subscription_id=$(echo "$cfg"   | jq -r '.subscriptionId')"                  >> "$GITHUB_OUTPUT"
+          echo "tenant_id=$(echo "$cfg"         | jq -r '.tenantId')"                        >> "$GITHUB_OUTPUT"
+          echo "oidc_client_id=$(echo "$cfg"    | jq -r '.oidcClientId')"                    >> "$GITHUB_OUTPUT"
+          echo "resource_group=$(echo "$cfg"    | jq -r '.environments.prod.resourceGroup')" >> "$GITHUB_OUTPUT"
+          echo "region=$(echo "$cfg"            | jq -r '.region')"                          >> "$GITHUB_OUTPUT"
+          echo "swa_region=$(echo "$cfg"        | jq -r '.swaRegion')"                       >> "$GITHUB_OUTPUT"
+          echo "swa_name=$(echo "$cfg"          | jq -r '.environments.prod.swaName')"       >> "$GITHUB_OUTPUT"
+          echo "func_app_name=$(echo "$cfg"     | jq -r '.environments.prod.funcAppName')"   >> "$GITHUB_OUTPUT"
+          echo "entra_client_id=$(echo "$cfg"   | jq -r '.environments.prod.entraClientId')" >> "$GITHUB_OUTPUT"
+          echo "google_client_id=$(echo "$cfg"  | jq -r '.environments.prod.googleClientId')" >> "$GITHUB_OUTPUT"
+
+      - name: Download API artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: api-dist
+          path: api/dist
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Azure Functions Core Tools
+        run: npm install -g azure-functions-core-tools@4 --unsafe-perm true
+
+      - name: Login to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ steps.cfg.outputs.oidc_client_id }}
+          tenant-id: ${{ steps.cfg.outputs.tenant_id }}
+          subscription-id: ${{ steps.cfg.outputs.subscription_id }}
+
+      - name: Deploy infrastructure
+        id: infra
+        run: |
+          output=$(az deployment group create \
+            --resource-group "${{ steps.cfg.outputs.resource_group }}" \
+            --template-file infra/main.bicep \
+            --parameters env=prod \
+            --parameters "location=${{ steps.cfg.outputs.region }}" \
+            --parameters "swaLocation=${{ steps.cfg.outputs.swa_region }}" \
+            --parameters aiDailyEnrichmentLimit=20 \
+            --parameters "entraTenantId=${{ steps.cfg.outputs.tenant_id }}" \
+            --parameters "entraClientId=${{ steps.cfg.outputs.entra_client_id }}" \
+            --parameters "googleClientId=${{ steps.cfg.outputs.google_client_id }}" \
+            --output json)
+          swa_hostname=$(echo "$output" | jq -r '.properties.outputs.swaHostname.value')
+          echo "swa_hostname=$swa_hostname" >> "$GITHUB_OUTPUT"
+
+      # ── Frontend ──────────────────────────────────────────────────────────
+      # Built here (not in build-api) so VITE_REDIRECT_URI can use the live SWA
+      # hostname from the infra output above — no stored value needed anywhere.
+      - name: Install frontend dependencies
+        run: npm ci --legacy-peer-deps
+        working-directory: frontend
+
+      - name: Build frontend (prod mode)
+        run: npm run build -- --mode prod
+        working-directory: frontend
+        env:
+          VITE_APP_ENV: prod
+          VITE_ENTRA_CLIENT_ID: ${{ steps.cfg.outputs.entra_client_id }}
+          VITE_GOOGLE_CLIENT_ID: ${{ steps.cfg.outputs.google_client_id }}
+
+      - name: Fetch SWA deployment token at runtime
+        id: swa-token
+        run: |
+          token=$(az staticwebapp secrets list \
+            --name "${{ steps.cfg.outputs.swa_name }}" \
+            --resource-group "${{ steps.cfg.outputs.resource_group }}" \
+            --query "properties.apiKey" \
+            --output tsv)
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy frontend to SWA
+        run: |
+          npx --yes @azure/static-web-apps-cli deploy frontend/dist \
+            --deployment-token "${{ steps.swa-token.outputs.token }}" \
+            --env default
+
+      - name: Deploy API to Function App
+        run: |
+          cd api
+          npm ci --prefer-offline
+          func azure functionapp publish "${{ steps.cfg.outputs.func_app_name }}" --node

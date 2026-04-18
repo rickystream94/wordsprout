@@ -1,0 +1,84 @@
+.container {
+  position: relative;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-brand-500, var(--brand-500));
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.avatar:hover {
+  opacity: 0.85;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  min-width: 220px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-overlay, 200);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.userInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0 var(--space-1);
+}
+
+.email {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.provider {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.separator {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 0;
+}
+
+.signOutBtn {
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.signOutBtn:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}

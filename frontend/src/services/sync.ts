@@ -1,8 +1,25 @@
+import { useLiveQuery } from 'dexie-react-hooks';
 import type { MutationMethod } from '../types/models';
 import { db } from './db';
-import { ApiRequestError } from './api';
+import { ApiRequestError, getAccessToken } from './api';
 
 const MAX_RETRIES = 3;
+export const SYNC_INTERVAL_MS = 30_000;
+
+// ─── Sync scheduling state ────────────────────────────────────────────────────
+
+let _syncInProgress = false;
+let _nextSyncAt: number = Date.now() + SYNC_INTERVAL_MS;
+
+/** True while replayQueue is actively processing mutations. */
+export function isSyncing(): boolean {
+  return _syncInProgress;
+}
+
+/** Timestamp (ms) of the next scheduled automatic sync. */
+export function getNextSyncAt(): number {
+  return _nextSyncAt;
+}
 
 // ─── Enqueue a mutation to the pending-sync queue ─────────────────────────────
 
@@ -19,11 +36,27 @@ export async function enqueueMutation(
     status: 'pending',
     createdAt: new Date().toISOString(),
   });
+  // Sync immediately when online so the pending state is as brief as possible
+  if (navigator.onLine) {
+    replayQueue().catch(console.error);
+  }
 }
 
 // ─── Replay all pending mutations ─────────────────────────────────────────────
 
 export async function replayQueue(): Promise<void> {
+  if (_syncInProgress) return;
+  _syncInProgress = true;
+  _nextSyncAt = NaN; // actively syncing — no "next" time yet
+  try {
+    await _doReplayQueue();
+  } finally {
+    _syncInProgress = false;
+    _nextSyncAt = Date.now() + SYNC_INTERVAL_MS;
+  }
+}
+
+async function _doReplayQueue(): Promise<void> {
   const pending = await db.pendingSync
     .where('status')
     .anyOf(['pending', 'syncing'])
@@ -47,8 +80,8 @@ export async function replayQueue(): Promise<void> {
       };
       if (mutation.body) init.body = mutation.body;
 
-      // Include auth header from stored token if available
-      const authToken = sessionStorage.getItem('wordsprout_access_token');
+      // Acquire a fresh token the same way api.ts does
+      const authToken = await getAccessToken();
       if (authToken) {
         (init.headers as Record<string, string>)['Authorization'] = `Bearer ${authToken}`;
       }
@@ -61,10 +94,47 @@ export async function replayQueue(): Promise<void> {
 
       // Success — remove from queue
       await db.pendingSync.delete(mutation.id);
-    } catch (err) {
-      const newRetryCount = mutation.retryCount + 1;
+    } catch (err: unknown) {
+      // 401 = token expired or invalid — the mutations are still valid, just keep
+      // them pending so they replay after the user re-authenticates.
+      if (err instanceof ApiRequestError && err.statusCode === 401) {
+        await db.pendingSync.update(mutation.id, { status: 'pending' });
+        window.dispatchEvent(new CustomEvent('wordsprout:session-expired'));
+        return;
+      }
+
+      // 403 = permanent access failure — stale local writes will never reach the server.
+      // Clear the entire queue and fire an event so the app can redirect to /access-blocked.
+      if (err instanceof ApiRequestError && err.statusCode === 403) {
+        await db.pendingSync.clear();
+        window.dispatchEvent(new CustomEvent('wordsprout:access-revoked'));
+        return;
+      }
+
+      // 404 = the referenced resource no longer exists — this mutation can never succeed.
+      // Discard it silently rather than burning retries.
+      if (err instanceof ApiRequestError && err.statusCode === 404) {
+        await db.pendingSync.delete(mutation.id);
+        continue;
+      }
+
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 
+      // Network error (offline / no connectivity) — TypeError from fetch, not an HTTP response.
+      // Do NOT increment retryCount: the mutation stays 'pending' and will be retried
+      // the next time replayQueue() runs (on 'online' or visibilitychange).
+      const isNetworkError = !(err instanceof ApiRequestError);
+      if (isNetworkError) {
+        await db.pendingSync.update(mutation.id, {
+          status: 'pending',
+          errorMessage,
+        });
+        // No point trying further mutations if we're offline
+        return;
+      }
+
+      // Server error (4xx/5xx) — count against retries
+      const newRetryCount = mutation.retryCount + 1;
       if (newRetryCount >= MAX_RETRIES) {
         await db.pendingSync.update(mutation.id, {
           status: 'failed',
@@ -90,4 +160,69 @@ export async function getPendingCount(): Promise<number> {
 
 export async function getFailedMutations() {
   return db.pendingSync.where('status').equals('failed').toArray();
+}
+
+export async function getPendingMutations() {
+  return db.pendingSync.where('status').anyOf(['pending', 'syncing']).toArray();
+}
+
+// ─── Reset all failed mutations to pending so replayQueue picks them up again ─
+
+export async function retryFailed(): Promise<void> {
+  const failed = await db.pendingSync.where('status').equals('failed').toArray();
+  await Promise.all(
+    failed
+      .filter((m) => m.id !== undefined)
+      .map((m) =>
+        db.pendingSync.update(m.id!, {
+          status: 'pending',
+          retryCount: 0,
+          errorMessage: undefined,
+        }),
+      ),
+  );
+  await replayQueue();
+}
+
+// ─── Permanently discard a single failed mutation ─────────────────────────────
+
+export async function discardMutation(id: number): Promise<void> {
+  await db.pendingSync.delete(id);
+}
+
+// ─── Live set of resource IDs that have pending/syncing mutations ─────────────
+
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+/**
+ * Extracts all UUIDs referenced by a mutation — from the URL path and,
+ * for POST mutations, from the serialised body (which always has an `id` field).
+ */
+function extractIds(url: string, method: string, body?: string): string[] {
+  const ids = new Set<string>();
+  for (const m of url.matchAll(UUID_RE)) ids.add(m[0].toLowerCase());
+  if (method === 'POST' && body) {
+    try {
+      const parsed = JSON.parse(body) as Record<string, unknown>;
+      if (typeof parsed['id'] === 'string') ids.add(parsed['id'].toLowerCase());
+    } catch { /* ignore */ }
+  }
+  return [...ids];
+}
+
+/**
+ * React hook — returns a live Set of resource IDs (UUIDs) that currently have
+ * pending or syncing mutations in the queue. Useful for marking items in the UI.
+ */
+export function usePendingIds(): Set<string> {
+  const mutations = useLiveQuery(
+    () => db.pendingSync.where('status').anyOf(['pending', 'syncing']).toArray(),
+    [],
+    [],
+  );
+  const ids = new Set<string>();
+  for (const m of mutations) {
+    for (const id of extractIds(m.url, m.method, m.body)) ids.add(id);
+  }
+  return ids;
 }

@@ -7,6 +7,7 @@ import EntryList from '../components/entry/EntryList';
 import FilterPanel from '../components/search/FilterPanel';
 import { EMPTY_FILTERS, type ActiveFilters } from '../components/search/filterTypes';
 import SearchBar from '../components/search/SearchBar';
+import { SortDropdown } from '../components/search/SortDropdown';
 import { API_BASE } from '../config/env';
 import { db, deleteEntry, updateEntry, type DBEntry, type DBEnrichment, type DBPhrasebook } from '../services/db';
 import { enqueueMutation } from '../services/sync';
@@ -14,9 +15,18 @@ import { searchIds, substringMatch, indexEntry, removeFromIndex, rebuildIndex } 
 import { scoreToRange } from '../services/scoring';
 import styles from './Search.module.css';
 
-type SortOption = 'createdAt_desc' | 'createdAt_asc' | 'sourceText_asc' | 'sourceText_desc' | 'targetText_asc' | 'targetText_desc';
+type SortKey = 'createdAt_desc' | 'createdAt_asc' | 'sourceText_asc' | 'sourceText_desc' | 'targetText_asc' | 'targetText_desc';
 
-function applySortEntries(entries: DBEntry[], sort: SortOption): DBEntry[] {
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'createdAt_desc', label: 'Newest first' },
+  { value: 'createdAt_asc',  label: 'Oldest first' },
+  { value: 'sourceText_asc',  label: 'Source A→Z' },
+  { value: 'sourceText_desc', label: 'Source Z→A' },
+  { value: 'targetText_asc',  label: 'Target A→Z' },
+  { value: 'targetText_desc', label: 'Target Z→A' },
+];
+
+function applySortEntries(entries: DBEntry[], sort: SortKey): DBEntry[] {
   return [...entries].sort((a, b) => {
     switch (sort) {
       case 'createdAt_asc':   return a.createdAt.localeCompare(b.createdAt);
@@ -34,7 +44,7 @@ export default function Search() {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<ActiveFilters>(EMPTY_FILTERS);
   const [editingEntry, setEditingEntry] = useState<DBEntry | null>(null);
-  const [sort, setSort] = useState<SortOption>('createdAt_desc');
+  const [sort, setSort] = useState<SortKey>('createdAt_desc');
 
   const deferredQuery = useDeferredValue(query);
 
@@ -132,20 +142,7 @@ export default function Search() {
       </div>
 
       <div className={styles.listHeader}>
-        <span className={styles.sortLabel}>Sort by</span>
-        <select
-          className={styles.sortSelect}
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortOption)}
-          aria-label="Sort entries"
-        >
-          <option value="createdAt_desc">Newest first</option>
-          <option value="createdAt_asc">Oldest first</option>
-          <option value="sourceText_asc">Source A→Z</option>
-          <option value="sourceText_desc">Source Z→A</option>
-          <option value="targetText_asc">Target A→Z</option>
-          <option value="targetText_desc">Target Z→A</option>
-        </select>
+        <SortDropdown value={sort} options={SORT_OPTIONS} onChange={setSort} />
       </div>
 
       {editingEntry && (

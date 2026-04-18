@@ -1,20 +1,18 @@
 import { PublicClientApplication, type Configuration } from '@azure/msal-browser';
-import { AUTH_CONFIG, IS_LOCAL } from '../config/env';
+import { AUTH_CONFIG } from '../config/env';
 
 const msalConfig: Configuration = {
   auth: {
     clientId: AUTH_CONFIG.clientId || 'local-client-id',
-    authority: IS_LOCAL
-      ? 'https://login.microsoftonline.com/common'
-      : `https://${AUTH_CONFIG.tenantName}.b2clogin.com/${AUTH_CONFIG.tenantName}.onmicrosoft.com/${AUTH_CONFIG.policy}`,
-    knownAuthorities: IS_LOCAL
-      ? []
-      : [`${AUTH_CONFIG.tenantName}.b2clogin.com`],
+    // Use the specific tenant so Microsoft doesn't route through the consumer
+    // (personal account) endpoint, which rejects app registrations that are
+    // not enabled for consumers. Fall back to 'common' only if tenantId is
+    // missing (should not happen in practice).
+    authority: `https://login.microsoftonline.com/${AUTH_CONFIG.tenantId || 'common'}`,
     redirectUri: AUTH_CONFIG.redirectUri,
   },
   cache: {
     cacheLocation: 'localStorage',
-    storeAuthStateInCookie: false,
   },
 };
 

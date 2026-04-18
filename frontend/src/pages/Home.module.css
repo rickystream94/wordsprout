@@ -74,6 +74,10 @@
   border-color: var(--brand-400);
 }
 
+.cardPending {
+  border-left: 3px solid var(--brand-400);
+}
+
 .cardLink {
   display: block;
   text-decoration: none;

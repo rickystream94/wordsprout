@@ -80,6 +80,12 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-500) 20%, transparent);
 }
 
+.inputReadOnly {
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  cursor: default;
+}
+
 .inputError {
   border-color: var(--danger-500);
 }
@@ -93,8 +99,8 @@
 }
 
 .submitBtn {
-  background: var(--brand-500);
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--text-on-brand);
   border: none;
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-6);
@@ -106,7 +112,7 @@
 }
 
 .submitBtn:hover:not(:disabled) {
-  background: var(--brand-600);
+  background: var(--color-primary-hover);
 }
 
 .submitBtn:disabled {
@@ -116,9 +122,13 @@
 
 .backLink {
   font-size: var(--text-sm);
-  color: var(--brand-500);
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
   text-decoration: none;
   margin-top: var(--space-2);
+  padding: 0;
 }
 
 .backLink:hover {

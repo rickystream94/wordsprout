@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { useTheme } from '../../store/ThemeContext';
 import OfflineIndicator from '../common/OfflineIndicator';
 import SyncIndicator from '../common/SyncIndicator';
+import UserMenu from './UserMenu';
 import styles from './AppShell.module.css';
 
 export default function AppShell() {
@@ -34,6 +35,7 @@ export default function AppShell() {
           >
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
+          <UserMenu />
         </div>
       </header>
       <main className={styles.content}>

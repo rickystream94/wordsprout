@@ -1,9 +1,9 @@
 import { CosmosClient, type ItemDefinition } from '@azure/cosmos';
+import { DefaultAzureCredential } from '@azure/identity';
 import {
   COSMOS_CONTAINER,
   COSMOS_DATABASE,
   COSMOS_ENDPOINT,
-  COSMOS_KEY,
   IS_LOCAL,
 } from '../config/env';
 import { createMockCosmosClient } from './cosmos.mock';
@@ -36,7 +36,7 @@ export interface CosmosClientWrapper {
 // ─── Real Cosmos DB implementation ───────────────────────────────────────────
 
 function buildRealClient(): CosmosClientWrapper {
-  const client = new CosmosClient({ endpoint: COSMOS_ENDPOINT, key: COSMOS_KEY });
+  const client = new CosmosClient({ endpoint: COSMOS_ENDPOINT, aadCredentials: new DefaultAzureCredential() });
   const container = client.database(COSMOS_DATABASE).container(COSMOS_CONTAINER);
 
   return {

@@ -28,7 +28,7 @@ export interface Language {
 
 export interface UserQuota {
   aiQuotaUsedToday: number;
-  aiQuotaLimit: number;
+  aiDailyEnrichmentLimit: number;
   aiQuotaResetAt: string;
 }
 

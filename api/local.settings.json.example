@@ -1,19 +1,21 @@
 {
   "IsEncrypted": false,
+  "Host": {
+    "CORS": "http://localhost:5173",
+    "CORSCredentials": false
+  },
   "Values": {
-    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "AzureWebJobsStorage": "",
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "APP_ENV": "local",
     "COSMOS_ENDPOINT": "",
-    "COSMOS_KEY": "",
     "COSMOS_DATABASE": "wordsprout",
     "COSMOS_CONTAINER": "data",
-    "B2C_TENANT": "",
-    "B2C_POLICY": "",
-    "B2C_CLIENT_ID": "",
+    "ENTRA_TENANT_ID": "",
+    "ENTRA_CLIENT_ID": "",
+    "GOOGLE_CLIENT_ID": "",
     "AZURE_AI_ENDPOINT": "",
-    "AZURE_AI_KEY": "",
     "AZURE_AI_DEPLOYMENT": "gpt-4o-mini",
-    "AI_QUOTA_LIMIT": "20"
+    "AI_DAILY_ENRICHMENT_LIMIT": "20"
   }
 }

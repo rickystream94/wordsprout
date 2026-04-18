@@ -1,5 +1,5 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions';
-import { AI_QUOTA_LIMIT } from '../config/env';
+import { AI_DAILY_ENRICHMENT_LIMIT } from '../config/env';
 import { authorise } from '../middleware/authorise';
 import type { User, UserQuota } from '../models/types';
 import { cosmosClient } from '../services/cosmos';
@@ -43,7 +43,7 @@ async function getQuota(
 
   const quota: UserQuota = {
     aiQuotaUsedToday,
-    aiQuotaLimit: AI_QUOTA_LIMIT,
+    aiDailyEnrichmentLimit: AI_DAILY_ENRICHMENT_LIMIT,
     aiQuotaResetAt,
   };
 

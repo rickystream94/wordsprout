@@ -25,6 +25,10 @@
   border-color: var(--brand-400);
 }
 
+.cardPending {
+  border-left: 3px solid var(--brand-400);
+}
+
 .cardMain {
   padding: var(--space-4);
   display: flex;

@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import EntryForm, { type EntryFormData } from '../components/entry/EntryForm';
 import EntryList from '../components/entry/EntryList';
-import QuotaIndicator from '../components/entry/QuotaIndicator';
+import { SortDropdown } from '../components/search/SortDropdown';
 import { API_BASE } from '../config/env';
 import {
   createEntry,
@@ -21,9 +21,18 @@ import { indexEntry, removeFromIndex } from '../services/search';
 import { randomUUID } from '../utils/uuid';
 import styles from './PhrasebookView.module.css';
 
-type SortOption = 'createdAt_desc' | 'createdAt_asc' | 'sourceText_asc' | 'sourceText_desc' | 'targetText_asc' | 'targetText_desc';
+type SortKey = 'createdAt_desc' | 'createdAt_asc' | 'sourceText_asc' | 'sourceText_desc' | 'targetText_asc' | 'targetText_desc';
 
-function applySortEntries(entries: DBEntry[], sort: SortOption): DBEntry[] {
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'createdAt_desc', label: 'Newest first' },
+  { value: 'createdAt_asc',  label: 'Oldest first' },
+  { value: 'sourceText_asc',  label: 'Source A→Z' },
+  { value: 'sourceText_desc', label: 'Source Z→A' },
+  { value: 'targetText_asc',  label: 'Target A→Z' },
+  { value: 'targetText_desc', label: 'Target Z→A' },
+];
+
+function applySortEntries(entries: DBEntry[], sort: SortKey): DBEntry[] {
   return [...entries].sort((a, b) => {
     switch (sort) {
       case 'createdAt_asc':  return a.createdAt.localeCompare(b.createdAt);
@@ -53,7 +62,7 @@ export default function PhrasebookView() {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const [sort, setSort] = useState<SortOption>('createdAt_desc');
+  const [sort, setSort] = useState<SortKey>('createdAt_desc');
 
   if (phrasebook === undefined || entries === undefined) {
     return <main className={styles.page}><p className={styles.loading}>Loading…</p></main>;
@@ -123,6 +132,7 @@ export default function PhrasebookView() {
   }
 
   function startEditingName() {
+    if (!phrasebook) return;
     setNameValue(phrasebook.name);
     setEditingName(true);
     setTimeout(() => nameInputRef.current?.select(), 0);
@@ -130,7 +140,7 @@ export default function PhrasebookView() {
 
   async function commitNameEdit() {
     const trimmed = nameValue.trim();
-    if (trimmed && trimmed !== phrasebook.name && id) {
+    if (trimmed && trimmed !== phrasebook?.name && id) {
       await updatePhrasebook(id, { name: trimmed });
       await enqueueMutation(`${API_BASE}/phrasebooks/${id}`, 'PATCH', { name: trimmed });
     }
@@ -185,7 +195,6 @@ export default function PhrasebookView() {
           {phrasebook.sourceLanguageName} → {phrasebook.targetLanguageName}
           <span className={styles.entryCount}>{entries.length} {entries.length === 1 ? 'entry' : 'entries'}</span>
         </p>
-        <QuotaIndicator />
       </div>
 
       {/* Confirm delete dialog */}
@@ -221,20 +230,7 @@ export default function PhrasebookView() {
 
       {/* Entry list */}
       <div className={styles.listHeader}>
-        <span className={styles.sortLabel}>Sort by</span>
-        <select
-          className={styles.sortSelect}
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortOption)}
-          aria-label="Sort entries"
-        >
-          <option value="createdAt_desc">Newest first</option>
-          <option value="createdAt_asc">Oldest first</option>
-          <option value="sourceText_asc">Source A→Z</option>
-          <option value="sourceText_desc">Source Z→A</option>
-          <option value="targetText_asc">Target A→Z</option>
-          <option value="targetText_desc">Target Z→A</option>
-        </select>
+        <SortDropdown value={sort} options={SORT_OPTIONS} onChange={setSort} />
       </div>
       <EntryList
         entries={applySortEntries(entries, sort)}

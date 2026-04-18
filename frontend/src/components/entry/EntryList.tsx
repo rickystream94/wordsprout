@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getEnrichment, type DBEnrichment, type DBEntry } from '../../services/db';
+import { usePendingIds } from '../../services/sync';
 import { scoreToRange } from '../../services/scoring';
 import EnrichmentPanel from './EnrichmentPanel';
 import LearningScoreBar from './LearningScoreBar';
@@ -21,6 +22,7 @@ function formatDate(iso: string): string {
 export default function EntryList({ entries, onEdit, onDelete, phrasebooks }: EntryListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const isOnline = navigator.onLine;
+  const pendingIds = usePendingIds();
 
   if (entries.length === 0) {
     return (
@@ -39,6 +41,7 @@ export default function EntryList({ entries, onEdit, onDelete, phrasebooks }: En
           entry={entry}
           isExpanded={expandedId === entry.id}
           isOnline={isOnline}
+          isPending={pendingIds.has(entry.id)}
           phrasebookName={phrasebooks?.[entry.phrasebookId]}
           onToggle={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
           onEdit={onEdit}
@@ -53,6 +56,7 @@ function EntryCard({
   entry,
   isExpanded,
   isOnline,
+  isPending,
   phrasebookName,
   onToggle,
   onEdit,
@@ -61,6 +65,7 @@ function EntryCard({
   entry: DBEntry;
   isExpanded: boolean;
   isOnline: boolean;
+  isPending: boolean;
   phrasebookName?: string;
   onToggle: () => void;
   onEdit?: (entry: DBEntry) => void;
@@ -80,7 +85,7 @@ function EntryCard({
   }
 
   return (
-    <li className={`${styles.card} ${isExpanded ? styles.cardExpanded : ''}`}>
+    <li className={`${styles.card} ${isExpanded ? styles.cardExpanded : ''} ${isPending ? styles.cardPending : ''}`}>
       <div
         className={styles.cardMain}
         onClick={handleToggle}

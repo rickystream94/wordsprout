@@ -1,9 +1,9 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions';
 import DOMPurify from 'isomorphic-dompurify';
-import { randomUUID } from 'node:crypto';
-import { authorise } from '../middleware/authorise';
 import type { Phrasebook, VocabularyEntry } from '../models/types';
 import { cosmosClient } from '../services/cosmos';
+import { authenticated, resolveId, apiError } from '../utils/http';
+import type { DecodedToken } from '../models/types';
 
 function sanitise(value: string): string {
   return DOMPurify.sanitize(value).trim();
@@ -27,28 +27,9 @@ function normalizeEntryText(text: string): string {
     .toLowerCase();
 }
 
-function apiError(statusCode: number, message: string): HttpResponseInit {
-  return {
-    status: statusCode,
-    jsonBody: {
-      error:
-        statusCode === 403 ? 'Forbidden' : statusCode === 404 ? 'Not Found' : 'Error',
-      message,
-      statusCode,
-    },
-  };
-}
-
 // ─── POST /entries ─────────────────────────────────────────────────────────────
 
-async function createEntry(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
-  let token;
-  try {
-    token = await authorise(req);
-  } catch (err: unknown) {
-    const e = err as { statusCode: number; message: string };
-    return apiError(e.statusCode, e.message);
-  }
+async function createEntry(req: HttpRequest, _ctx: InvocationContext, token: DecodedToken): Promise<HttpResponseInit> {
 
   const body = (await req.json()) as Partial<VocabularyEntry>;
   const phrasebookId = sanitise(body.phrasebookId ?? '');
@@ -81,8 +62,13 @@ async function createEntry(req: HttpRequest, _ctx: InvocationContext): Promise<H
   }
 
   const now = new Date().toISOString();
+
+  // Use the client-provided id if it's a valid UUID, otherwise generate one.
+  // This ensures subsequent PUT/DELETE mutations in the sync queue reference the same id.
+  const clientId = resolveId(body.id);
+
   const entry: VocabularyEntry = {
-    id: randomUUID(),
+    id: clientId,
     userId: token.sub,
     type: 'entry',
     phrasebookId,
@@ -110,14 +96,7 @@ async function createEntry(req: HttpRequest, _ctx: InvocationContext): Promise<H
 
 // ─── GET /entries/{id} ─────────────────────────────────────────────────────────
 
-async function getEntry(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
-  let token;
-  try {
-    token = await authorise(req);
-  } catch (err: unknown) {
-    const e = err as { statusCode: number; message: string };
-    return apiError(e.statusCode, e.message);
-  }
+async function getEntry(req: HttpRequest, _ctx: InvocationContext, token: DecodedToken): Promise<HttpResponseInit> {
 
   const id = req.params['id'];
   if (!id) return apiError(400, 'Missing entry id');
@@ -131,18 +110,10 @@ async function getEntry(req: HttpRequest, _ctx: InvocationContext): Promise<Http
 
 // ─── GET /entries (list with query params) ─────────────────────────────────────
 
-async function listEntries(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
-  let token;
-  try {
-    token = await authorise(req);
-  } catch (err: unknown) {
-    const e = err as { statusCode: number; message: string };
-    return apiError(e.statusCode, e.message);
-  }
+async function listEntries(req: HttpRequest, _ctx: InvocationContext, token: DecodedToken): Promise<HttpResponseInit> {
 
   const filters: Record<string, string> = { type: 'entry' };
   const phrasebookId = req.query.get('phrasebookId');
-  const learningState = req.query.get('learningState');
   const partOfSpeech = req.query.get('partOfSpeech');
   if (phrasebookId) filters['phrasebookId'] = phrasebookId;
   if (partOfSpeech) filters['partOfSpeech'] = partOfSpeech;
@@ -153,14 +124,7 @@ async function listEntries(req: HttpRequest, _ctx: InvocationContext): Promise<H
 
 // ─── PUT /entries/{id} ─────────────────────────────────────────────────────────
 
-async function updateEntry(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
-  let token;
-  try {
-    token = await authorise(req);
-  } catch (err: unknown) {
-    const e = err as { statusCode: number; message: string };
-    return apiError(e.statusCode, e.message);
-  }
+async function updateEntry(req: HttpRequest, _ctx: InvocationContext, token: DecodedToken): Promise<HttpResponseInit> {
 
   const id = req.params['id'];
   if (!id) return apiError(400, 'Missing entry id');
@@ -214,14 +178,7 @@ async function updateEntry(req: HttpRequest, _ctx: InvocationContext): Promise<H
 
 // ─── DELETE /entries/{id} ──────────────────────────────────────────────────────
 
-async function deleteEntry(req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> {
-  let token;
-  try {
-    token = await authorise(req);
-  } catch (err: unknown) {
-    const e = err as { statusCode: number; message: string };
-    return apiError(e.statusCode, e.message);
-  }
+async function deleteEntry(req: HttpRequest, _ctx: InvocationContext, token: DecodedToken): Promise<HttpResponseInit> {
 
   const id = req.params['id'];
   if (!id) return apiError(400, 'Missing entry id');
@@ -253,33 +210,33 @@ app.http('entries-create', {
   methods: ['POST'],
   route: 'entries',
   authLevel: 'anonymous',
-  handler: createEntry,
+  handler: authenticated(createEntry),
 });
 
 app.http('entries-list', {
   methods: ['GET'],
   route: 'entries',
   authLevel: 'anonymous',
-  handler: listEntries,
+  handler: authenticated(listEntries),
 });
 
 app.http('entries-get', {
   methods: ['GET'],
   route: 'entries/{id}',
   authLevel: 'anonymous',
-  handler: getEntry,
+  handler: authenticated(getEntry),
 });
 
 app.http('entries-update', {
   methods: ['PUT'],
   route: 'entries/{id}',
   authLevel: 'anonymous',
-  handler: updateEntry,
+  handler: authenticated(updateEntry),
 });
 
 app.http('entries-delete', {
   methods: ['DELETE'],
   route: 'entries/{id}',
   authLevel: 'anonymous',
-  handler: deleteEntry,
+  handler: authenticated(deleteEntry),
 });

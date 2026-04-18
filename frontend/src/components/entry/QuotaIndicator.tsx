@@ -14,9 +14,9 @@ export default function QuotaIndicator() {
 
   if (!quota) return null;
 
-  const remaining = quota.aiQuotaLimit - quota.aiQuotaUsedToday;
-  const pct = Math.round((quota.aiQuotaUsedToday / quota.aiQuotaLimit) * 100);
-  const isLow = remaining <= Math.ceil(quota.aiQuotaLimit * 0.2);
+  const remaining = quota.aiDailyEnrichmentLimit - quota.aiQuotaUsedToday;
+  const pct = Math.round((quota.aiQuotaUsedToday / quota.aiDailyEnrichmentLimit) * 100);
+  const isLow = remaining <= Math.ceil(quota.aiDailyEnrichmentLimit * 0.2);
   const isExhausted = remaining <= 0;
 
   const resetDate = new Date(quota.aiQuotaResetAt);
@@ -27,7 +27,7 @@ export default function QuotaIndicator() {
       <span className={styles.label}>
         {isExhausted
           ? `AI quota exhausted — resets at ${resetLabel}`
-          : `AI enrichments: ${remaining} / ${quota.aiQuotaLimit} remaining`}
+          : `AI enrichments: ${remaining} / ${quota.aiDailyEnrichmentLimit} remaining`}
       </span>
       <div className={styles.track} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
         <div className={styles.fill} style={{ width: `${pct}%` }} />

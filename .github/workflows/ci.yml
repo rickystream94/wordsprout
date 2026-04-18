@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  validate:
+    name: Lint, Typecheck & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend/package-lock.json
+            api/package-lock.json
+
+      # ── Frontend ──────────────────────────────────────────────────────────
+      - name: Install frontend dependencies
+        # --legacy-peer-deps: vite-plugin-pwa 1.x peer dep requires vite <8; our vite is 8.x
+        run: npm ci --legacy-peer-deps
+        working-directory: frontend
+
+      - name: Frontend — Lint
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Frontend — Typecheck
+        run: npm run typecheck
+        working-directory: frontend
+
+      - name: Frontend — Tests
+        run: npm test
+        working-directory: frontend
+
+      # ── API ───────────────────────────────────────────────────────────────
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: api
+
+      - name: API — Lint
+        run: npm run lint
+        working-directory: api
+
+      - name: API — Typecheck
+        run: npm run typecheck
+        working-directory: api
+
+      - name: API — Tests
+        run: npm test
+        working-directory: api

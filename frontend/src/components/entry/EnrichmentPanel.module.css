@@ -60,6 +60,12 @@
   cursor: not-allowed;
 }
 
+/* Wraps a button to keep tooltip visible even when the button is disabled */
+.btnWrapper {
+  display: inline-flex;
+  cursor: default;
+}
+
 .reEnrichBtn {
   display: inline-flex;
   align-items: center;

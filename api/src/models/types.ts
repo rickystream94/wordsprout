@@ -37,7 +37,7 @@ export interface User extends CosmosDocument {
   email: string;
   aiQuotaUsedToday: number;
   aiQuotaResetAt: string; // ISO 8601 — UTC midnight when quota resets
-  aiQuotaLimit: number;
+  aiDailyEnrichmentLimit: number;
 }
 
 export interface AllowList extends CosmosDocument {
@@ -87,8 +87,17 @@ export interface AccessRequest extends CosmosDocument {
   type: 'access_request';
   userId: '_access_requests'; // fixed partition key for all access requests
   email: string;
+  sub?: string;               // pairwise subject identifier from JWT (stored when user is signed in)
   requestedAt: string;        // ISO 8601
   status: 'pending' | 'approved' | 'rejected';
+}
+
+export interface RateLimitEntry extends CosmosDocument {
+  type: 'ratelimit';
+  userId: '_ratelimits';  // synthetic partition key — groups all rate-limit docs
+  windowStart: string;   // ISO 8601 — start of the current rate-limit window
+  count: number;         // number of requests in this window
+  ttl: number;           // Cosmos TTL in seconds; document auto-deletes when it expires
 }
 
 // ─── API request / response shapes ────────────────────────────────────────────
@@ -100,7 +109,7 @@ export interface Language {
 
 export interface UserQuota {
   aiQuotaUsedToday: number;
-  aiQuotaLimit: number;
+  aiDailyEnrichmentLimit: number;
   aiQuotaResetAt: string;
 }
 
@@ -111,9 +120,9 @@ export interface ApiError {
 }
 
 export interface DecodedToken {
-  sub: string;          // Azure AD B2C object ID → used as userId
+  sub: string;               // Entra ID pairwise subject ID → used as userId
   email?: string;
-  emails?: string[];    // B2C claims use "emails" (array)
+  preferred_username?: string;
   iat: number;
   exp: number;
 }

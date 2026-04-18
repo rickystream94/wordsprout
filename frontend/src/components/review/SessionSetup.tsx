@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { DBPhrasebook } from '../../services/db';
 import styles from './SessionSetup.module.css';
 
@@ -17,15 +17,11 @@ export default function SessionSetup({ phrasebooks, onStart }: SessionSetupProps
     phrasebooks[0]?.id ?? '',
   );
 
-  // Initialise once data arrives from the async useLiveQuery
-  useEffect(() => {
-    if (!selectedPhrasebookId && phrasebooks.length > 0) {
-      setSelectedPhrasebookId(phrasebooks[0].id);
-    }
-  }, [phrasebooks, selectedPhrasebookId]);
+  // If phrasebooks loaded asynchronously and nothing is selected yet, fall back to the first
+  const effectivePhrasebookId = selectedPhrasebookId || phrasebooks[0]?.id || '';
   const [size, setSize] = useState(10);
 
-  const selectedPhrasebook = phrasebooks.find((p) => p.id === selectedPhrasebookId);
+  const selectedPhrasebook = phrasebooks.find((p) => p.id === effectivePhrasebookId);
   const totalEntries = selectedPhrasebook?.entryCount ?? 0;
   const actualSize = Math.min(size, totalEntries);
 
@@ -38,7 +34,7 @@ export default function SessionSetup({ phrasebooks, onStart }: SessionSetupProps
         <select
           id="session-phrasebook"
           className={styles.phrasebookSelect}
-          value={selectedPhrasebookId}
+          value={effectivePhrasebookId}
           onChange={(e) => setSelectedPhrasebookId(e.target.value)}
         >
           {phrasebooks.map((pb) => (
@@ -102,8 +98,8 @@ export default function SessionSetup({ phrasebooks, onStart }: SessionSetupProps
       <button
         type="button"
         className={styles.startBtn}
-        onClick={() => onStart(sessionType, actualSize, selectedPhrasebookId)}
-        disabled={totalEntries === 0 || !selectedPhrasebookId}
+        onClick={() => onStart(sessionType, actualSize, effectivePhrasebookId)}
+        disabled={totalEntries === 0 || !effectivePhrasebookId}
       >
         Start session
       </button>

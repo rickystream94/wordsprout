@@ -40,22 +40,81 @@
   margin: 0;
 }
 
-.signInBtn {
-  margin-top: var(--space-4);
-  background: var(--brand-500);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-6);
-  font-size: var(--text-base);
-  font-weight: 600;
+/* Microsoft sign-in button — styled to match the Google button */
+.msBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  width: 320px;
+  height: 40px;
+  padding: 0 var(--space-3);
+  background: #ffffff;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  width: 100%;
-  transition: background var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-fast), background var(--transition-fast);
+  white-space: nowrap;
 }
 
-.signInBtn:hover {
-  background: var(--brand-600);
+.msBtn:hover {
+  box-shadow: var(--shadow-md);
+  background: #f8f9fa;
+}
+
+.msBtn:active {
+  background: #e8eaed;
+}
+
+[data-theme="dark"] .msBtn {
+  background: #2d2d2d;
+  color: #e3e3e3;
+  border-color: #5f6368;
+}
+
+[data-theme="dark"] .msBtn:hover {
+  background: #3c3c3c;
+}
+
+[data-theme="dark"] .msBtn:active {
+  background: #444;
+}
+
+.signInButtons {
+  margin-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.googleBtnWrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
 .requestLink {

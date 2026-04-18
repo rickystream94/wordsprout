@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthProvider';
 import PhrasebookForm, { type PhrasebookFormData } from '../components/phrasebook/PhrasebookForm';
 import { API_BASE } from '../config/env';
 import { createPhrasebook, getPhrasebooks, type DBPhrasebook } from '../services/db';
-import { enqueueMutation } from '../services/sync';
+import { enqueueMutation, usePendingIds } from '../services/sync';
 import { randomUUID } from '../utils/uuid';
 import styles from './Home.module.css';
 
@@ -71,8 +71,10 @@ export default function Home() {
 }
 
 function PhrasebookCard({ phrasebook }: { phrasebook: DBPhrasebook }) {
+  const pendingIds = usePendingIds();
+  const isPending = pendingIds.has(phrasebook.id);
   return (
-    <li className={styles.card}>
+    <li className={`${styles.card} ${isPending ? styles.cardPending : ''}`}>
       <Link to={`/phrasebooks/${phrasebook.id}`} className={styles.cardLink}>
         <div className={styles.cardBody}>
           <h2 className={styles.cardName}>{phrasebook.name}</h2>

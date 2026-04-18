@@ -35,7 +35,6 @@ export default function ReviewCard({
   onReveal,
   onHint,
   evalResult,
-  correctAnswer,
   allAnswers,
   isSynonymHit,
   scoreDelta,
@@ -47,17 +46,18 @@ export default function ReviewCard({
   const inputRef = useRef<HTMLInputElement>(null);
   const answered = evalResult !== undefined;
 
-  // Reset bar position when moving to a new card
+  // Focus input on mount (key={entry.id} in parent remounts this component for each new card,
+  // which also resets input and animScore via useState initial values)
   useEffect(() => {
-    setAnimScore(entry.learningScore);
-  }, [entry.id, entry.learningScore]);
+    inputRef.current?.focus();
+  }, []);
 
   // Animate bar from oldScore → newScore when a result arrives
   useEffect(() => {
     if (newScore === undefined || oldScore === undefined) return;
-    setAnimScore(oldScore);
-    let r2 = 0;
-    const r1 = requestAnimationFrame(() => {
+    let r1 = 0, r2 = 0;
+    r1 = requestAnimationFrame(() => {
+      setAnimScore(oldScore);
       r2 = requestAnimationFrame(() => setAnimScore(newScore));
     });
     return () => {
@@ -81,13 +81,6 @@ export default function ReviewCard({
       onReveal();
     }
   }, [allHintsUsed, answered, onReveal]);
-
-  useEffect(() => {
-    if (!answered) {
-      setInput('');
-      inputRef.current?.focus();
-    }
-  }, [entry.id, answered]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

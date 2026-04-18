@@ -1,0 +1,42 @@
+{
+  "_comment": "Single source of truth for WordSprout infrastructure constants. No secrets here. Run scripts/setup-entra-apps.ps1 to populate entraClientId values, then scripts/setup-oidc.ps1 for the GitHub Actions OIDC client.",
+  "subscriptionId": "86264ae5-dd19-43d5-a842-4163c5c245c4",
+  "tenantId": "3482ae78-3e1a-4c24-ad03-97b471015836",
+  "region": "northeurope",
+  "swaRegion": "westeurope",
+  "openAiLocation": "swedencentral",
+  "project": "wordsprout",
+  "oidcClientId": "1ae0231e-41f1-4bda-82fe-a11e73940c4d",
+  "github": {
+    "org": "rickystream94",
+    "repo": "wordsprout"
+  },
+  "cosmos": {
+    "database": "wordsprout",
+    "container": "data"
+  },
+  "environments": {
+    "dev": {
+      "resourceGroup": "wordsprout-dev",
+      "swaName": "swa-wordsprout-dev",
+      "funcAppName": "func-wordsprout-dev",
+      "cosmosAccount": "cosmosdb-wordsprout-dev",
+      "openAiAccount": "oai-wordsprout-dev",
+      "storageAccount": "stwordsprout2dev",
+      "entraAppName": "wordsprout-dev",
+      "entraClientId": "86318033-d280-4e98-b8be-25fccb3181e6",
+      "googleClientId": "798150118431-ckhf2188dh8jll5orcr1pbv408qkugcr.apps.googleusercontent.com"
+    },
+    "prod": {
+      "resourceGroup": "wordsprout-prod",
+      "swaName": "swa-wordsprout-prod",
+      "funcAppName": "func-wordsprout-prod",
+      "cosmosAccount": "cosmosdb-wordsprout-prod",
+      "openAiAccount": "oai-wordsprout-prod",
+      "storageAccount": "stwordsprout2prod",
+      "entraAppName": "wordsprout-prod",
+      "entraClientId": "a323e676-f7cb-4114-b003-19534261fab5",
+      "googleClientId": "798150118431-3iv2r7qdacd7urm4b3igahb05f8ps5kj.apps.googleusercontent.com"
+    }
+  }
+}

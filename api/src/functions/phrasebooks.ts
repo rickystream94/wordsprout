@@ -1,19 +1,12 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions';
 import DOMPurify from 'isomorphic-dompurify';
-import { randomUUID } from 'node:crypto';
-import { authorise } from '../middleware/authorise';
 import type { Phrasebook } from '../models/types';
 import { cosmosClient } from '../services/cosmos';
+import { authenticated, resolveId, apiError } from '../utils/http';
+import type { DecodedToken } from '../models/types';
 
 function sanitise(value: string): string {
   return DOMPurify.sanitize(value).trim();
-}
-
-function apiError(statusCode: number, message: string): HttpResponseInit {
-  return {
-    status: statusCode,
-    jsonBody: { error: statusCode === 403 ? 'Forbidden' : statusCode === 404 ? 'Not Found' : 'Error', message, statusCode },
-  };
 }
 
 // ─── POST /phrasebooks ─────────────────────────────────────────────────────────
@@ -21,14 +14,8 @@ function apiError(statusCode: number, message: string): HttpResponseInit {
 async function createPhrasebook(
   req: HttpRequest,
   _ctx: InvocationContext,
+  token: DecodedToken,
 ): Promise<HttpResponseInit> {
-  let token;
-  try {
-    token = await authorise(req);
-  } catch (err: unknown) {
-    const e = err as { statusCode: number; message: string };
-    return apiError(e.statusCode, e.message);
-  }
 
   const body = (await req.json()) as Partial<Phrasebook>;
   const name = sanitise(body.name ?? '');
@@ -42,8 +29,12 @@ async function createPhrasebook(
   }
 
   const now = new Date().toISOString();
+
+  // Use the client-provided id if it's a valid UUID, otherwise generate one.
+  const clientId = resolveId(body.id);
+
   const phrasebook: Phrasebook = {
-    id: randomUUID(),
+    id: clientId,
     userId: token.sub,
     type: 'phrasebook',
     name,
@@ -65,14 +56,8 @@ async function createPhrasebook(
 async function listPhrasebooks(
   req: HttpRequest,
   _ctx: InvocationContext,
+  token: DecodedToken,
 ): Promise<HttpResponseInit> {
-  let token;
-  try {
-    token = await authorise(req);
-  } catch (err: unknown) {
-    const e = err as { statusCode: number; message: string };
-    return apiError(e.statusCode, e.message);
-  }
 
   const results = await cosmosClient.queryByPartition<Phrasebook>(token.sub, { type: 'phrasebook' });
   return { status: 200, jsonBody: results };
@@ -83,14 +68,8 @@ async function listPhrasebooks(
 async function getPhrasebook(
   req: HttpRequest,
   _ctx: InvocationContext,
+  token: DecodedToken,
 ): Promise<HttpResponseInit> {
-  let token;
-  try {
-    token = await authorise(req);
-  } catch (err: unknown) {
-    const e = err as { statusCode: number; message: string };
-    return apiError(e.statusCode, e.message);
-  }
 
   const id = req.params['id'];
   if (!id) return apiError(400, 'Missing phrasebook id');
@@ -107,14 +86,8 @@ async function getPhrasebook(
 async function updatePhrasebook(
   req: HttpRequest,
   _ctx: InvocationContext,
+  token: DecodedToken,
 ): Promise<HttpResponseInit> {
-  let token;
-  try {
-    token = await authorise(req);
-  } catch (err: unknown) {
-    const e = err as { statusCode: number; message: string };
-    return apiError(e.statusCode, e.message);
-  }
 
   const id = req.params['id'];
   if (!id) return apiError(400, 'Missing phrasebook id');
@@ -143,14 +116,8 @@ async function updatePhrasebook(
 async function deletePhrasebook(
   req: HttpRequest,
   _ctx: InvocationContext,
+  token: DecodedToken,
 ): Promise<HttpResponseInit> {
-  let token;
-  try {
-    token = await authorise(req);
-  } catch (err: unknown) {
-    const e = err as { statusCode: number; message: string };
-    return apiError(e.statusCode, e.message);
-  }
 
   const id = req.params['id'];
   if (!id) return apiError(400, 'Missing phrasebook id');
@@ -171,33 +138,33 @@ app.http('phrasebooks-create', {
   methods: ['POST'],
   route: 'phrasebooks',
   authLevel: 'anonymous',
-  handler: createPhrasebook,
+  handler: authenticated(createPhrasebook),
 });
 
 app.http('phrasebooks-list', {
   methods: ['GET'],
   route: 'phrasebooks',
   authLevel: 'anonymous',
-  handler: listPhrasebooks,
+  handler: authenticated(listPhrasebooks),
 });
 
 app.http('phrasebooks-get', {
   methods: ['GET'],
   route: 'phrasebooks/{id}',
   authLevel: 'anonymous',
-  handler: getPhrasebook,
+  handler: authenticated(getPhrasebook),
 });
 
 app.http('phrasebooks-update', {
   methods: ['PUT'],
   route: 'phrasebooks/{id}',
   authLevel: 'anonymous',
-  handler: updatePhrasebook,
+  handler: authenticated(updatePhrasebook),
 });
 
 app.http('phrasebooks-delete', {
   methods: ['DELETE'],
   route: 'phrasebooks/{id}',
   authLevel: 'anonymous',
-  handler: deletePhrasebook,
+  handler: authenticated(deletePhrasebook),
 });

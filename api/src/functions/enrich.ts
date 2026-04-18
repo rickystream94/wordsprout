@@ -4,7 +4,7 @@ import { authorise } from '../middleware/authorise';
 import type { AIEnrichment, Phrasebook, User, VocabularyEntry } from '../models/types';
 import { generateEnrichment } from '../services/ai';
 import { cosmosClient } from '../services/cosmos';
-import { AI_QUOTA_LIMIT } from '../config/env';
+import { AI_DAILY_ENRICHMENT_LIMIT } from '../config/env';
 
 function sanitise(value: string): string {
   return DOMPurify.sanitize(value).trim();
@@ -50,7 +50,7 @@ async function getOrCreateUser(userId: string, email: string): Promise<User> {
     email,
     aiQuotaUsedToday: 0,
     aiQuotaResetAt: nextMidnightUtc(),
-    aiQuotaLimit: AI_QUOTA_LIMIT,
+    aiDailyEnrichmentLimit: AI_DAILY_ENRICHMENT_LIMIT,
     createdAt: now,
     updatedAt: now,
   };
@@ -84,7 +84,7 @@ async function enrichEntry(req: HttpRequest, ctx: InvocationContext): Promise<Ht
   }
 
   // Check and increment quota
-  const email = token.email ?? (Array.isArray(token.emails) ? token.emails[0] : '') ?? '';
+  const email = token.email ?? token.preferred_username ?? '';
   const user = await getOrCreateUser(token.sub, email);
   const now = new Date().toISOString();
 
@@ -96,10 +96,10 @@ async function enrichEntry(req: HttpRequest, ctx: InvocationContext): Promise<Ht
     aiQuotaResetAt = nextMidnightUtc();
   }
 
-  if (aiQuotaUsedToday >= AI_QUOTA_LIMIT) {
+  if (aiQuotaUsedToday >= AI_DAILY_ENRICHMENT_LIMIT) {
     return apiError(429, 'Daily AI enrichment quota exceeded', {
       aiQuotaUsedToday,
-      aiQuotaLimit: AI_QUOTA_LIMIT,
+      aiDailyEnrichmentLimit: AI_DAILY_ENRICHMENT_LIMIT,
       aiQuotaResetAt,
     });
   }

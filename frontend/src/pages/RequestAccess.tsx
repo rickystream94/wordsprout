@@ -1,36 +1,29 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { API_BASE } from '../config/env';
+import { useAuth } from '../auth/AuthProvider';
 import styles from './RequestAccess.module.css';
 
-type FormState = 'idle' | 'submitting' | 'success' | 'error';
-
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
+type FormState = 'idle' | 'submitting' | 'error';
 
 export default function RequestAccess() {
-  const [email, setEmail] = useState('');
+  const { sub, email: authEmail } = useAuth();
+  const navigate = useNavigate();
   const [state, setState] = useState<FormState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-  const [fieldError, setFieldError] = useState('');
+
+  // authEmail is always set here — /request-access is behind AuthenticatedRoute
+  const email = authEmail ?? '';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-
-    const trimmed = email.trim();
-    if (!isValidEmail(trimmed)) {
-      setFieldError('Please enter a valid email address.');
-      return;
-    }
-    setFieldError('');
     setState('submitting');
 
     try {
       const response = await fetch(`${API_BASE}/access-requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed }),
+        body: JSON.stringify({ email, ...(sub ? { sub } : {}) }),
       });
 
       if (response.status === 429) {
@@ -46,26 +39,13 @@ export default function RequestAccess() {
         return;
       }
 
-      setState('success');
+      // Persist flag so AccessBlocked can show the pending view
+      if (sub) localStorage.setItem(`ws:access_req:${sub}`, '1');
+      navigate('/access-blocked', { replace: true });
     } catch {
       setErrorMsg('Network error. Please check your connection and try again.');
       setState('error');
     }
-  }
-
-  if (state === 'success') {
-    return (
-      <main className={styles.page}>
-        <div className={styles.card}>
-          <div className={styles.successIcon} aria-hidden="true">✅</div>
-          <h1 className={styles.title}>Request sent!</h1>
-          <p className={styles.desc}>
-            We've received your access request. We'll be in touch when a spot opens up.
-          </p>
-          <Link to="/login" className={styles.backLink}>← Back to sign in</Link>
-        </div>
-      </main>
-    );
   }
 
   return (
@@ -74,7 +54,7 @@ export default function RequestAccess() {
         <div className={styles.logo} aria-hidden="true">📖</div>
         <h1 className={styles.title}>Request Access</h1>
         <p className={styles.desc}>
-          WordSprout is currently invite-only. Enter your email and we'll let you know when a spot opens up.
+          WordSprout is currently invite-only. Confirm your email and we'll let you know when a spot opens up.
         </p>
 
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
@@ -83,14 +63,11 @@ export default function RequestAccess() {
             <input
               id="request-email"
               type="email"
-              className={`${styles.input} ${fieldError ? styles.inputError : ''}`}
+              className={`${styles.input} ${styles.inputReadOnly}`}
               value={email}
-              onChange={(e) => { setEmail(e.target.value); setFieldError(''); }}
-              placeholder="you@example.com"
-              autoFocus
+              readOnly
               disabled={state === 'submitting'}
             />
-            {fieldError && <p className={styles.fieldError}>{fieldError}</p>}
           </div>
 
           {state === 'error' && <p className={styles.errorMsg}>{errorMsg}</p>}
@@ -104,7 +81,7 @@ export default function RequestAccess() {
           </button>
         </form>
 
-        <Link to="/login" className={styles.backLink}>← Back to sign in</Link>
+        <button type="button" onClick={() => navigate('/access-blocked')} className={styles.backLink}>← Back</button>
       </div>
     </main>
   );

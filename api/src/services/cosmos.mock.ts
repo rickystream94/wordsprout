@@ -1,13 +1,39 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { ItemDefinition } from '@azure/cosmos';
 import type { CosmosClientWrapper } from './cosmos';
 
+const MOCK_FILE = path.resolve(process.cwd(), '.cosmos-mock.json');
+
 /**
- * In-memory Map-based Cosmos DB mock for the `local` APP_ENV stage.
- * All data is stored in a flat Map keyed by document `id`.
- * Data is lost when the Function host restarts — appropriate for local dev only.
+ * Load persisted store from disk, or return an empty Map if none exists.
+ */
+function loadStore(): Map<string, ItemDefinition> {
+  try {
+    if (fs.existsSync(MOCK_FILE)) {
+      const data = JSON.parse(fs.readFileSync(MOCK_FILE, 'utf-8')) as [string, ItemDefinition][];
+      return new Map(data);
+    }
+  } catch {
+    // Corrupt file — start fresh
+  }
+  return new Map();
+}
+
+function saveStore(store: Map<string, ItemDefinition>): void {
+  try {
+    fs.writeFileSync(MOCK_FILE, JSON.stringify([...store.entries()], null, 2));
+  } catch {
+    // Best-effort — ignore write failures in local dev
+  }
+}
+
+/**
+ * File-backed Map Cosmos DB mock for the `local` APP_ENV stage.
+ * Data is persisted to .cosmos-mock.json so it survives Function host restarts.
  */
 export function createMockCosmosClient(): CosmosClientWrapper {
-  const store = new Map<string, ItemDefinition>();
+  const store = loadStore();
 
   return {
     async pointRead<T extends ItemDefinition>(
@@ -20,11 +46,13 @@ export function createMockCosmosClient(): CosmosClientWrapper {
 
     async upsert<T extends ItemDefinition>(document: T): Promise<T> {
       store.set(document.id as string, document);
+      saveStore(store);
       return document;
     },
 
     async deleteItem(id: string, _partitionKey: string): Promise<void> {
       store.delete(id);
+      saveStore(store);
     },
 
     async queryByPartition<T extends ItemDefinition>(

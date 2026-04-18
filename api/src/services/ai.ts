@@ -1,5 +1,9 @@
 import DOMPurify from 'isomorphic-dompurify';
-import { AZURE_AI_DEPLOYMENT, AZURE_AI_ENDPOINT, AZURE_AI_KEY, IS_LOCAL } from '../config/env';
+import { DefaultAzureCredential } from '@azure/identity';
+import { AZURE_AI_DEPLOYMENT, AZURE_AI_ENDPOINT, IS_LOCAL } from '../config/env';
+
+// Reuse a single credential instance — it caches tokens internally.
+const azureCredential = new DefaultAzureCredential();
 import type { AIEnrichment } from '../models/types';
 
 // ─── Sanitisation helper ───────────────────────────────────────────────────────
@@ -102,7 +106,7 @@ export async function generateEnrichment(params: EnrichParams): Promise<AIEnrich
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'api-key': AZURE_AI_KEY,
+        'Authorization': `Bearer ${(await azureCredential.getToken('https://cognitiveservices.azure.com/.default'))?.token ?? ''}`,
       },
       body: JSON.stringify({
         messages: [{ role: 'user', content: prompt }],

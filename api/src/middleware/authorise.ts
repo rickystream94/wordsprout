@@ -1,37 +1,31 @@
 import type { HttpRequest } from '@azure/functions';
 import jwt from 'jsonwebtoken';
 import jwksRsa from 'jwks-rsa';
-import { B2C_CLIENT_ID, B2C_POLICY, B2C_TENANT, IS_LOCAL } from '../config/env';
+import { ENTRA_CLIENT_ID, GOOGLE_CLIENT_ID, IS_LOCAL } from '../config/env';
 import type { AllowList, DecodedToken } from '../models/types';
 import { cosmosClient } from '../services/cosmos';
 
-// ─── Hardcoded local-stage identity ──────────────────────────────────────────
+// ─── JWKS clients (cached) ────────────────────────────────────────────────────
 
-const LOCAL_IDENTITY: DecodedToken = {
-  sub: 'test-user-local',
-  email: 'dev@local',
-  emails: ['dev@local'],
-  iat: 0,
-  exp: 9999999999,
-};
-
-// ─── JWKS client (cached) ─────────────────────────────────────────────────────
-
-function buildJwksClient() {
-  const issuer = `https://${B2C_TENANT}.b2clogin.com/${B2C_TENANT}.onmicrosoft.com/${B2C_POLICY}/v2.0/`;
-  const jwksUri = `${issuer}.well-known/jwks.json`;
+function buildJwksClient(uri: string) {
   return jwksRsa({
-    jwksUri,
+    jwksUri: uri,
     cache: true,
     cacheMaxEntries: 5,
     cacheMaxAge: 600_000, // 10 minutes
   });
 }
 
-let jwksClientInstance: ReturnType<typeof buildJwksClient> | null = null;
-function getJwksClient() {
-  if (!jwksClientInstance) jwksClientInstance = buildJwksClient();
-  return jwksClientInstance;
+let msJwksClient: ReturnType<typeof buildJwksClient> | null = null;
+function getMsJwksClient() {
+  if (!msJwksClient) msJwksClient = buildJwksClient('https://login.microsoftonline.com/common/discovery/v2.0/keys');
+  return msJwksClient;
+}
+
+let googleJwksClient: ReturnType<typeof buildJwksClient> | null = null;
+function getGoogleJwksClient() {
+  if (!googleJwksClient) googleJwksClient = buildJwksClient('https://www.googleapis.com/oauth2/v3/certs');
+  return googleJwksClient;
 }
 
 // ─── authorise() ─────────────────────────────────────────────────────────────
@@ -39,61 +33,74 @@ function getJwksClient() {
 /**
  * Validates the Bearer JWT and performs an allow-list point-read in Cosmos DB.
  *
- * Throws an object with `{ statusCode, message }` on failure — callers should
+ * Supports two OIDC providers:
+ * - Microsoft Entra ID (iss: login.microsoftonline.com) -> userId = sub
+ * - Google (iss: accounts.google.com) -> userId = `google:${sub}`
+ *
+ * Throws an object with `{ statusCode, message }` on failure - callers should
  * convert this to an HTTP error response.
  *
- * In `local` APP_ENV, skips all validation and returns a hardcoded identity.
+ * In `local` APP_ENV, JWT validation still runs but the allow-list check is
+ * skipped — any authenticated account is permitted locally.
  */
 export async function authorise(req: HttpRequest): Promise<DecodedToken> {
-  // ── Local stage bypass ──────────────────────────────────────────────────────
-  if (IS_LOCAL) return LOCAL_IDENTITY;
-
-  // ── Extract Bearer token ────────────────────────────────────────────────────
+  // -- Extract Bearer token
   const authHeader = req.headers.get('authorization') ?? '';
   if (!authHeader.startsWith('Bearer ')) {
     throw { statusCode: 401, message: 'Missing or malformed Authorization header' };
   }
   const token = authHeader.slice(7);
 
-  // ── Validate JWT against B2C JWKS ──────────────────────────────────────────
+  // -- Peek at iss claim (unverified) to select the right JWKS client
+  const unverified = jwt.decode(token, { complete: true });
+  const iss = (unverified?.payload as Record<string, unknown> | null)?.['iss'];
+  const isGoogle = typeof iss === 'string' && (
+    iss === 'accounts.google.com' || iss.startsWith('https://accounts.google.com')
+  );
+
+  // -- Validate JWT
   let decoded: DecodedToken;
   try {
-    decoded = await verifyJwt(token);
+    decoded = await verifyJwt(token, isGoogle);
   } catch {
     throw { statusCode: 401, message: 'Invalid or expired token' };
   }
 
-  const userId = decoded.sub;
+  // -- Build userId: Google tokens get a `google:` prefix
+  const userId = isGoogle ? `google:${decoded.sub}` : decoded.sub;
 
-  // ── Allow-list point-read ───────────────────────────────────────────────────
-  const allowListEntry = await cosmosClient.pointRead<AllowList>(
-    `allowlist:${userId}`,
-    userId,
-  );
+  // -- Allow-list point-read (skipped in local stage — any authenticated user is allowed)
+  if (!IS_LOCAL) {
+    const allowListEntry = await cosmosClient.pointRead<AllowList>(
+      `allowlist:${userId}`,
+      userId,
+    );
 
-  if (!allowListEntry) {
-    throw { statusCode: 403, message: 'Access not granted' };
+    if (!allowListEntry) {
+      throw { statusCode: 403, message: 'Access not granted' };
+    }
   }
 
-  return decoded;
+  // Return token with the resolved userId as sub so callers use the right partition key
+  return { ...decoded, sub: userId };
 }
 
 // ─── JWT verification helper ──────────────────────────────────────────────────
 
-function verifyJwt(token: string): Promise<DecodedToken> {
-  return new Promise((resolve, reject) => {
-    const issuer = `https://${B2C_TENANT}.b2clogin.com/${B2C_TENANT}.onmicrosoft.com/${B2C_POLICY}/v2.0/`;
+function verifyJwt(token: string, isGoogle: boolean): Promise<DecodedToken> {
+  const jwksClient = isGoogle ? getGoogleJwksClient() : getMsJwksClient();
+  const audience = isGoogle ? GOOGLE_CLIENT_ID : ENTRA_CLIENT_ID;
 
+  return new Promise((resolve, reject) => {
     jwt.verify(
       token,
       (header, callback) => {
-        getJwksClient().getSigningKey(header.kid!, (err, key) => {
+        jwksClient.getSigningKey(header.kid!, (err, key) => {
           callback(err ?? null, key?.getPublicKey());
         });
       },
       {
-        audience: B2C_CLIENT_ID,
-        issuer,
+        audience,
         algorithms: ['RS256'],
       },
       (err, decoded) => {

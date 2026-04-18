@@ -17,6 +17,7 @@
   "dependencies": {
     "@azure/cosmos": "^4.2.0",
     "@azure/functions": "^4.7.0",
+    "@azure/identity": "^4.6.0",
     "isomorphic-dompurify": "^2.25.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0"

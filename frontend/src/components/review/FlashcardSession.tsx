@@ -168,6 +168,7 @@ export default function FlashcardSession({ entries, onDone }: FlashcardSessionPr
       </div>
 
       <ReviewCard
+        key={current.id}
         entry={current}
         reviewedToday={reviewedToday}
         hintsUsed={hintsUsed}

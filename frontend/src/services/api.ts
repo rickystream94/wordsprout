@@ -1,37 +1,49 @@
 import type { AccountInfo } from '@azure/msal-browser';
 import { msalInstance } from '../auth/msalConfig';
-import { API_BASE, IS_LOCAL } from '../config/env';
+import { getGoogleCredential, isGoogleAuthenticated } from '../auth/googleAuth';
+import { API_BASE, FEATURES_AI_ENABLED } from '../config/env';
 import type { ApiError } from '../types/models';
 
 // ─── Token acquisition ────────────────────────────────────────────────────────
 
-async function getAccessToken(): Promise<string | null> {
-  if (IS_LOCAL) return 'local-bypass-token';
-
+export async function getAccessToken(): Promise<string | null> {
+  // Try Microsoft MSAL silent acquire first
   const accounts = msalInstance.getAllAccounts();
-  if (accounts.length === 0) return null;
-
-  try {
-    const result = await msalInstance.acquireTokenSilent({
-      account: accounts[0] as AccountInfo,
-      scopes: [`https://${import.meta.env.VITE_B2C_TENANT ?? ''}.onmicrosoft.com/api/user`],
-    });
-    return result.accessToken;
-  } catch {
-    return null;
+  if (accounts.length > 0) {
+    try {
+      const result = await msalInstance.acquireTokenSilent({
+        account: accounts[0] as AccountInfo,
+        scopes: ['openid', 'profile', 'email'],
+      });
+      return result.idToken;
+    } catch {
+      // Fall through to Google check
+    }
   }
+
+  // Fall back to Google credential
+  if (isGoogleAuthenticated()) {
+    return getGoogleCredential();
+  }
+
+  return null;
 }
 
 // ─── Error type guard ─────────────────────────────────────────────────────────
 
 export class ApiRequestError extends Error {
+  statusCode: number;
+  body?: ApiError;
+
   constructor(
-    public statusCode: number,
+    statusCode: number,
     message: string,
-    public body?: ApiError,
+    body?: ApiError,
   ) {
     super(message);
     this.name = 'ApiRequestError';
+    this.statusCode = statusCode;
+    this.body = body;
   }
 }
 
@@ -61,11 +73,16 @@ async function apiFetch<T>(
     } catch {
       // ignore parse failure
     }
-    throw new ApiRequestError(
+    const error = new ApiRequestError(
       response.status,
       errorBody?.message ?? `HTTP ${response.status}`,
       errorBody,
     );
+    // 401 on an authenticated request = token expired or invalid → signal the app
+    if (authenticated && response.status === 401) {
+      window.dispatchEvent(new CustomEvent('wordsprout:session-expired'));
+    }
+    throw error;
   }
 
   // Handle 204 No Content
@@ -138,7 +155,7 @@ export const entriesApi = {
 // AI enrichment
 export const enrichApi = {
   enrich: (entryId: string): Promise<DBEnrichment> => {
-    if (IS_LOCAL) {
+    if (FEATURES_AI_ENABLED) {
       const now = new Date().toISOString();
       return Promise.resolve({
         id: `enrichment-${entryId}`,

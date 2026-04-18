@@ -13,11 +13,13 @@ out/
 api/dist/
 api/bin/
 api/obj/
+api/.cosmos-mock.json
 
 # Environment / secrets — NEVER commit these
 .env
 .env.*
 !.env.example
+!.env.*.example
 local.settings.json
 !local.settings.json.example
 

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { enrichApi } from '../../services/api';
-import { getEnrichment, upsertEnrichment, type DBEnrichment } from '../../services/db';
+import { upsertEnrichment, type DBEnrichment } from '../../services/db';
+import { FEATURES_AI_ENABLED } from '../../config/env';
+import QuotaIndicator from './QuotaIndicator';
 import styles from './EnrichmentPanel.module.css';
 
 interface EnrichmentPanelProps {
@@ -125,18 +127,28 @@ export default function EnrichmentPanel({
     return (
       <div className={styles.panel}>
         <div className={styles.emptyState}>
-          <p className={styles.emptyHint}>No enrichment yet. Click "Enrich" to generate AI content.</p>
+          <p className={styles.emptyHint}>
+            {FEATURES_AI_ENABLED
+              ? 'No enrichment yet. Click "Enrich" to generate AI content.'
+              : 'AI enrichment is coming soon.'}
+          </p>
+          <span
+            className={styles.btnWrapper}
+            title={!FEATURES_AI_ENABLED ? 'AI enrichment coming soon' : undefined}
+          >
           <button
             type="button"
             className={styles.enrichBtn}
             onClick={handleEnrich}
-            disabled={!isOnline || loading}
+            disabled={!FEATURES_AI_ENABLED || !isOnline || loading}
             aria-busy={loading}
           >
             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.53 1.282a.5.5 0 0 1 .94 0l1.363 3.738 3.738 1.363a.5.5 0 0 1 0 .94l-3.738 1.363-1.363 3.738a.5.5 0 0 1-.94 0L6.167 8.686 2.43 7.323a.5.5 0 0 1 0-.94l3.738-1.363zM2.5 1a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1H3v1a.5.5 0 0 1-1 0V3.5h-1a.5.5 0 0 1 0-1H2v-1A.5.5 0 0 1 2.5 1zm10 9a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1h-1v1a.5.5 0 0 1-1 0v-1h-1a.5.5 0 0 1 0-1h1v-1a.5.5 0 0 1 .5-.5z"/></svg>
           {loading ? 'Enriching…' : !isOnline ? 'Offline — connect to enrich' : 'Enrich'}
           </button>
+          </span>
           {error && <p className={styles.error}>{error}</p>}
+          <QuotaIndicator />
         </div>
       </div>
     );
@@ -148,17 +160,21 @@ export default function EnrichmentPanel({
         <h4 className={styles.heading}>AI Enrichment</h4>
         <div className={styles.headerActions}>
           {saving && <span className={styles.saving}>Saving…</span>}
+          <span
+            className={styles.btnWrapper}
+            title={!FEATURES_AI_ENABLED ? 'AI enrichment coming soon' : 'Re-generate enrichment'}
+          >
           <button
             type="button"
             className={styles.reEnrichBtn}
             onClick={handleEnrich}
-            disabled={!isOnline || loading}
+            disabled={!FEATURES_AI_ENABLED || !isOnline || loading}
             aria-busy={loading}
-            title="Re-generate enrichment"
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.53 1.282a.5.5 0 0 1 .94 0l1.363 3.738 3.738 1.363a.5.5 0 0 1 0 .94l-3.738 1.363-1.363 3.738a.5.5 0 0 1-.94 0L6.167 8.686 2.43 7.323a.5.5 0 0 1 0-.94l3.738-1.363zM2.5 1a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1H3v1a.5.5 0 0 1-1 0V3.5h-1a.5.5 0 0 1 0-1H2v-1A.5.5 0 0 1 2.5 1zm10 9a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1h-1v1a.5.5 0 0 1-1 0v-1h-1a.5.5 0 0 1 0-1h1v-1a.5.5 0 0 1 .5-.5z"/></svg>
             {loading ? 'Regenerating…' : 'Re-enrich'}
           </button>
+          </span>
         </div>
       </div>
 
