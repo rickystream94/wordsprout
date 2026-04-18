@@ -4,37 +4,47 @@ import { db } from './db';
 import { ApiRequestError, getAccessToken, phrasebooksApi, entriesApi } from './api';
 import { rebuildIndex } from './search';
 
-const BOOTSTRAP_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+// Pull TTL: always run on an empty DB (first device login), otherwise throttle
+// to 5 minutes so switching between laptop and phone stays in sync quickly.
+const PULL_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // ─── Pull all server data into IndexedDB ──────────────────────────────────────
-// Called after login to populate a fresh device. Throttled to once per 24h
+// Safe to call frequently — skips the network round-trip if run within PULL_TTL_MS
 // unless IndexedDB is empty, in which case it always runs.
 
-export async function bootstrapFromServer(): Promise<void> {
-  const [lastBootstrapMeta, phrasebookCount] = await Promise.all([
-    db.meta.get('lastBootstrap'),
-    db.phrasebooks.count(),
-  ]);
+let _pullInProgress = false;
 
-  const lastBootstrapMs = lastBootstrapMeta ? Number(lastBootstrapMeta.value) : 0;
-  const isStale = Date.now() - lastBootstrapMs > BOOTSTRAP_TTL_MS;
-  const isEmpty = phrasebookCount === 0;
+export async function pullFromServer(): Promise<void> {
+  if (_pullInProgress) return;
+  _pullInProgress = true;
+  try {
+    const [lastPullMeta, phrasebookCount] = await Promise.all([
+      db.meta.get('lastPull'),
+      db.phrasebooks.count(),
+    ]);
 
-  if (!isStale && !isEmpty) return;
+    const lastPullMs = lastPullMeta ? Number(lastPullMeta.value) : 0;
+    const isStale = Date.now() - lastPullMs > PULL_TTL_MS;
+    const isEmpty = phrasebookCount === 0;
 
-  const [phrasebooks, entries] = await Promise.all([
-    phrasebooksApi.list(),
-    entriesApi.list(),
-  ]);
+    if (!isStale && !isEmpty) return;
 
-  await Promise.all([
-    db.phrasebooks.bulkPut(phrasebooks),
-    db.entries.bulkPut(entries),
-    db.meta.put({ key: 'lastBootstrap', value: String(Date.now()) }),
-  ]);
+    const [phrasebooks, entries] = await Promise.all([
+      phrasebooksApi.list(),
+      entriesApi.list(),
+    ]);
 
-  // Rebuild the in-memory search index with the newly pulled entries
-  await rebuildIndex();
+    await Promise.all([
+      db.phrasebooks.bulkPut(phrasebooks),
+      db.entries.bulkPut(entries),
+      db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
+    ]);
+
+    // Rebuild the in-memory search index with the newly pulled entries
+    await rebuildIndex();
+  } finally {
+    _pullInProgress = false;
+  }
 }
 
 const MAX_RETRIES = 3;

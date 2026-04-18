@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
 import { initializeMsal } from './auth/msalConfig';
 import { ThemeProvider } from './store/ThemeContext';
-import { replayQueue, SYNC_INTERVAL_MS } from './services/sync';
+import { replayQueue, pullFromServer, SYNC_INTERVAL_MS } from './services/sync';
 import { rebuildIndex } from './services/search';
 import AppShell from './components/layout/AppShell';
 import AuthGuard from './components/auth/AuthGuard';
@@ -21,14 +21,16 @@ import NotFound from './pages/NotFound';
 import './styles/tokens.css';
 import './styles/global.css';
 
-// ─── T016: Wire sync replay to online + visibilitychange events ───────────────
+// ─── T016: Wire sync replay + inbound pull to online + visibilitychange events ─
 window.addEventListener('online', () => {
   replayQueue().catch(console.error);
+  pullFromServer().catch(console.error);
 });
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && navigator.onLine) {
     replayQueue().catch(console.error);
+    pullFromServer().catch(console.error);
   }
 });
 
