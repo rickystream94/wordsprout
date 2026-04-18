@@ -56,6 +56,12 @@ export default function SyncIndicator() {
   const hasFailed = (failedCount ?? 0) > 0;
   const hasPending = (pendingCount ?? 0) > 0;
 
+  // Auto-close panel once all mutations resolve so it doesn't re-open on the
+  // next enqueue (showDetails persists across renders since AppShell stays mounted)
+  useEffect(() => {
+    if (!hasPending && !hasFailed) setShowDetails(false);
+  }, [hasPending, hasFailed]);
+
   if (!hasPending && !hasFailed) return null;
 
   // Any pending mutation carrying an errorMessage was blocked by a network/server error
