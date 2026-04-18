@@ -29,9 +29,14 @@ export default function Login() {
   return (
     <main className={styles.page}>
       <div className={styles.card}>
-        <div className={styles.logo} aria-hidden="true">📖</div>
+        <div className={styles.logoGroup} aria-hidden="true">
+          <span className={styles.logoEmoji}>🌱</span>
+          <span className={styles.logoEmojiMain}>📖</span>
+          <span className={styles.logoEmoji}>✨</span>
+        </div>
         <h1 className={styles.title}>WordSprout</h1>
-        <p className={styles.tagline}>Grow your words</p>
+        <p className={styles.tagline}>Grow your words.</p>
+        <p className={styles.description}>Your personal vocabulary notebook — capture words you encounter, then master them through adaptive flashcard review.</p>
 
         <div className={styles.signInButtons}>
           <button className={styles.msBtn} onClick={loginWithMicrosoft}>

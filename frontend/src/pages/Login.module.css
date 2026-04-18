@@ -22,9 +22,21 @@
   gap: var(--space-3);
 }
 
-.logo {
-  font-size: 3rem;
+.logoGroup {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--space-1);
   line-height: 1;
+}
+
+.logoEmojiMain {
+  font-size: 3.5rem;
+}
+
+.logoEmoji {
+  font-size: 1.8rem;
+  margin-bottom: 0.3rem;
 }
 
 .title {
@@ -35,9 +47,23 @@
 }
 
 .tagline {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--brand-600);
   margin: 0;
+  letter-spacing: -0.01em;
+}
+
+[data-theme='dark'] .tagline {
+  color: var(--brand-400);
+}
+
+.description {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 280px;
 }
 
 /* Microsoft sign-in button — styled to match the Google button */

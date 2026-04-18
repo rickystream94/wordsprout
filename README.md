@@ -21,7 +21,7 @@ A personal, offline-first vocabulary notebook for language learners. Capture wor
 | Frontend | React 18, TypeScript 5, Vite, Dexie.js (IndexedDB), MSAL.js v3 |
 | API | Azure Functions Node.js v4, TypeScript 5 |
 | Database | Azure Cosmos DB (serverless, NoSQL API) |
-| Auth | Microsoft Entra ID — invite-only |
+| Auth | Microsoft Entra ID (MSAL) + Google OAuth — invite-only allowlist |
 | Hosting | Azure Static Web Apps |
 
 ## Project structure
@@ -39,7 +39,7 @@ docs/       Project overview and architecture notes
 
 | Tool | Version |
 |---|---|
-| Node.js | 20 LTS |
+| Node.js | 24 LTS |
 | Azure Functions Core Tools | v4 (`npm install -g azure-functions-core-tools@4`) |
 
 ### Run locally
@@ -62,7 +62,14 @@ cd frontend && npm install && npm run dev
 
 ### Cloud-connected local run
 
-Copy `api/local.settings.json.example` to `api/local.settings.json` and fill in your Azure credentials (`COSMOS_ENDPOINT`, `COSMOS_KEY`, `B2C_*`).
+Copy `api/local.settings.json.example` to `api/local.settings.json`. The deploy script can auto-populate it from `infra/config.json`:
+
+```powershell
+# Populate local.settings.json with real Azure credentials
+.\scripts\deploy-dev.ps1 -SkipInfra
+```
+
+Authentication uses OIDC / Managed Identity — no storage keys or client secrets are required.
 
 ## License
 
