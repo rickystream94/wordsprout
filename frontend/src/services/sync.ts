@@ -1,7 +1,41 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { MutationMethod } from '../types/models';
 import { db } from './db';
-import { ApiRequestError, getAccessToken } from './api';
+import { ApiRequestError, getAccessToken, phrasebooksApi, entriesApi } from './api';
+import { rebuildIndex } from './search';
+
+const BOOTSTRAP_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// ─── Pull all server data into IndexedDB ──────────────────────────────────────
+// Called after login to populate a fresh device. Throttled to once per 24h
+// unless IndexedDB is empty, in which case it always runs.
+
+export async function bootstrapFromServer(): Promise<void> {
+  const [lastBootstrapMeta, phrasebookCount] = await Promise.all([
+    db.meta.get('lastBootstrap'),
+    db.phrasebooks.count(),
+  ]);
+
+  const lastBootstrapMs = lastBootstrapMeta ? Number(lastBootstrapMeta.value) : 0;
+  const isStale = Date.now() - lastBootstrapMs > BOOTSTRAP_TTL_MS;
+  const isEmpty = phrasebookCount === 0;
+
+  if (!isStale && !isEmpty) return;
+
+  const [phrasebooks, entries] = await Promise.all([
+    phrasebooksApi.list(),
+    entriesApi.list(),
+  ]);
+
+  await Promise.all([
+    db.phrasebooks.bulkPut(phrasebooks),
+    db.entries.bulkPut(entries),
+    db.meta.put({ key: 'lastBootstrap', value: String(Date.now()) }),
+  ]);
+
+  // Rebuild the in-memory search index with the newly pulled entries
+  await rebuildIndex();
+}
 
 const MAX_RETRIES = 3;
 export const SYNC_INTERVAL_MS = 30_000;

@@ -3,6 +3,7 @@ import { Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
 import { quotaApi } from '../../services/api';
 import { ApiRequestError } from '../../services/api';
+import { bootstrapFromServer } from '../../services/sync';
 
 type AllowlistState = 'checking' | 'allowed' | 'blocked';
 
@@ -25,7 +26,12 @@ export default function AuthGuard() {
 
     quotaApi.get()
       .then(() => {
-        if (!cancelled) setAllowlistState('allowed');
+        if (!cancelled) {
+          setAllowlistState('allowed');
+          // Fire-and-forget: pull server data into IndexedDB so the app is
+          // populated on a fresh device or after a long absence.
+          bootstrapFromServer().catch(console.error);
+        }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
