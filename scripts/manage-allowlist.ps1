@@ -110,14 +110,14 @@ $CosmosEndpoint = "https://$AccountName.documents.azure.com"
 $CosmosBasePath = "dbs/$DatabaseName/colls/$ContainerName"
 
 function Get-CosmosHeaders {
-    param([string]$PartitionKeyValue = $null, [string]$ApiVersion = '2018-12-31')
+    param($PartitionKeyValue = $null, [string]$ApiVersion = '2018-12-31')
     $headers = @{
         'Authorization' = "type=aad&ver=1.0&sig=$CosmosToken"
         'x-ms-version'  = $ApiVersion
         'x-ms-date'     = (Get-Date).ToUniversalTime().ToString('R')
         'Cache-Control'  = 'no-cache'
     }
-    if ($null -ne $PartitionKeyValue) {
+    if (-not [string]::IsNullOrEmpty($PartitionKeyValue)) {
         $headers['x-ms-documentdb-partitionkey'] = (ConvertTo-Json @($PartitionKeyValue) -Compress)
     }
     return $headers
