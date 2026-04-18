@@ -48,7 +48,7 @@ export async function replayQueue(): Promise<void> {
       if (mutation.body) init.body = mutation.body;
 
       // Include auth header from stored token if available
-      const authToken = sessionStorage.getItem('vocabook_access_token');
+      const authToken = sessionStorage.getItem('wordsprout_access_token');
       if (authToken) {
         (init.headers as Record<string, string>)['Authorization'] = `Bearer ${authToken}`;
       }

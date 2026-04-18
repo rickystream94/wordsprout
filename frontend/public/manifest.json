@@ -1,6 +1,6 @@
 {
-  "name": "VocaBook — Vocabulary Phrasebook",
-  "short_name": "VocaBook",
+  "name": "WordSprout — Grow Your Words",
+  "short_name": "WordSprout",
   "description": "Capture, organise, and review vocabulary you encounter in real life.",
   "start_url": "/",
   "display": "standalone",

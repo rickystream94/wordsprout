@@ -1,4 +1,4 @@
-# Project Overview – Personal Vocabulary Phrasebook PWA: VocaBook
+﻿# Project Overview – Personal Vocabulary Phrasebook PWA: WordSprout
 
 ## Vision
 

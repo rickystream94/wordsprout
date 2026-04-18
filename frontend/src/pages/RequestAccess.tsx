@@ -74,7 +74,7 @@ export default function RequestAccess() {
         <div className={styles.logo} aria-hidden="true">📖</div>
         <h1 className={styles.title}>Request Access</h1>
         <p className={styles.desc}>
-          VocaBook is currently invite-only. Enter your email and we'll let you know when a spot opens up.
+          WordSprout is currently invite-only. Enter your email and we'll let you know when a spot opens up.
         </p>
 
         <form className={styles.form} onSubmit={handleSubmit} noValidate>

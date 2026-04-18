@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 ## Sync Impact Report
 
 **Version Change**: none (initial) → 1.0.0
@@ -25,13 +25,13 @@
 **Deferred Items**: None
 -->
 
-# VocaBook Constitution
+# WordSprout Constitution
 
 ## Core Principles
 
 ### I. Encounter-First Learning
 
-Words and phrases are added to VocaBook because the user encountered them in real life —
+Words and phrases are added to WordSprout because the user encountered them in real life —
 not because the app assigned, suggested, or required them. This is the foundational
 contract with the learner.
 
@@ -43,7 +43,7 @@ contract with the learner.
 
 **Rationale**: The core value proposition is that learners retain words encountered in real
 context. Any shift away from encounter-first degrades trust and erodes the distinction
-between VocaBook and generic curriculum apps.
+between WordSprout and generic curriculum apps.
 
 ### II. Learner Ownership & Context Richness
 
@@ -104,7 +104,7 @@ requires explicit justification relative to the budget constraint.
 - AI model selection MUST use the most cost-effective model meeting quality requirements
   (currently GPT-4o-mini via Azure AI Foundry).
 
-**Rationale**: VocaBook is a personal-scale product. Architectural discipline is the
+**Rationale**: WordSprout is a personal-scale product. Architectural discipline is the
 mechanism that keeps it financially sustainable without external funding.
 
 ## Technical Architecture Constraints

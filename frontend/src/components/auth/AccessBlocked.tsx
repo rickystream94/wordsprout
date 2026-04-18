@@ -9,7 +9,7 @@ export default function AccessBlocked() {
       <div className={styles.icon} aria-hidden="true">🔒</div>
       <h2 className={styles.title}>Access not granted</h2>
       <p className={styles.desc}>
-        Your account isn't on the allow list yet. VocaBook is currently invite-only.
+        Your account isn't on the allow list yet. WordSprout is currently invite-only.
       </p>
       <div className={styles.actions}>
         <button

@@ -10,7 +10,7 @@ export const IS_PROD = APP_ENV === 'prod';
 
 export const COSMOS_ENDPOINT = process.env['COSMOS_ENDPOINT'] ?? '';
 export const COSMOS_KEY = process.env['COSMOS_KEY'] ?? '';
-export const COSMOS_DATABASE = process.env['COSMOS_DATABASE'] ?? 'vocabook';
+export const COSMOS_DATABASE = process.env['COSMOS_DATABASE'] ?? 'wordsprout';
 export const COSMOS_CONTAINER = process.env['COSMOS_CONTAINER'] ?? 'data';
 
 export const B2C_TENANT = process.env['B2C_TENANT'] ?? '';

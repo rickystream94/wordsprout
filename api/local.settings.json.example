@@ -6,7 +6,7 @@
     "APP_ENV": "local",
     "COSMOS_ENDPOINT": "",
     "COSMOS_KEY": "",
-    "COSMOS_DATABASE": "vocabook",
+    "COSMOS_DATABASE": "wordsprout",
     "COSMOS_CONTAINER": "data",
     "B2C_TENANT": "",
     "B2C_POLICY": "",

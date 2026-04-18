@@ -1,4 +1,4 @@
-# Implementation Plan: VocaBook — Personal Vocabulary Phrasebook (MVP)
+﻿# Implementation Plan: WordSprout — Personal Vocabulary Phrasebook (MVP)
 
 **Branch**: `001-phrasebook-pwa-mvp` | **Date**: 2026-04-12 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `specs/001-phrasebook-pwa-mvp/spec.md`

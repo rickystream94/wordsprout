@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Start VocaBook locally: Azure Functions API on :7071 + Vite dev server on :5173.
+    Start WordSprout locally: Azure Functions API on :7071 + Vite dev server on :5173.
 
 .DESCRIPTION
     - Checks for Node.js and Azure Functions Core Tools
@@ -43,7 +43,7 @@ function Ensure-Deps ($dir) {
 # ─── Prerequisite checks ──────────────────────────────────────────────────────
 
 Write-Host ""
-Write-Host "VocaBook local dev" -ForegroundColor Magenta
+Write-Host "WordSprout local dev" -ForegroundColor Magenta
 Write-Host "──────────────────────────────────────────" -ForegroundColor DarkGray
 Write-Host ""
 

@@ -1,25 +1,48 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#7c3aed"/>
-      <stop offset="100%" stop-color="#f59e0b"/>
-    </linearGradient>
-  </defs>
   <!-- Background -->
-  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
-  <!-- Book shape -->
-  <rect x="100" y="80" width="312" height="352" rx="28" fill="white" opacity="0.15"/>
-  <rect x="116" y="96" width="280" height="320" rx="20" fill="white" opacity="0.92"/>
-  <!-- Spine -->
-  <rect x="116" y="96" width="32" height="320" rx="10" fill="#7c3aed" opacity="0.25"/>
-  <!-- Lines representing text -->
-  <rect x="172" y="160" width="160" height="18" rx="9" fill="#7c3aed" opacity="0.65"/>
-  <rect x="172" y="192" width="130" height="14" rx="7" fill="#7c3aed" opacity="0.4"/>
-  <rect x="172" y="220" width="148" height="14" rx="7" fill="#7c3aed" opacity="0.4"/>
-  <rect x="172" y="248" width="120" height="14" rx="7" fill="#f59e0b" opacity="0.7"/>
-  <rect x="172" y="276" width="140" height="14" rx="7" fill="#7c3aed" opacity="0.3"/>
-  <rect x="172" y="304" width="108" height="14" rx="7" fill="#7c3aed" opacity="0.3"/>
-  <!-- Accent badge -->
-  <circle cx="368" cy="136" r="44" fill="#f59e0b"/>
-  <text x="368" y="153" text-anchor="middle" font-size="52" font-family="system-ui,sans-serif" font-weight="bold" fill="white">V</text>
+  <rect width="512" height="512" rx="96" fill="#0f172a"/>
+  <!-- Amber disc -->
+  <circle cx="256" cy="256" r="200" fill="#f59e0b"/>
+
+  <!-- ── Primary dendrite branches ── -->
+  <line x1="256" y1="256" x2="256" y2="123" stroke="#451a03" stroke-width="12" stroke-linecap="round"/>
+  <line x1="256" y1="256" x2="384" y2="192" stroke="#451a03" stroke-width="12" stroke-linecap="round"/>
+  <line x1="256" y1="256" x2="357" y2="368" stroke="#451a03" stroke-width="12" stroke-linecap="round"/>
+  <line x1="256" y1="256" x2="165" y2="368" stroke="#451a03" stroke-width="12" stroke-linecap="round"/>
+  <line x1="256" y1="256" x2="128" y2="192" stroke="#451a03" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- ── Secondary branches ── -->
+  <!-- From top -->
+  <line x1="256" y1="123" x2="213" y2="80"  stroke="#451a03" stroke-width="8" stroke-linecap="round"/>
+  <line x1="256" y1="123" x2="299" y2="80"  stroke="#451a03" stroke-width="8" stroke-linecap="round"/>
+  <!-- From upper-right -->
+  <line x1="384" y1="192" x2="421" y2="155" stroke="#451a03" stroke-width="8" stroke-linecap="round"/>
+  <line x1="384" y1="192" x2="421" y2="224" stroke="#451a03" stroke-width="8" stroke-linecap="round"/>
+  <!-- From lower-right -->
+  <line x1="357" y1="368" x2="389" y2="400" stroke="#451a03" stroke-width="8" stroke-linecap="round"/>
+  <line x1="357" y1="368" x2="336" y2="416" stroke="#451a03" stroke-width="8" stroke-linecap="round"/>
+  <!-- From lower-left -->
+  <line x1="165" y1="368" x2="133" y2="405" stroke="#451a03" stroke-width="8" stroke-linecap="round"/>
+  <line x1="165" y1="368" x2="181" y2="416" stroke="#451a03" stroke-width="8" stroke-linecap="round"/>
+  <!-- From upper-left -->
+  <line x1="128" y1="192" x2="91"  y2="155" stroke="#451a03" stroke-width="8" stroke-linecap="round"/>
+  <line x1="128" y1="192" x2="91"  y2="224" stroke="#451a03" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- ── Synaptic terminal bulbs ── -->
+  <circle cx="213" cy="80"  r="9" fill="#451a03"/>
+  <circle cx="299" cy="80"  r="9" fill="#451a03"/>
+  <circle cx="421" cy="155" r="9" fill="#451a03"/>
+  <circle cx="421" cy="224" r="9" fill="#451a03"/>
+  <circle cx="389" cy="400" r="9" fill="#451a03"/>
+  <circle cx="336" cy="416" r="9" fill="#451a03"/>
+  <circle cx="133" cy="405" r="9" fill="#451a03"/>
+  <circle cx="181" cy="416" r="9" fill="#451a03"/>
+  <circle cx="91"  cy="155" r="9" fill="#451a03"/>
+  <circle cx="91"  cy="224" r="9" fill="#451a03"/>
+
+  <!-- ── Soma (central neuron body) ── -->
+  <circle cx="256" cy="256" r="64" fill="none" stroke="white" stroke-width="5"  opacity="0.10"/>
+  <circle cx="256" cy="256" r="48" fill="none" stroke="white" stroke-width="7"  opacity="0.25"/>
+  <circle cx="256" cy="256" r="27" fill="white"/>
+  <circle cx="248" cy="248" r="9"  fill="white" opacity="0.55"/>
 </svg>

@@ -1,4 +1,4 @@
-# Implementation Plan: Adaptive Learning State & Redesigned Review Sessions
+﻿# Implementation Plan: Adaptive Learning State & Redesigned Review Sessions
 
 **Branch**: `002-adaptive-learning-state` | **Date**: 2026-04-17 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specs/002-adaptive-learning-state/spec.md`
@@ -25,7 +25,7 @@ Technical approach: all scoring logic runs client-side (IndexedDB via Dexie); sc
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Verify compliance with the VocaBook constitution (`.specify/memory/constitution.md`) for
+Verify compliance with the WordSprout constitution (`.specify/memory/constitution.md`) for
 each principle below:
 
 - ✅ **I. Encounter-First** — The feature adds no app-assigned vocabulary. Review sessions operate exclusively on entries the user created. Random and Targeted session types are user-initiated choices, not mandated curricula.

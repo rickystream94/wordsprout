@@ -1,4 +1,4 @@
-# Feature Specification: VocaBook — Personal Vocabulary Phrasebook (MVP)
+﻿# Feature Specification: WordSprout — Personal Vocabulary Phrasebook (MVP)
 
 **Feature Branch**: `001-phrasebook-pwa-mvp`
 **Created**: 2026-04-12
@@ -23,7 +23,7 @@
 ### User Story 1 — Capture a Vocabulary Entry (Priority: P1)
 
 A language learner encounters an unfamiliar word or expression — while reading, listening, or
-in conversation. They open VocaBook, create a new entry in the relevant phrasebook, enter
+in conversation. They open WordSprout, create a new entry in the relevant phrasebook, enter
 the original expression and its translation, and optionally add notes. The entry is saved
 immediately and is accessible even when the device has no internet connection.
 
@@ -86,7 +86,7 @@ contain that substring. Applying a tag filter further narrows the results correc
 
 ### User Story 3 — Sign Up and Access the App (Invite-Only) (Priority: P3)
 
-A prospective user requests access to VocaBook through the app's access-request mechanism.
+A prospective user requests access to WordSprout through the app's access-request mechanism.
 Once approved and added to the allow-list, they return to the app, sign in with their chosen
 OAuth provider (Google or Microsoft), and land in their personal phrasebook workspace. Users
 not on the allow-list are blocked from completing account creation.

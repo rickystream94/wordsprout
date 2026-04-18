@@ -1,4 +1,4 @@
-# Specification Quality Checklist: VocaBook MVP — Phrasebook PWA
+﻿# Specification Quality Checklist: WordSprout MVP — Phrasebook PWA
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-04-12

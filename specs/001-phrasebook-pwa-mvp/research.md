@@ -1,4 +1,4 @@
-# Research: VocaBook MVP — 001-phrasebook-pwa-mvp
+﻿# Research: WordSprout MVP — 001-phrasebook-pwa-mvp
 
 **Phase**: 0 — Technical Research
 **Date**: 2026-04-12
@@ -32,7 +32,7 @@ during a session; no persistence layer is needed for MVP as rebuild is fast.
 **Decision**: Online-event replay-queue pattern
 **Rationale**: The Web Background Sync API is supported in Chrome/Edge/Android but is
 **not supported in Safari/iOS** (as of April 2026, no roadmap indication of change).
-Since VocaBook targets both iOS and Android PWA as a first-class requirement, Background
+Since WordSprout targets both iOS and Android PWA as a first-class requirement, Background
 Sync cannot be the primary mechanism. The recommended pattern is:
 
 1. All mutations (create/update/delete) are written to IndexedDB first (optimistic local
@@ -113,7 +113,7 @@ traffic grows substantially beyond 50 active users.
 server (defence-in-depth). Having identical sanitisation config on both layers prevents
 inconsistencies between what the server stores and what the client renders.
 
-For VocaBook all user-provided text is plain text (not HTML). The sanitisation pass should
+For WordSprout all user-provided text is plain text (not HTML). The sanitisation pass should
 strip all HTML tags entirely using `ALLOWED_TAGS: []` to prevent any injection. AI-generated
 responses must be sanitised with the same profile — they are untrusted input per FR-033.
 **Alternatives considered**:

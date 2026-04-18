@@ -1,4 +1,4 @@
-# Developer Quickstart: Adaptive Learning State & Redesigned Review Sessions
+﻿# Developer Quickstart: Adaptive Learning State & Redesigned Review Sessions
 
 **Feature**: `002-adaptive-learning-state` | **Date**: 2026-04-17
 
@@ -262,7 +262,7 @@ Key test areas for this feature:
 1. Start frontend dev server: `cd frontend && npm run dev`
 2. Navigate to the Review page — you should see the new `SessionSetup` UI
 3. After a session, check the phrasebook list to confirm `LearningScoreBar` updates
-4. Open browser DevTools → IndexedDB → `vocabook` → `entries` to verify `learningScore` and `lastReviewedDate` fields
+4. Open browser DevTools → IndexedDB → `WordSprout` → `entries` to verify `learningScore` and `lastReviewedDate` fields
 5. Verify offline: toggle Network to Offline, run a session — score changes should persist locally, then sync when back online
 
 ---

@@ -1,4 +1,4 @@
-# Quickstart: VocaBook MVP — Developer Setup
+﻿# Quickstart: WordSprout MVP — Developer Setup
 
 **Branch**: `001-phrasebook-pwa-mvp`
 **Last updated**: 2026-04-12
@@ -20,7 +20,7 @@
 ## Repository Structure
 
 ```
-vocabook/
+WordSprout/
 ├── frontend/               # React PWA
 │   ├── public/
 │   │   └── languages.json  # Bundled ISO 639-1 language list
@@ -60,7 +60,7 @@ vocabook/
 
 ## Environment Stages
 
-VocaBook supports three distinct stages. Each has its own configuration; they never share
+WordSprout supports three distinct stages. Each has its own configuration; they never share
 config files.
 
 | Stage | Where runs | External services | Auth | Use for |
@@ -140,7 +140,7 @@ Requires an Azure account and the one-time Azure setup below.
     "APP_ENV": "dev",
     "COSMOS_ENDPOINT": "<dev-cosmos-endpoint>",
     "COSMOS_KEY": "<dev-cosmos-key>",
-    "COSMOS_DATABASE": "vocabook-dev",
+    "COSMOS_DATABASE": "WordSprout-dev",
     "COSMOS_CONTAINER": "data",
     "B2C_TENANT": "<your-tenant>.onmicrosoft.com",
     "B2C_POLICY": "B2C_1_signupsignin",
@@ -229,11 +229,11 @@ cd api && npm run test:integration
 # Create database and container
 az cosmosdb sql database create \
   --account-name <account> --resource-group <rg> \
-  --name vocabook
+  --name WordSprout
 
 az cosmosdb sql container create \
   --account-name <account> --resource-group <rg> \
-  --database-name vocabook \
+  --database-name WordSprout \
   --name data \
   --partition-key-path /userId \
   --throughput 0   # 0 = serverless

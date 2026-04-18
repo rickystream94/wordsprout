@@ -1,4 +1,4 @@
-title = "VocaBook Gitleaks Configuration"
+title = "WordSprout Gitleaks Configuration"
 
 [allowlist]
   description = "Allowed false-positives"

@@ -16,8 +16,8 @@ export default function Login() {
     <main className={styles.page}>
       <div className={styles.card}>
         <div className={styles.logo} aria-hidden="true">📖</div>
-        <h1 className={styles.title}>VocaBook</h1>
-        <p className={styles.tagline}>Your personal vocabulary phrasebook</p>
+        <h1 className={styles.title}>WordSprout</h1>
+        <p className={styles.tagline}>Grow your words</p>
 
         <button className={styles.signInBtn} onClick={login}>
           Sign in with Microsoft / Google

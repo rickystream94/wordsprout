@@ -1,4 +1,4 @@
-# Data Model: VocaBook MVP — 001-phrasebook-pwa-mvp
+﻿# Data Model: WordSprout MVP — 001-phrasebook-pwa-mvp
 
 **Phase**: 1 — Design
 **Date**: 2026-04-12
@@ -196,7 +196,7 @@ Enables the `authorise()` utility to perform a point-read per authenticated user
 ## Client-Side IndexedDB Schema (Dexie.js)
 
 ```
-Database: "vocabook"
+Database: "WordSprout"
 
 Table: phrasebooks
   ++id, userId, name, sourceLanguageCode, targetLanguageCode,

@@ -69,7 +69,7 @@ export interface DBMeta {
 
 // ─── Dexie database class ─────────────────────────────────────────────────────
 
-class VocaBookDB extends Dexie {
+class WordSproutDB extends Dexie {
   phrasebooks!: Table<DBPhrasebook, string>;
   entries!: Table<DBEntry, string>;
   enrichments!: Table<DBEnrichment, string>;
@@ -77,7 +77,7 @@ class VocaBookDB extends Dexie {
   meta!: Table<DBMeta, string>;
 
   constructor() {
-    super('vocabook');
+    super('wordsprout');
 
     this.version(1).stores({
       // Primary key + indexed fields
@@ -110,7 +110,7 @@ class VocaBookDB extends Dexie {
   }
 }
 
-export const db = new VocaBookDB();
+export const db = new WordSproutDB();
 
 // ─── T022: Phrasebook CRUD ────────────────────────────────────────────────────
 

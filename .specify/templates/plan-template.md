@@ -1,4 +1,4 @@
-# Implementation Plan: [FEATURE]
+﻿# Implementation Plan: [FEATURE]
 
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
@@ -31,7 +31,7 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Verify compliance with the VocaBook constitution (`.specify/memory/constitution.md`) for
+Verify compliance with the WordSprout constitution (`.specify/memory/constitution.md`) for
 each principle below. Mark ✅ compliant, ⚠ needs justification, or N/A:
 
 - [ ] **I. Encounter-First** — Does this feature add app-assigned or mandated vocabulary?

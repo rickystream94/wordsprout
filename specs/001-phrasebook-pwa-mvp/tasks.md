@@ -1,8 +1,8 @@
----
-description: "Task list for VocaBook MVP — Personal Vocabulary Phrasebook PWA"
+﻿---
+description: "Task list for WordSprout MVP — Personal Vocabulary Phrasebook PWA"
 ---
 
-# Tasks: VocaBook — Personal Vocabulary Phrasebook (MVP)
+# Tasks: WordSprout — Personal Vocabulary Phrasebook (MVP)
 
 **Input**: Design documents from `specs/001-phrasebook-pwa-mvp/`
 **Prerequisites**: plan.md ✅, spec.md ✅, research.md ✅, data-model.md ✅, contracts/openapi.yaml ✅, quickstart.md ✅

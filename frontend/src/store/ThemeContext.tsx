@@ -19,7 +19,7 @@ const ThemeContext = createContext<ThemeContextValue>({
   toggleTheme: () => {},
 });
 
-const STORAGE_KEY = 'vocabook_theme';
+const STORAGE_KEY = 'wordsprout_theme';
 
 function getInitialTheme(): Theme {
   const stored = localStorage.getItem(STORAGE_KEY);

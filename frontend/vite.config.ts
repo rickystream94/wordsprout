@@ -21,7 +21,7 @@ export default defineConfig({
             handler: 'NetworkOnly',
             options: {
               backgroundSync: {
-                name: 'vocabook-score-sync',
+                name: 'wordsprout-score-sync',
                 options: {
                   maxRetentionTime: 24 * 60, // 24 hours in minutes
                 },
