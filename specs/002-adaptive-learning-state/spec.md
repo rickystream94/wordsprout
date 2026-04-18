@@ -13,6 +13,14 @@
 
 - Q: Should scoring be client-side (optimistic, synced as raw score) or server-side (server re-computes from raw review inputs) to guard against API abuse? → A: **Option A — Server bounds validation only.** Scoring computation remains client-side for full offline compatibility. The server enforces two constraints on every `PUT /entries/:id` score update: (1) the delta between the new and current stored `learningScore` must not exceed +10 (gain cap) or fall below −5 (loss floor); (2) the `lastReviewedDate` in the request must differ from the stored value (daily limit also enforced server-side). This means the worst a malicious user can achieve is +10 points per entry per day via direct API calls — reaching 100 from 0 takes a minimum of 10 days. This risk level is explicitly accepted as tolerable given the personal-app context.
 
+### Session 2026-04-18
+
+- Q: What mechanism should the spec mandate for replaying queued `PUT /entries/:id` score mutations when the device is offline? → A: **Option A — Service Worker Background Sync API with sync-on-foreground fallback.** The Service Worker registers a sync event tag whenever a mutation is queued; the browser replays it automatically when connectivity is restored, even if the app is backgrounded. On iOS Safari (which does not support the Background Sync API), the app falls back to attempting replay each time the app is brought to the foreground (`visibilitychange` / `focus` events). This ensures consistent offline-first behaviour across iOS and Android.
+- Q: Which clock is authoritative for determining "today" for the daily review limit? → A: **Option B — Server clock is authoritative.** The server's UTC date governs the daily limit: the server rejects score-changing updates when its own current UTC date matches the stored `lastReviewedDate`, regardless of the date the client submits. The client uses its local clock for optimistic offline UI only; any discrepancy is resolved on sync in favour of the server.
+- Q: What scope of punctuation removal should the normalization step apply for language-agnostic comparison (covering non-Latin scripts)? → A: **Option B — Unicode General Categories `P` (Punctuation) + `S` (Symbol).** All characters whose Unicode General Category begins with `P` or `S` are stripped during normalization. This covers Arabic (`،`،؛…), Chinese/CJK (`。「」`…), Hebrew, and any future scripts automatically without maintaining script-specific lists.
+- Q: Should the spec mandate a minimum PWA installability standard? → A: **Option A — Meets browser install criteria on iOS Safari + Android Chrome.** The app MUST ship a valid `manifest.json` (fields: `name`, `short_name`, `start_url`, `display: standalone`, icons at 192×192 and 512×512 px), a registered Service Worker with a `fetch` handler, and be served over HTTPS. This satisfies the "Add to Home Screen" prompt on Android Chrome and the share-sheet install flow on iOS Safari without requiring any app store listing.
+- Q: What must the Service Worker cache to make review sessions work fully offline? → A: **Option A — App shell + static assets cached (cache-first); phrasebook data served from IndexedDB (Dexie.js); API writes queued offline.** The Service Worker caches all app shell assets (HTML, JS, CSS, icons, manifest) using a cache-first strategy on install. Phrasebook data is read directly from IndexedDB, which is already populated by the sync layer. Outbound `PUT /entries/:id` mutations are queued in IndexedDB when offline and replayed via Background Sync (or foreground fallback on iOS). Full review sessions are therefore possible with zero network connectivity.
+
 ---
 
 ## User Scenarios & Testing *(mandatory)*
@@ -124,8 +132,8 @@ To encourage sustainable practice and prevent score inflation, each phrasebook e
 - **FR-002**: Three named ranges MUST be defined for display and session-filtering purposes: **New** (0–25), **Learning** (26–79), **Mastered** (80–100)
 - **FR-003**: The learning score MUST be visually represented as a color-coded, heat-map style progress bar on each entry in the phrasebook view
 - **FR-004**: Review sessions MUST present flashcards one at a time: the source-language field is displayed as the prompt; the user must type the target-language translation
-- **FR-005**: Before comparing translations, the system MUST normalize both the user's input and the expected answer by: removing all punctuation, removing leading/trailing whitespace, collapsing internal whitespace, removing dashes; the comparison MUST be case-insensitive
-- **FR-006**: Normalization and comparison logic MUST be language-agnostic with no character-set assumptions
+- **FR-005**: Before comparing translations, the system MUST normalize both the user's input and the expected answer by: stripping all Unicode General Category `P` (Punctuation) and `S` (Symbol) characters, removing leading/trailing whitespace, collapsing internal whitespace, removing dashes; the comparison MUST be case-insensitive
+- **FR-006**: Normalization MUST be language-agnostic: punctuation removal is defined by Unicode General Categories `P` and `S` (covering Latin, Arabic, CJK, Hebrew, and all other scripts) with no script-specific character lists
 - **FR-007**: A correct answer (after normalization) with no hints and no typos MUST award **+10 points** (capped at 100 total)
 - **FR-008**: An incorrect answer or skip MUST deduct **5 points** from the entry's score (minimum score is 0; no negative scores permitted)
 - **FR-009**: The system MUST tolerate minor typos in user answers: up to **1 typo per 5 characters** of the normalized expected answer length (minimum 1 typo always allowed); answers within this tolerance MUST be counted as correct
@@ -141,7 +149,10 @@ To encourage sustainable practice and prevent score inflation, each phrasebook e
 - **FR-019**: If a Targeted session is requested and zero eligible entries exist, the system MUST notify the user and NOT start the session
 - **FR-020**: Existing entries carrying enum-based states MUST be migrated automatically: **New** → 0 points, **Learning** → 30 points, **Mastered** → 90 points
 - **FR-021**: The server MUST enforce a per-request score delta constraint on `PUT /entries/:id`: the difference between the submitted `learningScore` and the entry's current stored score MUST be within [−5, +10]; requests outside this range MUST be rejected with HTTP 400
-- **FR-022**: The server MUST enforce the daily review limit independently of the client: if the submitted `lastReviewedDate` equals the entry's current stored `lastReviewedDate`, the server MUST reject score-changing updates with HTTP 400
+- **FR-022**: The server MUST enforce the daily review limit independently of the client using the **server's current UTC date**: if the server's current UTC date matches the entry's stored `lastReviewedDate`, the server MUST reject score-changing updates with HTTP 400 (the value submitted by the client is ignored for this comparison)
+- **FR-023**: The app MUST ship a valid Web App Manifest (`manifest.json`) containing at minimum: `name`, `short_name`, `start_url`, `display: standalone`, and icon entries at 192×192 px and 512×512 px; the manifest MUST be linked from the HTML `<head>` on every page
+- **FR-024**: The app MUST register a Service Worker with a `fetch` event handler and MUST be served exclusively over HTTPS, satisfying the browser installability criteria for both iOS Safari (share-sheet → "Add to Home Screen") and Android Chrome ("Add to Home Screen" / install prompt)
+- **FR-025**: The Service Worker MUST pre-cache all app shell assets (HTML entry point, JS bundles, CSS, icons, `manifest.json`) using a **cache-first** strategy on Service Worker install; phrasebook data MUST be served from IndexedDB (Dexie.js) so that review sessions function with zero network connectivity; outbound score mutations MUST be queued in IndexedDB when offline and replayed via the Background Sync mechanism defined in FR-024 and the Assumptions
 
 ### Key Entities
 
@@ -163,6 +174,7 @@ To encourage sustainable practice and prevent score inflation, each phrasebook e
 - **SC-005**: Targeted sessions exclusively surface entries below the Mastered threshold — verified across random samples of all phrasebooks
 - **SC-006**: The daily review limit prevents score changes for a repeated same-day review of an entry in 100% of tested scenarios
 - **SC-007**: All existing entries are correctly migrated from the enum state to the appropriate numeric score without data loss
+- **SC-008**: The app satisfies browser installability criteria on both iOS Safari and Android Chrome: a valid manifest is present, a Service Worker with a `fetch` handler is registered, and the app is served over HTTPS — verified by manual install test on each platform
 
 ---
 
@@ -171,9 +183,11 @@ To encourage sustainable practice and prevent score inflation, each phrasebook e
 - Points do **not** decay over time; scores only change through active review sessions (time-based decay is out of scope for this feature)
 - The source-language field is always the flashcard prompt; the target-language field is always the expected answer — consistent with the phrasebook's defined source → target direction
 - Session size defaults to 20 flashcards but is configurable by the user at session start
-- The "once per day" review limit resets at midnight in the user's local device time zone
+- The "once per day" review limit is governed by the **server's UTC date**; the client uses its local clock for optimistic offline UI only. Conflicts are resolved on sync in favour of the server.
 - Hints reveal characters from the normalized form of the answer; the characters are displayed in their original (un-normalized) positions in the input where possible
 - Scoring computation is client-side to preserve full offline capability; the client scores optimistically for immediate UX and queues a `PUT /entries/:id` mutation with the resulting `learningScore` and `lastReviewedDate`
+- Queued mutations are replayed via the **Service Worker Background Sync API** (sync tag registered per queued mutation); on iOS Safari, where Background Sync is unsupported, replay is attempted on each app foreground event (`visibilitychange` / page `focus`). This is the mandated sync mechanism — both platforms MUST be handled
+- The Service Worker pre-caches the full app shell (HTML, JS, CSS, icons, manifest) at install time using a cache-first strategy; all phrasebook data is read from IndexedDB, making full review sessions possible with no network connection
 - The server is the authoritative store but does not re-compute scores; it validates that each update's delta is within bounds (FR-021) and that the daily limit is respected (FR-022) before persisting
 - Existing phrasebook entries with the old enum-based learning state will be migrated automatically on first load after the feature is deployed
 - The maximum point increment (+10) and deduction (−5) values represent a deliberate asymmetry — earning mastery is meaningfully harder than losing it

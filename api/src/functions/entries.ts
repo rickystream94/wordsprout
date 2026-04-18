@@ -181,14 +181,19 @@ async function updateEntry(req: HttpRequest, _ctx: InvocationContext): Promise<H
       return apiError(400, 'learningScore delta must be between -5 and +10');
   }
 
-  // Validate lastReviewedDate daily uniqueness (FR-022)
+  // Validate lastReviewedDate format if provided (input boundary check)
   if (body.lastReviewedDate !== undefined && body.lastReviewedDate !== null) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(body.lastReviewedDate))
       return apiError(400, 'lastReviewedDate must be YYYY-MM-DD or null');
-    if (
-      body.learningScore !== undefined &&
-      body.lastReviewedDate === existing.lastReviewedDate
-    ) return apiError(400, 'Entry already reviewed today');
+  }
+
+  // Validate daily-review uniqueness using server UTC date (FR-022)
+  // The client-submitted lastReviewedDate is irrelevant for this gate —
+  // the server's own UTC date is the authority.
+  if (body.learningScore !== undefined) {
+    const todayUtc = new Date().toISOString().slice(0, 10);
+    if (todayUtc === existing.lastReviewedDate)
+      return apiError(400, 'Entry already reviewed today');
   }
 
   const updated: VocabularyEntry = {

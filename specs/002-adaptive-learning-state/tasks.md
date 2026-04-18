@@ -126,6 +126,19 @@
 
 ---
 
+## Phase 10: PWA Installability & Background Sync (FR-023–FR-025, SC-008)
+
+**Purpose**: Close the gaps introduced by clarifications in Session 2026-04-18. The manifest and `<link rel="manifest">` already exist and are FR-023 compliant. The three tasks below address: (1) the SW Background Sync event not yet wired, (2) a potential ASCII-only `normalize()` that predates the Unicode Cat P+S mandate, and (3) the FR-022 server logic that was implemented against the old spec.
+
+**⚠️ NOTE**: T036 and T037 are corrective amendments to already-completed tasks (T006 and T029 respectively). Complete them even though the originals are marked `[x]`.
+
+- [x] T035 Wire Workbox Background Sync in `frontend/vite.config.ts`: add a `workbox-background-sync` `BackgroundSyncPlugin` (or configure the Workbox `backgroundSync` option) to the `api-cache` `NetworkFirst` runtime cache entry for `/api/entries/*` PUT requests, using the sync queue tag `'vocabook-score-sync'`; this ensures the SW `sync` event replays queued mutations on Android Chrome when connectivity is restored — the existing `online` + `visibilitychange` handlers in `main.tsx` already cover the iOS Safari fallback (FR-024, FR-025)
+- [x] T036 [P] Verify and fix `normalize()` in `frontend/src/services/scoring.ts` (FR-005/FR-006): confirm the punctuation-stripping regex uses `/[\p{P}\p{S}]/gu` (Unicode General Categories P + S) with the `u` flag; if the current implementation uses ASCII-only stripping (e.g., `/[^\w\s]/g` or a character-class list), replace it with the Unicode regex; add or update unit tests in the scoring test file to assert that Arabic (`،`), CJK (`。`), and Hebrew (`׃`) punctuation is stripped correctly
+- [x] T037 [P] Fix the FR-022 daily-review gate in `api/src/functions/entries.ts` PUT handler: replace the current check ("submitted `lastReviewedDate` equals stored value") with a server-authoritative UTC date comparison — compute `const todayUtc = new Date().toISOString().slice(0, 10)` and reject with HTTP 400 if `todayUtc === storedEntry.lastReviewedDate`; the client-submitted `lastReviewedDate` value MUST be ignored for this gate (FR-022)
+- [ ] T038 Manual QA gate — SC-008: on a physical iOS device open the deployed app in Safari, use the share sheet → "Add to Home Screen" and confirm the app installs and launches in standalone mode with no address bar; on an Android device open the app in Chrome, accept the install prompt or use "Add to Home Screen", and confirm standalone launch; verify a full review session completes with DevTools Network → Offline; record pass/fail as a PR comment before merge
+
+---
+
 ## Dependencies
 
 ```
@@ -138,6 +151,8 @@ Phase 1 (T001)
             │                       └─► Phase 7 (T025–T027)   [US5 — extends Phase 6]
             └─► Phase 8 (T028–T029)   [API — independent of frontend phases]
 Phase 9 (T030–T034)   [cleanup — after all prior phases]
+Phase 10 (T035–T038)  [PWA/corrective — independent of all other phases; T036 and T037 are
+                        amendments to T006/T029 and may run in parallel with each other]
 ```
 
 **Phases 3 and 8 can proceed in parallel once Phase 2 is complete.**
@@ -181,7 +196,7 @@ Each phase can be reviewed and merged independently as a pull-request increment.
 ## Format Validation
 
 All tasks follow `- [x] [ID] [P?] [Story?] Description with file path`:
-- ✅ All 34 tasks have checkbox + sequential ID
+- ✅ All 38 tasks have checkbox + sequential ID
 - ✅ `[P]` present only on tasks with no intra-phase dependency and different target files
-- ✅ `[US1]–[US5]` labels present on all user-story phase tasks; absent on Setup/Foundational/API/Polish phases
+- ✅ `[US1]–[US5]` labels present on all user-story phase tasks; absent on Setup/Foundational/API/Polish/PWA phases
 - ✅ Every task includes an exact file path or explicit file operation

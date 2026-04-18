@@ -13,7 +13,23 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2}'],
         runtimeCaching: [
           {
-            // Network-first for all API calls
+            // T035: Background Sync for PUT /api/entries/* score mutations (FR-024, FR-025)
+            // Queues failed mutations when offline; replayed automatically via SW sync event
+            // (Android Chrome). iOS Safari foreground fallback is wired in main.tsx.
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/entries/'),
+            method: 'PUT',
+            handler: 'NetworkOnly',
+            options: {
+              backgroundSync: {
+                name: 'vocabook-score-sync',
+                options: {
+                  maxRetentionTime: 24 * 60, // 24 hours in minutes
+                },
+              },
+            },
+          },
+          {
+            // Network-first for all other API calls
             urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
             handler: 'NetworkFirst',
             options: {

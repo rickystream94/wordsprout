@@ -22,10 +22,10 @@ export function scoreToRange(score: number): ScoreRange {
 
 // ─── Text normalization ────────────────────────────────────────────────────────
 
-/** Strip punctuation, collapse whitespace, lowercase. Language-agnostic. */
+/** Strip punctuation and symbols (Unicode General Categories P + S), collapse whitespace, lowercase. Language-agnostic — covers Latin, Arabic, CJK, Hebrew and all other scripts (FR-005, FR-006). */
 export function normalize(text: string): string {
   return text
-    .replace(/\p{P}/gu, '')
+    .replace(/[\p{P}\p{S}]/gu, '')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
