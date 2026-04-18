@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
 import { initializeMsal } from './auth/msalConfig';
 import { ThemeProvider } from './store/ThemeContext';
-import { replayQueue, pullFromServer, SYNC_INTERVAL_MS } from './services/sync';
+import { replayQueue, pullFromServer, SYNC_INTERVAL_MS, PULL_TTL_MS } from './services/sync';
 import { rebuildIndex } from './services/search';
 import AppShell from './components/layout/AppShell';
 import AuthGuard from './components/auth/AuthGuard';
@@ -18,6 +18,8 @@ import Login from './pages/Login';
 import RequestAccess from './pages/RequestAccess';
 import AccessBlockedPage from './pages/AccessBlockedPage';
 import NotFound from './pages/NotFound';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import Terms from './pages/Terms';
 import './styles/tokens.css';
 import './styles/global.css';
 
@@ -34,8 +36,11 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// Periodic background sync so queued mutations don't wait for events
+// Periodic outbound sync so queued mutations don't wait for events
 setInterval(() => replayQueue().catch(console.error), SYNC_INTERVAL_MS);
+
+// Periodic inbound pull so changes from other devices appear without needing a tab switch
+setInterval(() => pullFromServer().catch(console.error), PULL_TTL_MS);
 
 // ─── Handle permanent 403: sync queue cleared, redirect to access-blocked ─────
  window.addEventListener('wordsprout:access-revoked', () => {
@@ -44,8 +49,8 @@ setInterval(() => replayQueue().catch(console.error), SYNC_INTERVAL_MS);
 
 // ─── Handle 401 from API: token expired, clear session and redirect to login ───
 window.addEventListener('wordsprout:session-expired', () => {
-  // Google credential is in sessionStorage — clear it so AuthProvider re-evaluates
-  sessionStorage.removeItem('wordsprout:google_credential');
+  // Google credential is in localStorage — clear it so AuthProvider re-evaluates
+  localStorage.removeItem('wordsprout:google_credential');
   window.location.replace('/login');
 });
 
@@ -76,6 +81,8 @@ async function bootstrap() {
             <Routes>
               {/* Public routes — no auth required */}
               <Route path="/login" element={<Login />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<Terms />} />
 
               {/* Auth-required (token present) but not necessarily allow-listed */}
               <Route element={<AuthenticatedRoute />}>

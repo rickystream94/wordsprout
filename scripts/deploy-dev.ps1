@@ -172,8 +172,9 @@ if (-not $SkipApp) {
     Push-Location (Join-Path $RepoRoot 'frontend')
     try {
         # --legacy-peer-deps: vite-plugin-pwa hasn't yet published Vite 8 peer support
-        npm ci --prefer-offline --legacy-peer-deps
-        if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+        cmd /c "rmdir /s /q node_modules" 2>$null
+        npm install --prefer-offline --legacy-peer-deps
+        if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
         npm run build -- --mode dev
         if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed' }
     } finally {
@@ -211,8 +212,9 @@ if (-not $SkipApp) {
 
     Push-Location (Join-Path $RepoRoot 'api')
     try {
-        npm ci --prefer-offline
-        if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+        cmd /c "rmdir /s /q node_modules" 2>$null
+        npm install --prefer-offline
+        if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
         npm run build
         if ($LASTEXITCODE -ne 0) { throw 'API build failed' }
     } finally {

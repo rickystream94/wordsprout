@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../auth/AuthProvider';
 import { useTheme } from '../store/ThemeContext';
@@ -60,6 +60,11 @@ export default function Login() {
           </div>
         </div>
       </div>
+      <nav className={styles.legalLinks}>
+        <Link to="/privacy">Privacy Policy</Link>
+        <span aria-hidden="true">·</span>
+        <Link to="/terms">Terms &amp; Conditions</Link>
+      </nav>
     </main>
   );
 }

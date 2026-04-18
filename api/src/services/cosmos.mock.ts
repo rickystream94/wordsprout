@@ -69,5 +69,19 @@ export function createMockCosmosClient(): CosmosClientWrapper {
       }
       return results;
     },
+
+    async deleteAllForPartition(partitionKey: string): Promise<number> {
+      const toDelete: string[] = [];
+      for (const [key, doc] of store.entries()) {
+        if ((doc as Record<string, unknown>)['userId'] === partitionKey) {
+          toDelete.push(key);
+        }
+      }
+      for (const key of toDelete) {
+        store.delete(key);
+      }
+      if (toDelete.length > 0) saveStore(store);
+      return toDelete.length;
+    },
   };
 }

@@ -82,3 +82,131 @@
   background: var(--bg-subtle);
   color: var(--text-primary);
 }
+
+/* ── Delete Account button ───────────────────────────────────────────── */
+
+.deleteBtn {
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-danger, #dc2626);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.deleteBtn:hover {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.deleteBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.errorMsg {
+  font-size: var(--text-xs);
+  color: var(--color-danger, #dc2626);
+  padding: 0 var(--space-1);
+}
+
+/* ── Confirmation dialog ─────────────────────────────────────────────── */
+
+.dialog {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal, 500);
+  padding: var(--space-4);
+}
+
+.dialogBox {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-6);
+  max-width: 420px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dialogTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.dialogBody {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.dialogBody ul {
+  margin: var(--space-2) 0 0 0;
+  padding-left: var(--space-4);
+}
+
+.dialogBody li {
+  margin-bottom: var(--space-1);
+}
+
+.dialogActions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
+.confirmBtn {
+  background: var(--color-danger, #dc2626);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.confirmBtn:hover {
+  opacity: 0.87;
+}
+
+.confirmBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelBtn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.cancelBtn:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+.signOutBtn:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}

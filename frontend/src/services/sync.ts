@@ -6,7 +6,7 @@ import { rebuildIndex } from './search';
 
 // Pull TTL: always run on an empty DB (first device login), otherwise throttle
 // to 5 minutes so switching between laptop and phone stays in sync quickly.
-const PULL_TTL_MS = 5 * 60 * 1000; // 5 minutes
+export const PULL_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // ─── Pull all server data into IndexedDB ──────────────────────────────────────
 // Safe to call frequently — skips the network round-trip if run within PULL_TTL_MS

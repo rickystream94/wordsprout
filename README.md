@@ -13,6 +13,8 @@ A personal, offline-first vocabulary notebook for language learners. Capture wor
 - **Typed-translation review** — flashcard sessions with typo tolerance and hints
 - **Full-text offline search** — across all entries and phrasebooks
 - **Offline-first** — full read/write without connectivity; background sync via Service Worker
+- **Account deletion** — permanently delete all cloud and local data from the account menu (GDPR right to erasure)
+- **Privacy Policy & Terms** — bundled static pages accessible without authentication at `/privacy` and `/terms`
 
 ## Tech stack
 

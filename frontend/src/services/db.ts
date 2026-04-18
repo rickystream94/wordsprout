@@ -254,3 +254,9 @@ export async function getEntriesForSession(
   }
   return pool.slice(0, size);
 }
+
+// ─── Account deletion ────────────────────────────────────────────────
+
+export async function clearLocalData(): Promise<void> {
+  await Dexie.delete('wordsprout');
+}

@@ -31,6 +31,13 @@ export interface CosmosClientWrapper {
     partitionKey: string,
     filters: Record<string, unknown>,
   ): Promise<T[]>;
+
+  /**
+   * Delete all documents belonging to a partition key (userId).
+   * Returns the number of documents deleted.
+   * Safe to call multiple times — individual deletes are 404-tolerant.
+   */
+  deleteAllForPartition(partitionKey: string): Promise<number>;
 }
 
 // ─── Real Cosmos DB implementation ───────────────────────────────────────────
@@ -94,6 +101,19 @@ function buildRealClient(): CosmosClientWrapper {
         .fetchAll();
 
       return resources;
+    },
+
+    async deleteAllForPartition(partitionKey: string): Promise<number> {
+      // Lightweight projection — fetch only ids to minimise RU cost
+      const { resources } = await container.items
+        .query<{ id: string }>(
+          { query: 'SELECT c.id FROM c WHERE c.userId = @userId', parameters: [{ name: '@userId', value: partitionKey }] },
+          { partitionKey },
+        )
+        .fetchAll();
+
+      await Promise.all(resources.map(({ id }) => this.deleteItem(id, partitionKey)));
+      return resources.length;
     },
   };
 }

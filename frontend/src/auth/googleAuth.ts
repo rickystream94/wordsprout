@@ -1,20 +1,20 @@
-// ─── Google credential store (sessionStorage-backed) ─────────────────────────
+// ─── Google credential store (localStorage-backed) ───────────────────────────
 // Holds the raw GIS JWT credential string. Accessed by AuthProvider and api.ts.
-// sessionStorage survives in-tab navigation and page reloads but is cleared
-// when the tab/browser is closed — appropriate for a 1-hour Google ID token.
+// localStorage persists across PWA close/reopen; the token's own `exp` claim
+// (~1 hour) is validated on every read so a stale token is treated as signed out.
 
 const SESSION_KEY = 'wordsprout:google_credential';
 
 export function setGoogleCredential(token: string | null): void {
   if (token === null) {
-    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
   } else {
-    sessionStorage.setItem(SESSION_KEY, token);
+    localStorage.setItem(SESSION_KEY, token);
   }
 }
 
 export function getGoogleCredential(): string | null {
-  return sessionStorage.getItem(SESSION_KEY);
+  return localStorage.getItem(SESSION_KEY);
 }
 
 // ─── Token introspection (client-side decode, no signature verification) ──────

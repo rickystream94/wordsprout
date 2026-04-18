@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Link, Outlet } from 'react-router-dom';
 import { useTheme } from '../../store/ThemeContext';
 import OfflineIndicator from '../common/OfflineIndicator';
 import SyncIndicator from '../common/SyncIndicator';
@@ -41,6 +41,11 @@ export default function AppShell() {
       <main className={styles.content}>
         <Outlet />
       </main>
+      <footer className={styles.footer}>
+        <Link to="/privacy" className={styles.footerLink}>Privacy Policy</Link>
+        <span aria-hidden="true" className={styles.footerSep}>·</span>
+        <Link to="/terms" className={styles.footerLink}>Terms &amp; Conditions</Link>
+      </footer>
       <OfflineIndicator />
     </div>
   );

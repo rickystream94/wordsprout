@@ -1,6 +1,7 @@
 .page {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: var(--bg-base);
@@ -155,5 +156,25 @@
 }
 
 .link:hover {
+  text-decoration: underline;
+}
+
+.legalLinks {
+  margin-top: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.legalLinks a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.legalLinks a:hover {
+  color: var(--text-secondary);
   text-decoration: underline;
 }
