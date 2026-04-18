@@ -35,4 +35,7 @@ cd src; pytest; ruff check .
 
 
 <!-- MANUAL ADDITIONS START -->
+## Workflow Rules
+
+- **Always run `npx tsc --noEmit` after editing any `.ts` or `.tsx` file**, before committing. Run from the package root that owns the `tsconfig.json` (e.g. `frontend/` or `api/`). Fix all type errors before proceeding.
 <!-- MANUAL ADDITIONS END -->
