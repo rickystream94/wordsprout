@@ -45,6 +45,7 @@ export default function Search() {
   const [filters, setFilters] = useState<ActiveFilters>(EMPTY_FILTERS);
   const [editingEntry, setEditingEntry] = useState<DBEntry | null>(null);
   const [sort, setSort] = useState<SortKey>('createdAt_desc');
+  const [showFilters, setShowFilters] = useState(false);
 
   const deferredQuery = useDeferredValue(query);
 
@@ -100,12 +101,15 @@ export default function Search() {
     return Object.fromEntries(allPhrasebooks.map((pb) => [pb.id, pb.name]));
   }, [allPhrasebooks, filters.phrasebookIds]);
 
+  const activeFilterCount =
+    filters.phrasebookIds.length +
+    filters.scoreRanges.length +
+    filters.partsOfSpeech.length +
+    filters.tags.length;
+
   const hasFilters =
     query.trim() ||
-    filters.phrasebookIds.length > 0 ||
-    filters.scoreRanges.length > 0 ||
-    filters.partsOfSpeech.length > 0 ||
-    filters.tags.length > 0;
+    activeFilterCount > 0;
   const isEmpty = allEntries !== undefined && loadedEntries.length === 0;
 
   async function handleEditEntry(data?: EntryFormData) {
@@ -138,11 +142,21 @@ export default function Search() {
 
       <div className={styles.controls}>
         <SearchBar value={query} onChange={setQuery} />
-        <FilterPanel filters={filters} onChange={setFilters} />
-      </div>
-
-      <div className={styles.listHeader}>
-        <SortDropdown value={sort} options={SORT_OPTIONS} onChange={setSort} />
+        <div className={styles.controlsBar}>
+          <button
+            type="button"
+            className={`${styles.filtersToggle} ${activeFilterCount > 0 ? styles.filtersToggleActive : ''}`}
+            onClick={() => setShowFilters((f) => !f)}
+            aria-expanded={showFilters}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M1 2.75A.75.75 0 0 1 1.75 2h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75zm3 5A.75.75 0 0 1 4.75 7h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 7.75zm3 4.5a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75z" />
+            </svg>
+            Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </button>
+          <SortDropdown value={sort} options={SORT_OPTIONS} onChange={setSort} />
+        </div>
+        {showFilters && <FilterPanel filters={filters} onChange={setFilters} />}
       </div>
 
       {editingEntry && (

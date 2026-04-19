@@ -201,7 +201,7 @@ export default function PhrasebookView() {
       {confirmDelete && (
         <div className={styles.confirmOverlay} role="dialog" aria-modal="true">
           <div className={styles.confirmBox}>
-            <p>Delete <strong>{phrasebook.name}</strong> and all its entries? This cannot be undone.</p>
+            <p>Delete <strong>{phrasebook.name}</strong> and its {entries.length === 0 ? 'entries' : entries.length === 1 ? '1 entry' : `${entries.length} entries`}? This cannot be undone.</p>
             <div className={styles.confirmActions}>
               <button className={styles.cancelBtn} onClick={() => setConfirmDelete(false)}>Cancel</button>
               <button className={styles.confirmDeleteBtn} onClick={handleDeletePhrasebook}>Delete</button>
