@@ -51,13 +51,13 @@
 
 .source {
   font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-secondary);
 }
 
 .target {
   font-size: var(--text-base);
-  color: var(--text-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .meta {

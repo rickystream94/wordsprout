@@ -192,10 +192,17 @@
 .typo    { color: var(--color-warning, #b45309); }
 .wrong   { color: var(--color-error, #dc2626); }
 
-.correctAnswer {
+.correctAnswer,
+.submittedText,
+.notes {
   font-size: var(--text-sm);
   color: var(--text-secondary);
   margin: 0;
+}
+
+.infoLabel {
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .answerSep {

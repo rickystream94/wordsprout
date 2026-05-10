@@ -36,6 +36,7 @@ export default function FlashcardSession({ entries, onDone }: FlashcardSessionPr
   const [results, setResults] = useState<SessionResult[]>([]);
   const [currentResult, setCurrentResult] = useState<{ delta: number; oldScore: number; newScore: number } | undefined>(undefined);
   const [currentSynonymHit, setCurrentSynonymHit] = useState(false);
+  const [submittedText, setSubmittedText] = useState<string | undefined>(undefined);
 
   // Load enrichments for all session entries to support synonym matching
   const enrichments = useLiveQuery(
@@ -64,6 +65,7 @@ export default function FlashcardSession({ entries, onDone }: FlashcardSessionPr
   function handleSubmit(input: string) {
     if (!current || evalResult !== undefined) return;
 
+    setSubmittedText(input);
     const { result, isSynonymHit }: EvalOutcome = evaluateAnswer(input, validAnswers);
     setEvalResult(result);
     setCurrentSynonymHit(isSynonymHit);
@@ -146,6 +148,7 @@ export default function FlashcardSession({ entries, onDone }: FlashcardSessionPr
       setEvalResult(undefined);
       setCurrentResult(undefined);
       setCurrentSynonymHit(false);
+      setSubmittedText(undefined);
     }
   }
 
@@ -181,6 +184,7 @@ export default function FlashcardSession({ entries, onDone }: FlashcardSessionPr
         scoreDelta={currentResult?.delta}
         oldScore={currentResult?.oldScore}
         newScore={currentResult?.newScore}
+        submittedText={submittedText}
       />
 
       {evalResult !== undefined && (

@@ -25,6 +25,8 @@ export interface ReviewCardProps {
   oldScore?: number;
   /** Score after this round */
   newScore?: number;
+  /** The text the user submitted (shown in result for wrong/typo) */
+  submittedText?: string;
 }
 
 export default function ReviewCard({
@@ -40,6 +42,7 @@ export default function ReviewCard({
   scoreDelta,
   oldScore,
   newScore,
+  submittedText,
 }: ReviewCardProps) {
   const [input, setInput] = useState('');
   const [animScore, setAnimScore] = useState<number>(entry.learningScore);
@@ -100,10 +103,6 @@ export default function ReviewCard({
         <span className={styles.promptLabel}>Translate:</span>
         <span className={styles.sourceText}>{entry.sourceText}</span>
       </p>
-
-      {entry.notes && (
-        <p className={styles.notes}>{entry.notes}</p>
-      )}
 
       {hintStr && !answered && (
         <p className={styles.hintReveal} aria-label="Hint">
@@ -168,12 +167,17 @@ export default function ReviewCard({
             {evalResult === 'typo' && !isSynonymHit && '🤏 Almost! Accepted with a small deduction'}
             {evalResult === 'typo' && isSynonymHit && '🤏 Almost — matched a synonym with a small deduction'}
             {evalResult === 'wrong' && '😬 Not quite — keep pushing!'}
-            {evalResult === 'revealed' && '👁️ Peeked — full deduction applied'}
+            {evalResult === 'revealed' && '👁️ Peeked — score reduced as if wrong'}
           </p>
+          {submittedText && (evalResult === 'wrong' || evalResult === 'typo') && (
+            <p className={styles.submittedText}>
+              <span className={styles.infoLabel}>You answered:</span> <strong>{submittedText}</strong>
+            </p>
+          )}
           {(evalResult === 'wrong' || evalResult === 'revealed' || evalResult === 'correct' || evalResult === 'typo') &&
             allAnswers && allAnswers.length > 0 && (
             <p className={styles.correctAnswer}>
-              ✏️ Valid answer{allAnswers.length > 1 ? 's' : ''}:{' '}
+              <span className={styles.infoLabel}>Valid answer{allAnswers.length > 1 ? 's' : ''}:</span>{' '}
               {allAnswers.map((a, i) => (
                 <span key={i}>
                   {i > 0 && <span className={styles.answerSep}> · </span>}
@@ -182,6 +186,9 @@ export default function ReviewCard({
                 </span>
               ))}
             </p>
+          )}
+          {entry.notes && (
+            <p className={styles.notes}><span className={styles.infoLabel}>Your notes:</span> {entry.notes}</p>
           )}
           {!reviewedToday && newScore !== undefined && oldScore !== undefined && (
             <div className={styles.scoreChange}>

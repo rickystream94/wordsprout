@@ -53,6 +53,8 @@ export default function EntryForm({ onDone, initialValues, existingEntries }: En
   );
   const [tags, setTags] = useState<string[]>(initialValues?.tags ?? []);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [pendingSubmit, setPendingSubmit] = useState(false);
 
   const tagSuggestions = useLiveQuery(
     () => (userId ? getTagSuggestions(userId) : Promise.resolve([])),
@@ -65,35 +67,50 @@ export default function EntryForm({ onDone, initialValues, existingEntries }: En
     if (!sourceText.trim()) errs['sourceText'] = 'Source text is required';
     if (!targetText.trim()) errs['targetText'] = 'Target text is required';
 
-    if (existingEntries && !errs['sourceText'] && !errs['targetText']) {
-      const selfId = initialValues?.id;
-      const normSrc = normalizeEntryText(sanitise(sourceText));
-      const normTgt = normalizeEntryText(sanitise(targetText));
-
-      const dupSrc = existingEntries.find(
-        (e) => e.id !== selfId && normalizeEntryText(e.sourceText) === normSrc,
-      );
-      if (dupSrc) {
-        errs['sourceText'] = `An entry with this source text already exists. Consider editing “${dupSrc.sourceText}” to add synonyms instead.`;
-      }
-
-      if (!errs['sourceText']) {
-        const dupTgt = existingEntries.find(
-          (e) => e.id !== selfId && !!e.targetText && normalizeEntryText(e.targetText) === normTgt,
-        );
-        if (dupTgt) {
-          errs['targetText'] = `An entry with this translation already exists. Consider editing “${dupTgt.sourceText}” to add synonyms instead.`;
-        }
-      }
-    }
-
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
 
+  function checkDuplicates(): string[] {
+    if (!existingEntries) return [];
+    const selfId = initialValues?.id;
+    const normSrc = normalizeEntryText(sanitise(sourceText));
+    const normTgt = normalizeEntryText(sanitise(targetText));
+    const msgs: string[] = [];
+
+    const dupSrc = existingEntries.find(
+      (e) => e.id !== selfId && normalizeEntryText(e.sourceText) === normSrc,
+    );
+    if (dupSrc) {
+      msgs.push(`An entry with this source text already exists ("${dupSrc.sourceText}"). Consider editing it to add synonyms instead.`);
+    }
+
+    const dupTgt = existingEntries.find(
+      (e) => e.id !== selfId && !!e.targetText && normalizeEntryText(e.targetText) === normTgt,
+    );
+    if (dupTgt) {
+      msgs.push(`An entry with this translation already exists ("${dupTgt.sourceText}"). Consider editing it to add synonyms instead.`);
+    }
+
+    return msgs;
+  }
+
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
+
+    if (!pendingSubmit) {
+      const dupes = checkDuplicates();
+      if (dupes.length > 0) {
+        setWarnings(dupes);
+        setPendingSubmit(true);
+        return;
+      }
+    }
+
+    setWarnings([]);
+    setPendingSubmit(false);
     onDone({
       sourceText: normalizeEntryText(sanitise(sourceText)),
       targetText: normalizeEntryText(sanitise(targetText)),
@@ -101,6 +118,12 @@ export default function EntryForm({ onDone, initialValues, existingEntries }: En
       partOfSpeech,
       tags,
     });
+  }
+
+  function handleCancel() {
+    setWarnings([]);
+    setPendingSubmit(false);
+    onDone();
   }
 
   const isEditing = !!initialValues?.id;
@@ -172,12 +195,21 @@ export default function EntryForm({ onDone, initialValues, existingEntries }: En
         <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions ?? []} />
       </div>
 
+      {warnings.length > 0 && (
+        <div className={styles.warningBox} role="alert">
+          {warnings.map((w, i) => (
+            <p key={i} className={styles.warningMsg}>⚠️ {w}</p>
+          ))}
+          <p className={styles.warningPrompt}>Do you want to proceed anyway?</p>
+        </div>
+      )}
+
       <div className={styles.actions}>
-        <button type="button" className={styles.cancelBtn} onClick={() => onDone()}>
+        <button type="button" className={styles.cancelBtn} onClick={handleCancel}>
           Cancel
         </button>
         <button type="submit" className={styles.submitBtn}>
-          {isEditing ? 'Save changes' : 'Add entry'}
+          {pendingSubmit ? 'Proceed anyway' : isEditing ? 'Save changes' : 'Add entry'}
         </button>
       </div>
     </form>
