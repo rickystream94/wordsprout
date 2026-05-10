@@ -217,6 +217,8 @@ export default function PhrasebookView() {
             onDone={editingEntry ? handleEditEntry : handleNewEntry}
             initialValues={editingEntry ?? undefined}
             existingEntries={entries}
+            sourceLanguageName={phrasebook.sourceLanguageName}
+            targetLanguageName={phrasebook.targetLanguageName}
           />
         </div>
       )}

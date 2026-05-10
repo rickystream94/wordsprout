@@ -161,7 +161,13 @@ export default function Search() {
 
       {editingEntry && (
         <div className={styles.formWrapper}>
-          <EntryForm onDone={handleEditEntry} initialValues={editingEntry} existingEntries={loadedEntries} />
+          <EntryForm
+            onDone={handleEditEntry}
+            initialValues={editingEntry}
+            existingEntries={loadedEntries}
+            sourceLanguageName={allPhrasebooks?.find((pb) => pb.id === editingEntry.phrasebookId)?.sourceLanguageName}
+            targetLanguageName={allPhrasebooks?.find((pb) => pb.id === editingEntry.phrasebookId)?.targetLanguageName}
+          />
         </div>
       )}
 

@@ -22,6 +22,9 @@ interface EntryFormProps {
   initialValues?: Partial<DBEntry>;
   /** Existing entries in the same phrasebook — used for duplicate detection */
   existingEntries?: DBEntry[];
+  /** Language names shown in field labels (e.g. "Italian", "English") */
+  sourceLanguageName?: string;
+  targetLanguageName?: string;
 }
 
 function sanitise(text: string): string {
@@ -43,7 +46,7 @@ function normalizeEntryText(text: string): string {
     .toLowerCase();
 }
 
-export default function EntryForm({ onDone, initialValues, existingEntries }: EntryFormProps) {
+export default function EntryForm({ onDone, initialValues, existingEntries, sourceLanguageName, targetLanguageName }: EntryFormProps) {
   const { userId } = useAuth();
   const [sourceText, setSourceText] = useState(initialValues?.sourceText ?? '');
   const [targetText, setTargetText] = useState(initialValues?.targetText ?? '');
@@ -64,8 +67,12 @@ export default function EntryForm({ onDone, initialValues, existingEntries }: En
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
-    if (!sourceText.trim()) errs['sourceText'] = 'Source text is required';
-    if (!targetText.trim()) errs['targetText'] = 'Target text is required';
+    if (!sourceText.trim()) errs['sourceText'] = sourceLanguageName
+      ? `${sourceLanguageName} word or phrase is required`
+      : 'Word or phrase is required';
+    if (!targetText.trim()) errs['targetText'] = targetLanguageName
+      ? `${targetLanguageName} translation is required`
+      : 'Translation is required';
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -82,7 +89,7 @@ export default function EntryForm({ onDone, initialValues, existingEntries }: En
       (e) => e.id !== selfId && normalizeEntryText(e.sourceText) === normSrc,
     );
     if (dupSrc) {
-      msgs.push(`An entry with this source text already exists ("${dupSrc.sourceText}"). Consider editing it to add synonyms instead.`);
+      msgs.push(`An entry with this ${sourceLanguageName ? sourceLanguageName.toLowerCase() + ' ' : ''}word or phrase already exists ("${dupSrc.sourceText}"). Consider editing it to add synonyms instead.`);
     }
 
     const dupTgt = existingEntries.find(
@@ -132,10 +139,10 @@ export default function EntryForm({ onDone, initialValues, existingEntries }: En
     <form className={styles.form} onSubmit={handleSubmit} noValidate>
       <h3 className={styles.heading}>{isEditing ? 'Edit entry' : 'Add entry'}</h3>
 
-      {/* Source text */}
+      {/* Word / phrase */}
       <div className={styles.field}>
         <label htmlFor="entry-source" className={styles.label}>
-          Source text <span className={styles.required}>*</span>
+          {sourceLanguageName ? `Word / phrase in ${sourceLanguageName}` : 'Word / phrase'} <span className={styles.required}>*</span>
         </label>
         <input
           id="entry-source"
@@ -150,10 +157,10 @@ export default function EntryForm({ onDone, initialValues, existingEntries }: En
         {errors['sourceText'] && <p className={styles.errorMsg}>{errors['sourceText']}</p>}
       </div>
 
-      {/* Target text */}
+      {/* Translation */}
       <div className={styles.field}>
         <label htmlFor="entry-target" className={styles.label}>
-          Target text <span className={styles.required}>*</span>
+          {targetLanguageName ? `${targetLanguageName} translation` : 'Translation'} <span className={styles.required}>*</span>
         </label>
         <input
           id="entry-target"
