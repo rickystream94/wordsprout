@@ -93,10 +93,11 @@ async function apiFetch<T>(
 
 // ─── Typed API methods ────────────────────────────────────────────────────────
 
-import type {
-  DBEnrichment,
-  DBEntry,
-  DBPhrasebook,
+import {
+  getEnrichment,
+  type DBEnrichment,
+  type DBEntry,
+  type DBPhrasebook,
 } from '../services/db';
 import type { Language, UserQuota } from '../types/models';
 
@@ -153,27 +154,82 @@ export const entriesApi = {
 };
 
 // AI enrichment
+
+export interface EnrichResponse {
+  enrichment: DBEnrichment;
+  entry?: DBEntry;
+}
+
 export const enrichApi = {
-  enrich: (entryId: string): Promise<DBEnrichment> => {
+  enrich: async (entryId: string, sourceText?: string, targetText?: string): Promise<EnrichResponse> => {
     if (FEATURES_AI_ENABLED) {
       const now = new Date().toISOString();
-      return Promise.resolve({
-        id: `enrichment-${entryId}`,
+
+      // Read existing enrichment so we can merge additively
+      const existing = await getEnrichment(entryId);
+
+      const mergeArrays = (existing: string[], incoming: string[]) => {
+        const set = new Set(existing);
+        for (const v of incoming) if (!set.has(v)) set.add(v);
+        return [...set];
+      };
+
+      const enrichment: DBEnrichment = {
+        id: existing?.id ?? `enrichment-${entryId}`,
         userId: 'test-user-local',
         entryId,
-        exampleSentences: [
-          'She felt a sense of serendipity when she found the book she had been looking for.',
-          'The discovery was pure serendipity — no one had planned it.',
-        ],
-        synonyms: ['happy accident', 'fortunate coincidence', 'luck'],
-        antonyms: ['misfortune', 'bad luck'],
-        register: 'neutral',
-        collocations: ['pure serendipity', 'by serendipity', 'serendipitous moment'],
-        falseFriendWarning: undefined,
+        exampleSentences: mergeArrays(
+          existing?.exampleSentences ?? [],
+          [
+            'She felt a sense of serendipity when she found the book she had been looking for.',
+            'The discovery was pure serendipity — no one had planned it.',
+          ],
+        ),
+        synonyms: mergeArrays(existing?.synonyms ?? [], ['happy accident', 'fortunate coincidence', 'luck']),
+        antonyms: mergeArrays(existing?.antonyms ?? [], ['misfortune', 'bad luck']),
+        register: existing?.register || 'neutral',
+        collocations: mergeArrays(existing?.collocations ?? [], ['pure serendipity', 'by serendipity', 'serendipitous moment']),
+        falseFriendWarning: existing?.falseFriendWarning || undefined,
         generatedAt: now,
-      });
+        editedAt: existing?.editedAt,
+      };
+      // Simulate translation when targetText is empty
+      if (sourceText && !targetText) {
+        return {
+          enrichment,
+          entry: {
+            id: entryId,
+            userId: 'test-user-local',
+            phrasebookId: '',
+            sourceText,
+            targetText: `[mock translation of "${sourceText}"]`,
+            partOfSpeech: 'noun' as const,
+            tags: [],
+            learningScore: 0,
+            lastReviewedDate: null,
+            createdAt: now,
+            updatedAt: now,
+          },
+        };
+      }
+      return {
+        enrichment,
+        entry: {
+          id: entryId,
+          userId: 'test-user-local',
+          phrasebookId: '',
+          sourceText: sourceText ?? '',
+          targetText,
+          partOfSpeech: 'noun' as const,
+          tags: [],
+          learningScore: 0,
+          lastReviewedDate: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      };
     }
-    return apiFetch<DBEnrichment>(`/entries/${entryId}/enrich`, { method: 'POST' });
+    return apiFetch<EnrichResponse>(`/entries/${entryId}/enrich`, { method: 'POST' });
   },
   patchEnrichment: (entryId: string, data: Partial<DBEnrichment>) =>
     apiFetch<DBEnrichment>(`/entries/${entryId}/enrichment`, {

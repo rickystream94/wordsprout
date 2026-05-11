@@ -106,8 +106,10 @@ async function enrichEntry(req: HttpRequest, ctx: InvocationContext): Promise<Ht
 
   // Generate enrichment
   let enrichment: AIEnrichment;
+  let translatedTargetText: string | undefined;
+  let partOfSpeech: string | undefined;
   try {
-    enrichment = await generateEnrichment({
+    const result = await generateEnrichment({
       entryId,
       userId: token.sub,
       sourceText: entry.sourceText,
@@ -115,16 +117,48 @@ async function enrichEntry(req: HttpRequest, ctx: InvocationContext): Promise<Ht
       sourceLanguage: phrasebook.sourceLanguageName,
       targetLanguage: phrasebook.targetLanguageName,
     });
+    enrichment = result.enrichment;
+    translatedTargetText = result.translatedTargetText;
+    partOfSpeech = result.partOfSpeech;
   } catch (err: unknown) {
     ctx.error('AI enrichment failed', err);
     return apiError(503, 'AI service temporarily unavailable');
   }
 
-  // Persist enrichment
+  // Persist enrichment — merge with existing data so user edits are preserved
+  const existingEnrichment = entry.enrichmentId
+    ? await cosmosClient.pointRead<AIEnrichment>(entry.enrichmentId, token.sub)
+    : undefined;
+
+  if (existingEnrichment && existingEnrichment.type === 'enrichment') {
+    // Additive merge: append new items to arrays (deduplicated), keep user-set scalars
+    const mergeArrays = (existing: string[], incoming: string[]) => {
+      const set = new Set(existing);
+      for (const v of incoming) if (!set.has(v)) set.add(v);
+      return [...set];
+    };
+    enrichment = {
+      ...enrichment,
+      id: existingEnrichment.id,
+      exampleSentences: mergeArrays(existingEnrichment.exampleSentences ?? [], enrichment.exampleSentences),
+      synonyms: mergeArrays(existingEnrichment.synonyms ?? [], enrichment.synonyms),
+      antonyms: mergeArrays(existingEnrichment.antonyms ?? [], enrichment.antonyms),
+      collocations: mergeArrays(existingEnrichment.collocations ?? [], enrichment.collocations),
+      register: existingEnrichment.register || enrichment.register,
+      falseFriendWarning: existingEnrichment.falseFriendWarning || enrichment.falseFriendWarning,
+      editedAt: existingEnrichment.editedAt,
+    };
+  }
   await cosmosClient.upsert(enrichment);
 
-  // Update entry with enrichmentId
-  const updatedEntry: VocabularyEntry = { ...entry, enrichmentId: enrichment.id, updatedAt: now };
+  // Update entry with enrichmentId (and translation/partOfSpeech if applicable)
+  const updatedEntry: VocabularyEntry = {
+    ...entry,
+    enrichmentId: enrichment.id,
+    updatedAt: now,
+    ...(translatedTargetText && !entry.targetText ? { targetText: translatedTargetText } : {}),
+    ...(partOfSpeech && !entry.partOfSpeech ? { partOfSpeech: partOfSpeech as VocabularyEntry['partOfSpeech'] } : {}),
+  };
   await cosmosClient.upsert(updatedEntry);
 
   // Increment quota
@@ -136,7 +170,12 @@ async function enrichEntry(req: HttpRequest, ctx: InvocationContext): Promise<Ht
   };
   await cosmosClient.upsert(updatedUser);
 
-  return { status: 200, jsonBody: enrichment };
+  const responseBody: { enrichment: AIEnrichment; entry?: VocabularyEntry } = { enrichment };
+  if ((translatedTargetText && !entry.targetText) || (partOfSpeech && !entry.partOfSpeech)) {
+    responseBody.entry = updatedEntry;
+  }
+
+  return { status: 200, jsonBody: responseBody };
 }
 
 app.http('enrichEntry', {
@@ -169,15 +208,35 @@ async function updateEnrichment(
   if (entry.userId !== token.sub) return apiError(403, 'Access denied');
 
   const enrichmentId = entry.enrichmentId;
-  if (!enrichmentId) return apiError(404, 'No enrichment found for this entry');
+  let existing: AIEnrichment | undefined;
 
-  const existing = await cosmosClient.pointRead<AIEnrichment>(enrichmentId, token.sub);
-  if (!existing || existing.type !== 'enrichment') {
-    return apiError(404, 'Enrichment not found');
+  if (enrichmentId) {
+    const doc = await cosmosClient.pointRead<AIEnrichment>(enrichmentId, token.sub);
+    if (doc && doc.type === 'enrichment') existing = doc;
   }
 
   const body = (await req.json()) as Partial<AIEnrichment>;
   const now = new Date().toISOString();
+
+  // Create a blank enrichment doc if none exists (manual creation — no quota cost)
+  if (!existing) {
+    const newId = `enrichment-${entryId}`;
+    existing = {
+      id: newId,
+      userId: token.sub,
+      type: 'enrichment',
+      entryId,
+      exampleSentences: [],
+      synonyms: [],
+      antonyms: [],
+      collocations: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    // Link enrichmentId on the entry
+    const updatedEntry: VocabularyEntry = { ...entry, enrichmentId: newId, updatedAt: now };
+    await cosmosClient.upsert(updatedEntry);
+  }
 
   const updated: AIEnrichment = {
     ...existing,
