@@ -79,7 +79,7 @@ export interface AIEnrichment extends CosmosDocument {
   register?: string;          // e.g. "formal", "informal", "colloquial"
   collocations: string[];
   falseFriendWarning?: string;
-  generatedAt: string;        // ISO 8601
+  generatedAt?: string;       // ISO 8601 — absent when created from manual edits only
   editedAt?: string;          // ISO 8601 — set when user edits any field
 }
 

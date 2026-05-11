@@ -26,7 +26,7 @@ function buildLocalEnrichment(
   entryId: string,
   userId: string,
   now: string,
-): Omit<AIEnrichment, 'id' | 'createdAt' | 'updatedAt'> & { id: string; createdAt: string; updatedAt: string } {
+): Omit<AIEnrichment, 'id' | 'createdAt' | 'updatedAt'> & { id: string; createdAt: string; updatedAt: string; translatedTargetText?: string; partOfSpeech?: string } {
   return {
     id: `enrichment-${entryId}`,
     userId,
@@ -41,9 +41,11 @@ function buildLocalEnrichment(
     register: 'neutral',
     collocations: [`common ${sourceText} phrase`],
     falseFriendWarning: undefined,
+    partOfSpeech: 'noun',
     generatedAt: now,
     createdAt: now,
     updatedAt: now,
+    ...(!targetText ? { translatedTargetText: `[mock translation of "${sourceText}"]` } : {}),
   };
 }
 
@@ -55,25 +57,46 @@ function buildPrompt(
   sourceLanguage: string,
   targetLanguage: string,
 ): string {
-  return `You are a language-learning assistant. Generate enrichment data for a vocabulary entry.
+  const needsTranslation = !targetText;
 
-Entry:
-- Source text (${sourceLanguage}): "${sourceText}"${targetText ? `\n- Target text (${targetLanguage}): "${targetText}"` : ''}
-
-Respond with ONLY a JSON object (no markdown, no explanation) in this exact shape:
-{
+  const jsonShape = needsTranslation
+    ? `{
+  "targetText": "<natural translation in ${targetLanguage}>",
+  "partOfSpeech": "<noun|verb|adjective|adverb|pronoun|preposition|conjunction|article|interjection|numeral|idiom|phrasal_verb|expression|other>",
   "exampleSentences": ["<sentence 1>", "<sentence 2>", "<sentence 3>"],
   "synonyms": ["<word1>", "<word2>"],
   "antonyms": ["<word1>"],
   "register": "<formal|informal|colloquial|neutral>",
   "collocations": ["<phrase1>", "<phrase2>"],
   "falseFriendWarning": "<string or null>"
-}
+}`
+    : `{
+  "partOfSpeech": "<noun|verb|adjective|adverb|pronoun|preposition|conjunction|article|interjection|numeral|idiom|phrasal_verb|expression|other>",
+  "exampleSentences": ["<sentence 1>", "<sentence 2>", "<sentence 3>"],
+  "synonyms": ["<word1>", "<word2>"],
+  "antonyms": ["<word1>"],
+  "register": "<formal|informal|colloquial|neutral>",
+  "collocations": ["<phrase1>", "<phrase2>"],
+  "falseFriendWarning": "<string or null>"
+}`;
 
-Constraints:
+  const translationConstraint = needsTranslation
+    ? `\n- targetText: a natural, accurate translation of "${sourceText}" in ${targetLanguage}`
+    : '';
+
+  return `You are a language-learning assistant. Generate enrichment data for a vocabulary entry.
+
+Entry:
+- Source text (${sourceLanguage}): "${sourceText}"${targetText ? `\n- Target text (${targetLanguage}): "${targetText}"` : ''}
+
+Respond with ONLY a JSON object (no markdown, no explanation) in this exact shape:
+${jsonShape}
+
+Constraints:${translationConstraint}
+- partOfSpeech: best-guess grammatical category of "${sourceText}"
 - exampleSentences: 2-3 sentences using "${sourceText}" naturally
-- synonyms: up to 5, in ${sourceLanguage}
-- antonyms: up to 3, in ${sourceLanguage}
+- synonyms: up to 5, in ${targetLanguage}
+- antonyms: up to 3, in ${targetLanguage}
 - register: one of formal, informal, colloquial, neutral
 - collocations: up to 5 common collocations
 - falseFriendWarning: a brief warning if there is a known false-friend/cognate trap, otherwise null`;
@@ -90,12 +113,20 @@ export interface EnrichParams {
   targetLanguage: string;
 }
 
-export async function generateEnrichment(params: EnrichParams): Promise<AIEnrichment> {
+export interface EnrichResult {
+  enrichment: AIEnrichment;
+  translatedTargetText?: string;
+  partOfSpeech?: string;
+}
+
+export async function generateEnrichment(params: EnrichParams): Promise<EnrichResult> {
   const { entryId, userId, sourceText, targetText, sourceLanguage, targetLanguage } = params;
   const now = new Date().toISOString();
 
   if (IS_LOCAL) {
-    return buildLocalEnrichment(sourceText, targetText ?? '', entryId, userId, now) as AIEnrichment;
+    const local = buildLocalEnrichment(sourceText, targetText ?? '', entryId, userId, now);
+    const { translatedTargetText, partOfSpeech, ...rest } = local;
+    return { enrichment: rest as AIEnrichment, translatedTargetText, partOfSpeech };
   }
 
   const prompt = buildPrompt(sourceText, targetText, sourceLanguage, targetLanguage);
@@ -150,5 +181,8 @@ export async function generateEnrichment(params: EnrichParams): Promise<AIEnrich
     updatedAt: now,
   };
 
-  return enrichment;
+  const translatedTargetText = !targetText ? sanitiseStr(parsed['targetText']) || undefined : undefined;
+  const partOfSpeech = sanitiseStr(parsed['partOfSpeech']) || undefined;
+
+  return { enrichment, translatedTargetText, partOfSpeech };
 }
