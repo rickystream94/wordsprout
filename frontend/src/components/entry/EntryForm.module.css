@@ -215,6 +215,81 @@
   margin-top: var(--space-2);
 }
 
+/* Enrichment section */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: var(--space-1) 0;
+}
+
+.sectionHeading {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+/* Enrichment-section input — matches ChipInput sizing */
+.enrichInput {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  transition: border-color var(--transition-fast);
+}
+
+.enrichInput:focus {
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-500) 20%, transparent);
+}
+
+/* Collapsible advanced fields (create mode) */
+.advanced {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-1);
+}
+
+.advancedToggle {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: var(--space-2) var(--space-3);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  user-select: none;
+}
+
+.advancedToggle::-webkit-details-marker {
+  display: none;
+}
+
+.advancedToggle::before {
+  content: '▶';
+  font-size: 0.6em;
+  transition: transform var(--transition-fast);
+}
+
+.advanced[open] > .advancedToggle::before {
+  transform: rotate(90deg);
+}
+
+.advancedContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
 .cancelBtn {
   background: transparent;
   border: 1px solid var(--border-default);

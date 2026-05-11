@@ -1,241 +1,114 @@
-import { useState } from 'react';
-import { enrichApi } from '../../services/api';
-import { upsertEnrichment, type DBEnrichment } from '../../services/db';
-import { FEATURES_AI_ENABLED } from '../../config/env';
-import QuotaIndicator from './QuotaIndicator';
+import type { DBEnrichment } from '../../services/db';
+import Tooltip from '../common/Tooltip';
 import styles from './EnrichmentPanel.module.css';
 
-interface EnrichmentPanelProps {
-  entryId: string;
+export interface EnrichmentPanelProps {
   enrichment: DBEnrichment | undefined;
-  isOnline: boolean;
-  onEnriched: (enrichment: DBEnrichment) => void;
 }
 
-// Editable multi-value list field
-function EditableList({
-  label,
-  values,
-  onChange,
-}: {
-  label: string;
-  values: string[];
-  onChange: (values: string[]) => void;
-}) {
-  const [draft, setDraft] = useState('');
+// ─── Read-only chip list ─────────────────────────────────────────────────────
 
-  function addItem() {
-    const trimmed = draft.trim();
-    if (trimmed && !values.includes(trimmed)) {
-      onChange([...values, trimmed]);
-    }
-    setDraft('');
-  }
-
-  function removeItem(item: string) {
-    onChange(values.filter((v) => v !== item));
-  }
-
+function ReadOnlyList({ label, tooltip, values }: { label: string; tooltip: string; values: string[] }) {
+  if (values.length === 0) return null;
   return (
     <div className={styles.listField}>
-      <span className={styles.listLabel}>{label}</span>
+      <Tooltip text={tooltip}>
+        <span className={styles.listLabel}>{label}</span>
+      </Tooltip>
       <div className={styles.chips}>
         {values.map((v) => (
-          <span key={v} className={styles.chip}>
-            {v}
-            <button
-              type="button"
-              className={styles.chipRemove}
-              onClick={() => removeItem(v)}
-              aria-label={`Remove ${v}`}
-            >
-              ×
-            </button>
-          </span>
+          <span key={v} className={styles.chip}>{v}</span>
         ))}
-      </div>
-      <div className={styles.listInput}>
-        <input
-          className={styles.input}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              addItem();
-            }
-          }}
-          onBlur={addItem}
-          placeholder={`Add ${label.toLowerCase()}…`}
-        />
       </div>
     </div>
   );
 }
 
-export default function EnrichmentPanel({
-  entryId,
-  enrichment: initialEnrichment,
-  isOnline,
-  onEnriched,
-}: EnrichmentPanelProps) {
-  const [enrichment, setEnrichment] = useState<DBEnrichment | undefined>(initialEnrichment);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+// ─── Main component ──────────────────────────────────────────────────────────
 
-  async function handleEnrich() {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await enrichApi.enrich(entryId);
-      await upsertEnrichment(result);
-      setEnrichment(result);
-      onEnriched(result);
-    } catch (err: unknown) {
-      const e = err as { statusCode?: number; message?: string };
-      if (e.statusCode === 429) {
-        setError('Daily AI quota reached. Try again tomorrow.');
-      } else if (e.statusCode === 503) {
-        setError('AI service is temporarily unavailable. Please try again shortly.');
-      } else {
-        setError(e.message ?? 'Enrichment failed. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
+export default function EnrichmentPanel({ enrichment }: EnrichmentPanelProps) {
+  if (!enrichment) return null;
 
-  async function patchField(patch: Partial<DBEnrichment>) {
-    if (!enrichment) return;
-    const updated = { ...enrichment, ...patch, editedAt: new Date().toISOString() };
-    setSaving(true);
-    try {
-      const result = await enrichApi.patchEnrichment(entryId, patch);
-      await upsertEnrichment(result);
-      setEnrichment(result);
-    } catch {
-      // Persist locally even if the network call fails
-      await upsertEnrichment(updated);
-      setEnrichment(updated);
-    } finally {
-      setSaving(false);
-    }
-  }
+  const sentences = enrichment.exampleSentences ?? [];
+  const synonyms = enrichment.synonyms ?? [];
+  const antonyms = enrichment.antonyms ?? [];
+  const collocations = enrichment.collocations ?? [];
+  const register = enrichment.register ?? '';
+  const falseFriendWarning = enrichment.falseFriendWarning ?? '';
 
-  if (!enrichment) {
-    return (
-      <div className={styles.panel}>
-        <div className={styles.emptyState}>
-          <p className={styles.emptyHint}>
-            {FEATURES_AI_ENABLED
-              ? 'No enrichment yet. Click "Enrich" to generate AI content.'
-              : 'AI enrichment is coming soon.'}
-          </p>
-          <span
-            className={styles.btnWrapper}
-            title={!FEATURES_AI_ENABLED ? 'AI enrichment coming soon' : undefined}
-          >
-          <button
-            type="button"
-            className={styles.enrichBtn}
-            onClick={handleEnrich}
-            disabled={!FEATURES_AI_ENABLED || !isOnline || loading}
-            aria-busy={loading}
-          >
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.53 1.282a.5.5 0 0 1 .94 0l1.363 3.738 3.738 1.363a.5.5 0 0 1 0 .94l-3.738 1.363-1.363 3.738a.5.5 0 0 1-.94 0L6.167 8.686 2.43 7.323a.5.5 0 0 1 0-.94l3.738-1.363zM2.5 1a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1H3v1a.5.5 0 0 1-1 0V3.5h-1a.5.5 0 0 1 0-1H2v-1A.5.5 0 0 1 2.5 1zm10 9a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1h-1v1a.5.5 0 0 1-1 0v-1h-1a.5.5 0 0 1 0-1h1v-1a.5.5 0 0 1 .5-.5z"/></svg>
-          {loading ? 'Enriching…' : !isOnline ? 'Offline — connect to enrich' : 'Enrich'}
-          </button>
-          </span>
-          {error && <p className={styles.error}>{error}</p>}
-          <QuotaIndicator />
-        </div>
-      </div>
-    );
-  }
+  // Don't render at all if completely empty
+  const hasAny =
+    sentences.length > 0 ||
+    synonyms.length > 0 ||
+    antonyms.length > 0 ||
+    collocations.length > 0 ||
+    register ||
+    falseFriendWarning;
+
+  if (!hasAny) return null;
 
   return (
-    <div className={styles.panel}>
-      <div className={styles.header}>
-        <h4 className={styles.heading}>AI Enrichment</h4>
-        <div className={styles.headerActions}>
-          {saving && <span className={styles.saving}>Saving…</span>}
-          <span
-            className={styles.btnWrapper}
-            title={!FEATURES_AI_ENABLED ? 'AI enrichment coming soon' : 'Re-generate enrichment'}
-          >
-          <button
-            type="button"
-            className={styles.reEnrichBtn}
-            onClick={handleEnrich}
-            disabled={!FEATURES_AI_ENABLED || !isOnline || loading}
-            aria-busy={loading}
-          >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.53 1.282a.5.5 0 0 1 .94 0l1.363 3.738 3.738 1.363a.5.5 0 0 1 0 .94l-3.738 1.363-1.363 3.738a.5.5 0 0 1-.94 0L6.167 8.686 2.43 7.323a.5.5 0 0 1 0-.94l3.738-1.363zM2.5 1a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1H3v1a.5.5 0 0 1-1 0V3.5h-1a.5.5 0 0 1 0-1H2v-1A.5.5 0 0 1 2.5 1zm10 9a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1h-1v1a.5.5 0 0 1-1 0v-1h-1a.5.5 0 0 1 0-1h1v-1a.5.5 0 0 1 .5-.5z"/></svg>
-            {loading ? 'Regenerating…' : 'Re-enrich'}
-          </button>
-          </span>
-        </div>
-      </div>
-
-      {error && <p className={styles.error}>{error}</p>}
-
-      {enrichment.falseFriendWarning && (
-        <div className={`${styles.field} ${styles.warning}`}>
-          <span className={styles.fieldLabel}>⚠ False-friend warning</span>
-          <input
-            className={styles.input}
-            defaultValue={enrichment.falseFriendWarning}
-            onBlur={(e) => {
-              const v = e.target.value.trim();
-              if (v !== enrichment.falseFriendWarning)
-                patchField({ falseFriendWarning: v || undefined });
-            }}
-          />
-        </div>
-      )}
-
-      <div className={styles.field}>
-        <span className={styles.fieldLabel}>Example sentences</span>
-        {enrichment.exampleSentences.map((s, i) => (
-          <p key={i} className={styles.sentence}>{s}</p>
-        ))}
-      </div>
-
-      <EditableList
-        label="Synonyms"
-        values={enrichment.synonyms}
-        onChange={(synonyms) => patchField({ synonyms })}
-      />
-      <EditableList
-        label="Antonyms"
-        values={enrichment.antonyms}
-        onChange={(antonyms) => patchField({ antonyms })}
-      />
-      <EditableList
-        label="Collocations"
-        values={enrichment.collocations}
-        onChange={(collocations) => patchField({ collocations })}
-      />
-
-      {enrichment.register && (
+    <div className={styles.fields}>
+      {/* Example sentences */}
+      {sentences.length > 0 && (
         <div className={styles.field}>
-          <span className={styles.fieldLabel}>Register</span>
-          <input
-            className={styles.input}
-            defaultValue={enrichment.register}
-            onBlur={(e) => {
-              const v = e.target.value.trim();
-              if (v !== enrichment.register) patchField({ register: v || undefined });
-            }}
-          />
+          <Tooltip text="Sentences demonstrating natural usage of this word">
+            <span className={styles.fieldLabel}>Example sentences</span>
+          </Tooltip>
+          {sentences.map((s, i) => (
+            <p key={i} className={styles.sentence}>{s}</p>
+          ))}
         </div>
       )}
 
-      <p className={styles.meta}>
-        Generated {new Date(enrichment.generatedAt).toLocaleDateString()}
-        {enrichment.editedAt && ` · Edited ${new Date(enrichment.editedAt).toLocaleDateString()}`}
-      </p>
+      {/* Synonyms */}
+      <ReadOnlyList
+        label="Synonyms"
+        tooltip="Words or phrases with similar meaning in the target language"
+        values={synonyms}
+      />
+
+      {/* Antonyms */}
+      <ReadOnlyList
+        label="Antonyms"
+        tooltip="Words or phrases with opposite meaning in the target language"
+        values={antonyms}
+      />
+
+      {/* Collocations */}
+      <ReadOnlyList
+        label="Collocations"
+        tooltip="Common word combinations that naturally go with this term in the target language"
+        values={collocations}
+      />
+
+      {/* Register */}
+      {register && (
+        <div className={styles.field}>
+          <Tooltip text="The formality level of this word (formal, informal, colloquial, neutral)">
+            <span className={styles.fieldLabel}>Register</span>
+          </Tooltip>
+          <span className={styles.value}>{register}</span>
+        </div>
+      )}
+
+      {/* False-friend warning */}
+      {falseFriendWarning && (
+        <div className={`${styles.field} ${styles.warning}`}>
+          <Tooltip text="A warning about similar-looking words in other languages that have different meanings">
+            <span className={styles.fieldLabel}>⚠ False-friend warning</span>
+          </Tooltip>
+          <span className={styles.value}>{falseFriendWarning}</span>
+        </div>
+      )}
+
+      {/* Meta */}
+      {enrichment.generatedAt && (
+        <p className={styles.meta}>
+          Generated {new Date(enrichment.generatedAt).toLocaleDateString()}
+          {enrichment.editedAt && ` · Edited ${new Date(enrichment.editedAt).toLocaleDateString()}`}
+        </p>
+      )}
     </div>
   );
 }

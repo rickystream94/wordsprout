@@ -9,7 +9,8 @@ import { EMPTY_FILTERS, type ActiveFilters } from '../components/search/filterTy
 import SearchBar from '../components/search/SearchBar';
 import { SortDropdown } from '../components/search/SortDropdown';
 import { API_BASE } from '../config/env';
-import { db, deleteEntry, updateEntry, type DBEntry, type DBEnrichment, type DBPhrasebook } from '../services/db';
+import { db, deleteEntry, updateEntry, upsertEnrichment, type DBEntry, type DBEnrichment, type DBPhrasebook } from '../services/db';
+import { enrichApi } from '../services/api';
 import { enqueueMutation } from '../services/sync';
 import { searchIds, substringMatch, indexEntry, removeFromIndex, rebuildIndex } from '../services/search';
 import { scoreToRange } from '../services/scoring';
@@ -44,6 +45,7 @@ export default function Search() {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<ActiveFilters>(EMPTY_FILTERS);
   const [editingEntry, setEditingEntry] = useState<DBEntry | null>(null);
+  const [editingEnrichment, setEditingEnrichment] = useState<DBEnrichment | undefined>(undefined);
   const [sort, setSort] = useState<SortKey>('createdAt_desc');
   const [showFilters, setShowFilters] = useState(false);
 
@@ -114,7 +116,9 @@ export default function Search() {
 
   async function handleEditEntry(data?: EntryFormData) {
     const entry = editingEntry;
+    const prevEnrichment = editingEnrichment;
     setEditingEntry(null);
+    setEditingEnrichment(undefined);
     if (!data || !entry) return;
     const changes = {
       sourceText: data.sourceText,
@@ -126,6 +130,47 @@ export default function Search() {
     await updateEntry(entry.id, changes);
     await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'PUT', { ...entry, ...changes });
     void indexEntry({ ...entry, ...changes });
+
+    // Save enrichment changes if present
+    if (data.enrichment) {
+      const enrichmentId = entry.enrichmentId ?? `enrichment-${entry.id}`;
+      const enrichmentDoc: DBEnrichment = {
+        id: enrichmentId,
+        userId: entry.userId,
+        entryId: entry.id,
+        exampleSentences: data.enrichment.exampleSentences,
+        synonyms: data.enrichment.synonyms,
+        antonyms: data.enrichment.antonyms,
+        collocations: data.enrichment.collocations,
+        register: data.enrichment.register || undefined,
+        falseFriendWarning: data.enrichment.falseFriendWarning || undefined,
+        generatedAt: prevEnrichment?.generatedAt,
+        editedAt: new Date().toISOString(),
+      };
+      await upsertEnrichment(enrichmentDoc);
+      if (!entry.enrichmentId) {
+        await updateEntry(entry.id, { enrichmentId });
+      }
+      try {
+        await enrichApi.patchEnrichment(entry.id, {
+          exampleSentences: data.enrichment.exampleSentences,
+          synonyms: data.enrichment.synonyms,
+          antonyms: data.enrichment.antonyms,
+          collocations: data.enrichment.collocations,
+          register: data.enrichment.register || undefined,
+          falseFriendWarning: data.enrichment.falseFriendWarning || undefined,
+        });
+      } catch {
+        void enqueueMutation(`${API_BASE}/entries/${entry.id}/enrichment`, 'PATCH', {
+          exampleSentences: data.enrichment.exampleSentences,
+          synonyms: data.enrichment.synonyms,
+          antonyms: data.enrichment.antonyms,
+          collocations: data.enrichment.collocations,
+          register: data.enrichment.register || undefined,
+          falseFriendWarning: data.enrichment.falseFriendWarning || undefined,
+        });
+      }
+    }
   }
 
   async function handleDeleteEntry(entry: DBEntry) {
@@ -164,6 +209,7 @@ export default function Search() {
           <EntryForm
             onDone={handleEditEntry}
             initialValues={editingEntry}
+            initialEnrichment={editingEnrichment}
             existingEntries={loadedEntries}
             sourceLanguageName={allPhrasebooks?.find((pb) => pb.id === editingEntry.phrasebookId)?.sourceLanguageName}
             targetLanguageName={allPhrasebooks?.find((pb) => pb.id === editingEntry.phrasebookId)?.targetLanguageName}
@@ -189,7 +235,7 @@ export default function Search() {
         <EntryList
           entries={results}
           phrasebooks={phrasebookMap}
-          onEdit={(entry) => setEditingEntry(entry)}
+          onEdit={(entry, enrichment) => { setEditingEntry(entry); setEditingEnrichment(enrichment); }}
           onDelete={handleDeleteEntry}
         />
       )}

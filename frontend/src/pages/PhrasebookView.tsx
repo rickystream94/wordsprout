@@ -14,11 +14,15 @@ import {
   getPhrasebook,
   updateEntry,
   updatePhrasebook,
+  upsertEnrichment,
   type DBEntry,
+  type DBEnrichment,
 } from '../services/db';
+import { enrichApi } from '../services/api';
 import { enqueueMutation } from '../services/sync';
 import { indexEntry, removeFromIndex } from '../services/search';
 import { randomUUID } from '../utils/uuid';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 import styles from './PhrasebookView.module.css';
 
 type SortKey = 'createdAt_desc' | 'createdAt_asc' | 'sourceText_asc' | 'sourceText_desc' | 'targetText_asc' | 'targetText_desc';
@@ -58,6 +62,7 @@ export default function PhrasebookView() {
 
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState<DBEntry | null>(null);
+  const [editingEnrichment, setEditingEnrichment] = useState<DBEnrichment | undefined>(undefined);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
@@ -99,11 +104,56 @@ export default function PhrasebookView() {
     await createEntry(newEntry);
     await enqueueMutation(`${API_BASE}/entries`, 'POST', newEntry);
     void indexEntry(newEntry);
+
+    // Save enrichment if any fields were filled
+    if (data.enrichment) {
+      const e = data.enrichment;
+      const hasContent = e.exampleSentences.length > 0 || e.synonyms.length > 0 ||
+        e.antonyms.length > 0 || e.collocations.length > 0 || e.register || e.falseFriendWarning;
+      if (hasContent) {
+        const enrichmentId = `enrichment-${newEntry.id}`;
+        const enrichmentDoc: DBEnrichment = {
+          id: enrichmentId,
+          userId,
+          entryId: newEntry.id,
+          exampleSentences: e.exampleSentences,
+          synonyms: e.synonyms,
+          antonyms: e.antonyms,
+          collocations: e.collocations,
+          register: e.register || undefined,
+          falseFriendWarning: e.falseFriendWarning || undefined,
+          editedAt: new Date().toISOString(),
+        };
+        await upsertEnrichment(enrichmentDoc);
+        await updateEntry(newEntry.id, { enrichmentId });
+        try {
+          await enrichApi.patchEnrichment(newEntry.id, {
+            exampleSentences: e.exampleSentences,
+            synonyms: e.synonyms,
+            antonyms: e.antonyms,
+            collocations: e.collocations,
+            register: e.register || undefined,
+            falseFriendWarning: e.falseFriendWarning || undefined,
+          });
+        } catch {
+          void enqueueMutation(`${API_BASE}/entries/${newEntry.id}/enrichment`, 'PATCH', {
+            exampleSentences: e.exampleSentences,
+            synonyms: e.synonyms,
+            antonyms: e.antonyms,
+            collocations: e.collocations,
+            register: e.register || undefined,
+            falseFriendWarning: e.falseFriendWarning || undefined,
+          });
+        }
+      }
+    }
   }
 
   async function handleEditEntry(data?: EntryFormData) {
     const entry = editingEntry;
+    const prevEnrichment = editingEnrichment;
     setEditingEntry(null);
+    setEditingEnrichment(undefined);
     if (!data || !entry) return;
 
     const changes = {
@@ -116,6 +166,47 @@ export default function PhrasebookView() {
     await updateEntry(entry.id, changes);
     await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'PUT', { ...entry, ...changes });
     void indexEntry({ ...entry, ...changes });
+
+    // Save enrichment changes if present
+    if (data.enrichment) {
+      const enrichmentId = entry.enrichmentId ?? `enrichment-${entry.id}`;
+      const enrichmentDoc: DBEnrichment = {
+        id: enrichmentId,
+        userId: entry.userId,
+        entryId: entry.id,
+        exampleSentences: data.enrichment.exampleSentences,
+        synonyms: data.enrichment.synonyms,
+        antonyms: data.enrichment.antonyms,
+        collocations: data.enrichment.collocations,
+        register: data.enrichment.register || undefined,
+        falseFriendWarning: data.enrichment.falseFriendWarning || undefined,
+        generatedAt: prevEnrichment?.generatedAt,
+        editedAt: new Date().toISOString(),
+      };
+      await upsertEnrichment(enrichmentDoc);
+      if (!entry.enrichmentId) {
+        await updateEntry(entry.id, { enrichmentId });
+      }
+      try {
+        await enrichApi.patchEnrichment(entry.id, {
+          exampleSentences: data.enrichment.exampleSentences,
+          synonyms: data.enrichment.synonyms,
+          antonyms: data.enrichment.antonyms,
+          collocations: data.enrichment.collocations,
+          register: data.enrichment.register || undefined,
+          falseFriendWarning: data.enrichment.falseFriendWarning || undefined,
+        });
+      } catch {
+        void enqueueMutation(`${API_BASE}/entries/${entry.id}/enrichment`, 'PATCH', {
+          exampleSentences: data.enrichment.exampleSentences,
+          synonyms: data.enrichment.synonyms,
+          antonyms: data.enrichment.antonyms,
+          collocations: data.enrichment.collocations,
+          register: data.enrichment.register || undefined,
+          falseFriendWarning: data.enrichment.falseFriendWarning || undefined,
+        });
+      }
+    }
   }
 
   async function handleDeleteEntry(entry: DBEntry) {
@@ -199,15 +290,13 @@ export default function PhrasebookView() {
 
       {/* Confirm delete dialog */}
       {confirmDelete && (
-        <div className={styles.confirmOverlay} role="dialog" aria-modal="true">
-          <div className={styles.confirmBox}>
-            <p>Delete <strong>{phrasebook.name}</strong> and its {entries.length === 0 ? 'entries' : entries.length === 1 ? '1 entry' : `${entries.length} entries`}? This cannot be undone.</p>
-            <div className={styles.confirmActions}>
-              <button className={styles.cancelBtn} onClick={() => setConfirmDelete(false)}>Cancel</button>
-              <button className={styles.confirmDeleteBtn} onClick={handleDeletePhrasebook}>Delete</button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          message={`Delete "${phrasebook.name}" and its ${entries.length === 0 ? 'entries' : entries.length === 1 ? '1 entry' : `${entries.length} entries`}? This cannot be undone.`}
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={handleDeletePhrasebook}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
 
       {/* Add / Edit entry form */}
@@ -216,6 +305,7 @@ export default function PhrasebookView() {
           <EntryForm
             onDone={editingEntry ? handleEditEntry : handleNewEntry}
             initialValues={editingEntry ?? undefined}
+            initialEnrichment={editingEnrichment}
             existingEntries={entries}
             sourceLanguageName={phrasebook.sourceLanguageName}
             targetLanguageName={phrasebook.targetLanguageName}
@@ -236,7 +326,7 @@ export default function PhrasebookView() {
       </div>
       <EntryList
         entries={applySortEntries(entries, sort)}
-        onEdit={(entry) => { setShowEntryForm(false); setEditingEntry(entry); }}
+        onEdit={(entry, enrichment) => { setShowEntryForm(false); setEditingEntry(entry); setEditingEnrichment(enrichment); }}
         onDelete={handleDeleteEntry}
       />
     </main>

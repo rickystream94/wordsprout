@@ -46,7 +46,7 @@ export interface DBEnrichment {
   register?: string;
   collocations: string[];
   falseFriendWarning?: string;
-  generatedAt: string;
+  generatedAt?: string;
   editedAt?: string;
 }
 
