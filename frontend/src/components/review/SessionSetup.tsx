@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { DBPhrasebook } from '../../services/db';
+import { SortDropdown } from '../search/SortDropdown';
 import styles from './SessionSetup.module.css';
 
 export type SessionType = 'random' | 'targeted';
@@ -30,19 +31,16 @@ export default function SessionSetup({ phrasebooks, onStart }: SessionSetupProps
       <h2 className={styles.heading}>Start a review session</h2>
 
       <div className={styles.field}>
-        <label htmlFor="session-phrasebook" className={styles.label}>Phrasebook</label>
-        <select
-          id="session-phrasebook"
-          className={styles.phrasebookSelect}
+        <label className={styles.label}>Phrasebook</label>
+        <SortDropdown
           value={effectivePhrasebookId}
-          onChange={(e) => setSelectedPhrasebookId(e.target.value)}
-        >
-          {phrasebooks.map((pb) => (
-            <option key={pb.id} value={pb.id}>
-              {pb.name} ({pb.entryCount} {pb.entryCount === 1 ? 'entry' : 'entries'})
-            </option>
-          ))}
-        </select>
+          options={phrasebooks.map((pb) => ({
+            value: pb.id,
+            label: `${pb.name} (${pb.entryCount} ${pb.entryCount === 1 ? 'entry' : 'entries'})`,
+          }))}
+          onChange={(v) => setSelectedPhrasebookId(v)}
+          label="Phrasebook"
+        />
       </div>
 
       <div className={styles.field}>

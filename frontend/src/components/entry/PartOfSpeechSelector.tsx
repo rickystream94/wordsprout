@@ -1,13 +1,13 @@
 import type { PartOfSpeech } from '../../types/models';
-import styles from './PartOfSpeechSelector.module.css';
+import { SortDropdown } from '../search/SortDropdown';
 
 interface PartOfSpeechSelectorProps {
   value: PartOfSpeech | '';
   onChange: (value: PartOfSpeech | '') => void;
 }
 
-const OPTIONS: { value: PartOfSpeech | ''; label: string }[] = [
-  { value: '',              label: 'Not set' },
+const OPTIONS: { value: string; label: string }[] = [
+  { value: '',              label: '— not set —' },
   { value: 'noun',          label: 'Noun' },
   { value: 'verb',          label: 'Verb' },
   { value: 'adjective',     label: 'Adjective' },
@@ -26,18 +26,11 @@ const OPTIONS: { value: PartOfSpeech | ''; label: string }[] = [
 
 export default function PartOfSpeechSelector({ value, onChange }: PartOfSpeechSelectorProps) {
   return (
-    <div className={styles.wrapper} role="group" aria-label="Part of speech">
-      {OPTIONS.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          className={`${styles.option} ${value === o.value ? styles.selected : ''}`}
-          onClick={() => onChange(o.value)}
-          aria-pressed={value === o.value}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
+    <SortDropdown
+      value={value}
+      options={OPTIONS}
+      onChange={(v) => onChange(v as PartOfSpeech | '')}
+      label="Part of speech"
+    />
   );
 }
