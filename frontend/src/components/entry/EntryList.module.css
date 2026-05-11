@@ -244,6 +244,46 @@
   border-color: var(--danger-500);
 }
 
+.enrichBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  background: var(--color-primary);
+  color: var(--text-on-brand);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.enrichBtn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.enrichBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Wraps a button to keep tooltip visible even when the button is disabled */
+.btnWrapper {
+  display: inline-flex;
+  cursor: default;
+}
+
+.enrichError {
+  font-size: var(--text-sm);
+  color: var(--color-error, #dc2626);
+  margin: 0;
+  padding: var(--space-2);
+  background: var(--color-error-bg, #fef2f2);
+  border-radius: var(--radius-sm);
+}
+
 .confirmRow {
   display: flex;
   align-items: center;
