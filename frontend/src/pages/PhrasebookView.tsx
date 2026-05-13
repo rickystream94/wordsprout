@@ -156,18 +156,16 @@ export default function PhrasebookView() {
     setEditingEnrichment(undefined);
     if (!data || !entry) return;
 
-    const changes = {
+    const changes: Record<string, unknown> = {
       sourceText: data.sourceText,
       targetText: data.targetText || undefined,
       notes: data.notes || undefined,
       tags: data.tags,
       partOfSpeech: data.partOfSpeech || undefined,
     };
-    await updateEntry(entry.id, changes);
-    await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'PUT', { ...entry, ...changes });
-    void indexEntry({ ...entry, ...changes });
 
-    // Save enrichment changes if present
+    // Save enrichment BEFORE entry update so it's in IndexedDB when
+    // the live-query re-render triggers enrichment re-fetch in EntryCard
     if (data.enrichment) {
       const enrichmentId = entry.enrichmentId ?? `enrichment-${entry.id}`;
       const enrichmentDoc: DBEnrichment = {
@@ -185,7 +183,8 @@ export default function PhrasebookView() {
       };
       await upsertEnrichment(enrichmentDoc);
       if (!entry.enrichmentId) {
-        await updateEntry(entry.id, { enrichmentId });
+        // enrichmentId will be included in the entry update below
+        changes.enrichmentId = enrichmentId;
       }
       try {
         await enrichApi.patchEnrichment(entry.id, {
@@ -207,6 +206,10 @@ export default function PhrasebookView() {
         });
       }
     }
+
+    await updateEntry(entry.id, changes);
+    await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'PUT', { ...entry, ...changes });
+    void indexEntry({ ...entry, ...changes });
   }
 
   async function handleDeleteEntry(entry: DBEntry) {

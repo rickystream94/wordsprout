@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getEnrichment, upsertEnrichment, updateEntry, type DBEnrichment, type DBEntry } from '../../services/db';
 import { enrichApi } from '../../services/api';
 import { usePendingIds } from '../../services/sync';
@@ -86,7 +86,21 @@ function EntryCard({
   // Keep entry in sync with parent prop
   if (initialEntry.updatedAt !== entry.updatedAt && initialEntry.id === entry.id) {
     setEntry(initialEntry);
+    // Enrichment may have changed — invalidate cache so next expand re-fetches
+    if (enrichmentLoaded) {
+      setEnrichmentLoaded(false);
+    }
   }
+
+  // Re-fetch enrichment when cache is invalidated while card is expanded
+  useEffect(() => {
+    if (isExpanded && !enrichmentLoaded) {
+      getEnrichment(entry.id).then((stored) => {
+        setEnrichment(stored);
+        setEnrichmentLoaded(true);
+      });
+    }
+  }, [enrichmentLoaded, isExpanded, entry.id]);
 
   async function handleToggle() {
     if (!isExpanded && !enrichmentLoaded) {
