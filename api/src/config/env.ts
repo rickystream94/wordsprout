@@ -19,3 +19,14 @@ export const GOOGLE_CLIENT_ID = process.env['GOOGLE_CLIENT_ID'] ?? '';
 export const AZURE_AI_ENDPOINT = process.env['AZURE_AI_ENDPOINT'] ?? '';
 export const AZURE_AI_DEPLOYMENT = process.env['AZURE_AI_DEPLOYMENT'] ?? 'gpt-4o-mini';
 export const AI_DAILY_ENRICHMENT_LIMIT = parseInt(process.env['AI_DAILY_ENRICHMENT_LIMIT'] ?? '20', 10);
+
+// ─── Session tokens ───────────────────────────────────────────────────────────
+
+/** HMAC-SHA256 signing key for backend-issued access tokens. */
+export const SESSION_SECRET = process.env['SESSION_SECRET'] ?? '';
+
+/** Access token lifetime in seconds (default 15 min). */
+export const SESSION_ACCESS_TTL = parseInt(process.env['SESSION_ACCESS_TTL'] ?? '900', 10);
+
+/** Refresh token lifetime in seconds (default 30 days). */
+export const SESSION_REFRESH_TTL = parseInt(process.env['SESSION_REFRESH_TTL'] ?? '2592000', 10);

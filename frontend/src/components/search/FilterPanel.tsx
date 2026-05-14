@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useAuth } from '../../auth/AuthProvider';
+import { useAuth } from '../../auth/useAuth';
 import type { DBPhrasebook } from '../../services/db';
 import { db } from '../../services/db';
 import type { ScoreRange } from '../../services/scoring';

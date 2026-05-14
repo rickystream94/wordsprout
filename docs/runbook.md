@@ -76,9 +76,17 @@ The script:
 
 ## 3 — One-time: GitHub Repository Setup
 
-### 3.1 Configure GitHub Actions Variables
+### 3.1 Configure GitHub Actions Secrets
 
-No GitHub Actions Variables or Secrets are required. All deployment constants are read from `infra/config.json` at workflow run time via `jq`. The SWA hostname is obtained directly from the infra deployment output and used to build the frontend in the same job — it is never stored anywhere.
+One secret is required for PROD deployments:
+
+| Secret name | Purpose | How to generate |
+|---|---|---|
+| `SESSION_SECRET` | HMAC-SHA256 signing key for backend session tokens | `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
+
+Go to GitHub → repo **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
+
+All other deployment constants are read from `infra/config.json` at workflow run time via `jq`. The SWA hostname is obtained directly from the infra deployment output and used to build the frontend in the same job — it is never stored anywhere.
 
 ### 3.2 Configure Branch Protection (optional)
 
@@ -106,16 +114,22 @@ $cfg = Get-Content infra/config.json | ConvertFrom-Json
 az login
 az account set --subscription $cfg.subscriptionId
 
-# Create resource group and deploy all infrastructure (Storage, Cosmos DB, Function App, SWA, RBAC)
+# Generate a session secret for first-time deploy
+$sessionSecret = [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }) -as [byte[]])
+
+# Create resource group and deploy all infrastructure (Storage, Cosmos DB, Key Vault, Function App, SWA, RBAC)
 az group create --name $cfg.environments.prod.resourceGroup --location $cfg.region
 az deployment group create `
   --resource-group $cfg.environments.prod.resourceGroup `
   --template-file infra/main.bicep `
   --parameters env=prod `
   --parameters "location=$($cfg.region)" `
-  --parameters aiQuotaLimit=20 `
+  --parameters "swaLocation=$($cfg.swaRegion)" `
+  --parameters aiDailyEnrichmentLimit=20 `
   --parameters "entraTenantId=$($cfg.tenantId)" `
-  --parameters "entraClientId=$($cfg.environments.prod.entraClientId)"
+  --parameters "entraClientId=$($cfg.environments.prod.entraClientId)" `
+  --parameters "googleClientId=$($cfg.environments.prod.googleClientId)" `
+  --parameters "sessionSecret=$sessionSecret"
 ```
 
 ---
@@ -155,7 +169,8 @@ Run `(Get-Content infra/config.json | ConvertFrom-Json).environments` to see cur
 | `funcAppName` + `plan-wordsprout-dev` | Function App | Flex Consumption FC1, Node 24 v4 | API (BYOF backend for SWA) |
 | `storageAccount` | Storage Account | Standard_LRS | Required by Function App |
 | `cosmosAccount` | Cosmos DB account | Serverless, NoSQL | Application data store |
-| `openAiAccount` | Azure OpenAI | S0, GlobalStandard | GPT-4o-mini enrichment — **not yet deployed** (quota pending, see §8) |
+| `keyVaultName` | Key Vault | Standard, RBAC auth | Stores `SESSION_SECRET` for backend session tokens |
+| `openAiAccount` | Azure OpenAI | S0, GlobalStandard | GPT-4o-mini enrichment — **not yet deployed** (quota pending, see §9) |
 
 ### PROD
 
@@ -165,7 +180,8 @@ Run `(Get-Content infra/config.json | ConvertFrom-Json).environments` to see cur
 | `funcAppName` + `plan-wordsprout-prod` | Function App | Flex Consumption FC1, Node 24 v4 | API (BYOF backend for SWA) |
 | `storageAccount` | Storage Account | Standard_LRS | Required by Function App |
 | `cosmosAccount` | Cosmos DB account | Serverless, NoSQL | Application data store |
-| `openAiAccount` | Azure OpenAI | S0, GlobalStandard | GPT-4o-mini enrichment — **not yet deployed** (quota pending, see §8) |
+| `keyVaultName` | Key Vault | Standard, RBAC auth | Stores `SESSION_SECRET` for backend session tokens |
+| `openAiAccount` | Azure OpenAI | S0, GlobalStandard | GPT-4o-mini enrichment — **not yet deployed** (quota pending, see §9) |
 
 ---
 
@@ -275,6 +291,7 @@ Once quota is approved:
 | Static Web App | ~$9 (Standard) | ~$9 (Standard) |
 | Function App (Flex Consumption FC1) | ~$0–1 (pay-per-execution) | ~$1–3 (pay-per-execution) |
 | Cosmos DB (Serverless) | ~$0–1 | ~$1–3 |
+| Key Vault | ~$0 (Standard, pay-per-operation) | ~$0 (Standard, pay-per-operation) |
 | Azure OpenAI (pay-per-token) | ~$0–1 *(not yet deployed)* | ~$1–3 *(not yet deployed)* |
 | Storage | ~$0 | ~$0 |
 | **Total** | **~$0–3** | **~$12–18** |

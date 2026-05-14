@@ -16,6 +16,7 @@
     "GOOGLE_CLIENT_ID": "",
     "AZURE_AI_ENDPOINT": "",
     "AZURE_AI_DEPLOYMENT": "gpt-4o-mini",
-    "AI_DAILY_ENRICHMENT_LIMIT": "20"
+    "AI_DAILY_ENRICHMENT_LIMIT": "20",
+    "SESSION_SECRET": "<generate-with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\">"
   }
 }

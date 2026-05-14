@@ -1,7 +1,7 @@
 import DOMPurify from 'dompurify';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
-import { useAuth } from '../../auth/AuthProvider';
+import { useAuth } from '../../auth/useAuth';
 import type { DBEntry, DBEnrichment } from '../../services/db';
 import { getTagSuggestions } from '../../services/db';
 import type { PartOfSpeech } from '../../types/models';

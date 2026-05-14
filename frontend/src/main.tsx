@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
+import { clearSession } from './auth/sessionTokens';
 import { initializeMsal } from './auth/msalConfig';
 import { ThemeProvider } from './store/ThemeContext';
 import { replayQueue, pullFromServer, SYNC_INTERVAL_MS, PULL_TTL_MS } from './services/sync';
@@ -47,10 +48,19 @@ setInterval(() => pullFromServer().catch(console.error), PULL_TTL_MS);
   window.location.replace('/access-blocked');
 });
 
-// ─── Handle 401 from API: token expired, clear session and redirect to login ───
+// ─── Handle 401 from API: token expired, clear all session state ───────────────
+// The AuthProvider listens for this event and updates React state, which causes
+// AuthGuard to redirect to /login without a hard page reload — preserving
+// in-progress state where possible.
 window.addEventListener('wordsprout:session-expired', () => {
-  // Google credential is in localStorage — clear it so AuthProvider re-evaluates
+  // Clear backend session tokens
+  clearSession();
+  // Clear Google credential so AuthProvider re-evaluates
   localStorage.removeItem('wordsprout:google_credential');
+  // Dispatch a second event that AuthProvider listens for to update React state.
+  // The hard redirect is kept as a fallback in case the React tree is not mounted
+  // (e.g. during initial load). AuthProvider will prevent the redirect when it
+  // handles the event first.
   window.location.replace('/login');
 });
 

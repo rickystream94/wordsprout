@@ -22,6 +22,10 @@ param googleClientId string
 @description('Maximum AI enrichment requests per user per day.')
 param aiDailyEnrichmentLimit int = 20
 
+@description('Session signing secret for backend tokens. Stored in Key Vault.')
+@secure()
+param sessionSecret string
+
 @description('Azure region for the Static Web App. SWA is only available in a limited set of regions. Sourced from infra/config.json swaRegion.')
 param swaLocation string = 'westeurope'
 
@@ -64,6 +68,16 @@ module cosmos 'modules/cosmos.bicep' = {
 //   }
 // }
 
+// ─── 3b. Key Vault ────────────────────────────────────────────────────────────
+
+module keyvault 'modules/keyvault.bicep' = {
+  params: {
+    env: env
+    location: location
+    sessionSecret: sessionSecret
+  }
+}
+
 // ─── 4. Function App ──────────────────────────────────────────────────────────
 
 module funcapp 'modules/funcapp.bicep' = {
@@ -79,6 +93,26 @@ module funcapp 'modules/funcapp.bicep' = {
     entraClientId: entraClientId
     googleClientId: googleClientId
     aiDailyEnrichmentLimit: aiDailyEnrichmentLimit
+    sessionSecretUri: keyvault.outputs.sessionSecretUri
+  }
+}
+
+// ─── 4b. RBAC: Function App MI → Key Vault (secrets read) ────────────────────
+
+var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
+var keyVaultName = 'kv-wordsprout-${env}'
+
+resource keyVaultRef 'Microsoft.KeyVault/vaults@2025-05-01' existing = {
+  name: keyVaultName
+}
+
+resource kvRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(keyVaultRef.id, 'func-wordsprout-${env}', keyVaultSecretsUserRoleId)
+  scope: keyVaultRef
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
+    principalId: funcapp.outputs.funcAppPrincipalId
+    principalType: 'ServicePrincipal'
   }
 }
 

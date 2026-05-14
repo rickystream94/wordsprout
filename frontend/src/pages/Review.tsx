@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth } from '../auth/useAuth';
 import FlashcardSession, { type SessionResult } from '../components/review/FlashcardSession';
 import SessionSetup, { type SessionType } from '../components/review/SessionSetup';
 import { getEntriesForSession, getPhrasebooks, type DBEntry } from '../services/db';

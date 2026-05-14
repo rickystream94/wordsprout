@@ -23,6 +23,7 @@
       "cosmosAccount": "cosmosdb-wordsprout-dev",
       "openAiAccount": "oai-wordsprout-dev",
       "storageAccount": "stwordsprout2dev",
+      "keyVaultName": "kv-wordsprout-dev",
       "entraAppName": "wordsprout-dev",
       "entraClientId": "86318033-d280-4e98-b8be-25fccb3181e6",
       "googleClientId": "798150118431-ckhf2188dh8jll5orcr1pbv408qkugcr.apps.googleusercontent.com"
@@ -34,6 +35,7 @@
       "cosmosAccount": "cosmosdb-wordsprout-prod",
       "openAiAccount": "oai-wordsprout-prod",
       "storageAccount": "stwordsprout2prod",
+      "keyVaultName": "kv-wordsprout-prod",
       "entraAppName": "wordsprout-prod",
       "entraClientId": "a323e676-f7cb-4114-b003-19534261fab5",
       "googleClientId": "798150118431-3iv2r7qdacd7urm4b3igahb05f8ps5kj.apps.googleusercontent.com"

@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth } from '../auth/useAuth';
 import EntryForm, { type EntryFormData } from '../components/entry/EntryForm';
 import EntryList from '../components/entry/EntryList';
 import { SortDropdown } from '../components/search/SortDropdown';

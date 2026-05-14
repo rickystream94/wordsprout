@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth } from '../auth/useAuth';
 import PhrasebookForm, { type PhrasebookFormData } from '../components/phrasebook/PhrasebookForm';
 import { API_BASE } from '../config/env';
 import { createPhrasebook, getPhrasebooks, type DBPhrasebook } from '../services/db';

@@ -142,6 +142,17 @@ if (-not $SkipInfra) {
 
     $bicepTemplate = Join-Path $RepoRoot 'infra' 'main.bicep'
 
+    # Reuse existing session secret from Key Vault if available; generate only on first deploy
+    $kvName = $DevEnv.keyVaultName
+    $existingSecret = az keyvault secret show --vault-name $kvName --name SESSION-SECRET --query value -o tsv 2>$null
+    if ($existingSecret) {
+        $sessionSecret = $existingSecret
+        Write-Host "  Using existing SESSION_SECRET from $kvName" -ForegroundColor DarkGray
+    } else {
+        $sessionSecret = [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }) -as [byte[]])
+        Write-Host "  Generated new SESSION_SECRET (first deploy)" -ForegroundColor DarkGray
+    }
+
     $deployJson = az deployment group create `
         --resource-group $ResourceGroup `
         --template-file $bicepTemplate `
@@ -152,6 +163,7 @@ if (-not $SkipInfra) {
         --parameters "entraTenantId=$($Config.tenantId)" `
         --parameters "entraClientId=$EntraClientId" `
         --parameters "googleClientId=$($DevEnv.googleClientId)" `
+        --parameters "sessionSecret=$sessionSecret" `
         --output json
 
     if ($LASTEXITCODE -ne 0) {

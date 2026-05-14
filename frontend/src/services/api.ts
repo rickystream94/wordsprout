@@ -1,13 +1,65 @@
 import type { AccountInfo } from '@azure/msal-browser';
+import { InteractionRequiredAuthError } from '@azure/msal-browser';
 import { msalInstance } from '../auth/msalConfig';
 import { getGoogleCredential, isGoogleAuthenticated } from '../auth/googleAuth';
+import {
+  clearSession,
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  isAccessTokenExpiringSoon,
+  storeSession,
+} from '../auth/sessionTokens';
 import { API_BASE, FEATURES_AI_ENABLED } from '../config/env';
 import type { ApiError } from '../types/models';
 
-// ─── Token acquisition ────────────────────────────────────────────────────────
+// ─── Session API helpers (low-level, bypass apiFetch to avoid circular deps) ──
 
-export async function getAccessToken(): Promise<string | null> {
-  // Try Microsoft MSAL silent acquire first
+interface SessionResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
+// Deduplication: only one exchange request in-flight at a time
+let exchangeInFlight: Promise<SessionResponse | null> | null = null;
+
+export async function exchangeOidcForSession(oidcToken: string): Promise<SessionResponse | null> {
+  if (exchangeInFlight) return exchangeInFlight;
+  exchangeInFlight = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${oidcToken}` },
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as SessionResponse;
+    } catch {
+      return null;
+    } finally {
+      exchangeInFlight = null;
+    }
+  })();
+  return exchangeInFlight;
+}
+
+async function refreshSessionTokens(refreshToken: string): Promise<SessionResponse | null> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as SessionResponse;
+  } catch {
+    return null;
+  }
+}
+
+// ─── OIDC token acquisition (fallback when no session exists) ─────────────────
+
+async function acquireOidcToken(): Promise<string | null> {
+  // Try Microsoft MSAL silent acquire
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length > 0) {
     try {
@@ -16,14 +68,61 @@ export async function getAccessToken(): Promise<string | null> {
         scopes: ['openid', 'profile', 'email'],
       });
       return result.idToken;
-    } catch {
-      // Fall through to Google check
+    } catch (err) {
+      // If interaction is needed, try popup (preserves page state)
+      if (err instanceof InteractionRequiredAuthError) {
+        try {
+          const result = await msalInstance.acquireTokenPopup({
+            scopes: ['openid', 'profile', 'email'],
+          });
+          return result.idToken;
+        } catch {
+          // Popup failed or was blocked
+        }
+      }
+      // Other MSAL errors — fall through
     }
   }
 
   // Fall back to Google credential
   if (isGoogleAuthenticated()) {
     return getGoogleCredential();
+  }
+
+  return null;
+}
+
+// ─── Token acquisition (session-first) ────────────────────────────────────────
+
+export async function getAccessToken(): Promise<string | null> {
+  // 1. Fast path: stored backend access token is still valid
+  const stored = getStoredAccessToken();
+  if (stored && !isAccessTokenExpiringSoon()) {
+    return stored;
+  }
+
+  // 2. Access token expired/expiring — try refreshing with stored refresh token
+  const refreshToken = getStoredRefreshToken();
+  if (refreshToken) {
+    const refreshed = await refreshSessionTokens(refreshToken);
+    if (refreshed) {
+      storeSession(refreshed.accessToken, refreshed.refreshToken);
+      return refreshed.accessToken;
+    }
+    // Refresh failed (token revoked/expired) — clear stale session
+    clearSession();
+  }
+
+  // 3. No session — fall back to OIDC providers, then exchange for a new session
+  const oidcToken = await acquireOidcToken();
+  if (oidcToken) {
+    const session = await exchangeOidcForSession(oidcToken);
+    if (session) {
+      storeSession(session.accessToken, session.refreshToken);
+      return session.accessToken;
+    }
+    // Exchange failed but OIDC token is still valid — use it directly (backward compat)
+    return oidcToken;
   }
 
   return null;

@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth } from '../auth/useAuth';
 import EmptyState from '../components/common/EmptyState';
 import EntryForm, { type EntryFormData } from '../components/entry/EntryForm';
 import EntryList from '../components/entry/EntryList';

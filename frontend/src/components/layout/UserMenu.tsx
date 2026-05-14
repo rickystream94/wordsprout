@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useAuth } from '../../auth/AuthProvider';
+import { useAuth } from '../../auth/useAuth';
 import { deleteAccount } from '../../services/api';
 import { clearLocalData } from '../../services/db';
 import styles from './UserMenu.module.css';

@@ -36,6 +36,9 @@ param googleClientId string
 @description('Maximum AI enrichment quota per user per day.')
 param aiDailyEnrichmentLimit int = 20
 
+@description('Key Vault secret URI for SESSION_SECRET (used as a Key Vault reference in app settings).')
+param sessionSecretUri string = ''
+
 var planName = 'plan-wordsprout-${env}'
 var funcAppName = 'func-wordsprout-${env}'
 
@@ -117,6 +120,10 @@ resource funcApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'AI_DAILY_ENRICHMENT_LIMIT'
           value: string(aiDailyEnrichmentLimit)
+        }
+        {
+          name: 'SESSION_SECRET'
+          value: sessionSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${sessionSecretUri})' : ''
         }
       ]
       // linuxFxVersion is deprecated in Flex Consumption — runtime version is set in functionAppConfig.

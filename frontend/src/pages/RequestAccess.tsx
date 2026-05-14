@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE } from '../config/env';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth } from '../auth/useAuth';
 import styles from './RequestAccess.module.css';
 
 type FormState = 'idle' | 'submitting' | 'error';

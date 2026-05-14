@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../auth/AuthProvider';
+import { useAuth } from '../../auth/useAuth';
 import { quotaApi } from '../../services/api';
 import { ApiRequestError } from '../../services/api';
 import { pullFromServer } from '../../services/sync';

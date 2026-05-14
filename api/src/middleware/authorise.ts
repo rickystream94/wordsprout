@@ -1,7 +1,7 @@
 import type { HttpRequest } from '@azure/functions';
 import jwt from 'jsonwebtoken';
 import jwksRsa from 'jwks-rsa';
-import { ENTRA_CLIENT_ID, GOOGLE_CLIENT_ID, IS_LOCAL } from '../config/env';
+import { ENTRA_CLIENT_ID, GOOGLE_CLIENT_ID, IS_LOCAL, SESSION_SECRET } from '../config/env';
 import type { AllowList, DecodedToken } from '../models/types';
 import { cosmosClient } from '../services/cosmos';
 
@@ -33,9 +33,10 @@ function getGoogleJwksClient() {
 /**
  * Validates the Bearer JWT and performs an allow-list point-read in Cosmos DB.
  *
- * Supports two OIDC providers:
- * - Microsoft Entra ID (iss: login.microsoftonline.com) -> userId = sub
- * - Google (iss: accounts.google.com) -> userId = `google:${sub}`
+ * Supports three token types:
+ * - Backend-issued session tokens (iss: wordsprout) → HMAC-SHA256 verified locally
+ * - Microsoft Entra ID (iss: login.microsoftonline.com) → userId = sub
+ * - Google (iss: accounts.google.com) → userId = `google:${sub}`
  *
  * Throws an object with `{ statusCode, message }` on failure - callers should
  * convert this to an HTTP error response.
@@ -51,17 +52,23 @@ export async function authorise(req: HttpRequest): Promise<DecodedToken> {
   }
   const token = authHeader.slice(7);
 
-  // -- Peek at iss claim (unverified) to select the right JWKS client
+  // -- Peek at iss claim (unverified) to select the right verification path
   const unverified = jwt.decode(token, { complete: true });
   const iss = (unverified?.payload as Record<string, unknown> | null)?.['iss'];
+
+  // -- Backend-issued session token (iss: 'wordsprout')
+  if (iss === 'wordsprout') {
+    return verifyBackendToken(token);
+  }
+
   const isGoogle = typeof iss === 'string' && (
     iss === 'accounts.google.com' || iss.startsWith('https://accounts.google.com')
   );
 
-  // -- Validate JWT
+  // -- Validate JWT via OIDC JWKS
   let decoded: DecodedToken;
   try {
-    decoded = await verifyJwt(token, isGoogle);
+    decoded = await verifyOidcJwt(token, isGoogle);
   } catch {
     throw { statusCode: 401, message: 'Invalid or expired token' };
   }
@@ -85,9 +92,29 @@ export async function authorise(req: HttpRequest): Promise<DecodedToken> {
   return { ...decoded, sub: userId };
 }
 
-// ─── JWT verification helper ──────────────────────────────────────────────────
+// ─── JWT verification helpers ─────────────────────────────────────────────────
 
-function verifyJwt(token: string, isGoogle: boolean): Promise<DecodedToken> {
+/**
+ * Verifies a backend-issued session token (iss: 'wordsprout') using HMAC-SHA256.
+ * Allowlist is NOT re-checked here — it was checked at session creation and is
+ * re-checked on every refresh. Max staleness = access token TTL (15 min).
+ */
+function verifyBackendToken(token: string): DecodedToken {
+  if (!SESSION_SECRET) {
+    throw { statusCode: 500, message: 'Session secret not configured' };
+  }
+  try {
+    const decoded = jwt.verify(token, SESSION_SECRET, {
+      algorithms: ['HS256'],
+      issuer: 'wordsprout',
+    });
+    return decoded as DecodedToken;
+  } catch {
+    throw { statusCode: 401, message: 'Invalid or expired token' };
+  }
+}
+
+function verifyOidcJwt(token: string, isGoogle: boolean): Promise<DecodedToken> {
   const jwksClient = isGoogle ? getGoogleJwksClient() : getMsJwksClient();
   const audience = isGoogle ? GOOGLE_CLIENT_ID : ENTRA_CLIENT_ID;
 

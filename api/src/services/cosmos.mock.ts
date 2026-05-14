@@ -83,5 +83,10 @@ export function createMockCosmosClient(): CosmosClientWrapper {
       if (toDelete.length > 0) saveStore(store);
       return toDelete.length;
     },
+
+    async queryById<T extends ItemDefinition>(id: string): Promise<T[]> {
+      const doc = store.get(id);
+      return doc ? [doc as T] : [];
+    },
   };
 }

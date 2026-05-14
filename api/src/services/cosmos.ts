@@ -38,6 +38,12 @@ export interface CosmosClientWrapper {
    * Safe to call multiple times — individual deletes are 404-tolerant.
    */
   deleteAllForPartition(partitionKey: string): Promise<number>;
+
+  /**
+   * Cross-partition query by document id.
+   * Used when the partition key is unknown (e.g. session refresh by token hash).
+   */
+  queryById<T extends ItemDefinition>(id: string): Promise<T[]>;
 }
 
 // ─── Real Cosmos DB implementation ───────────────────────────────────────────
@@ -114,6 +120,16 @@ function buildRealClient(): CosmosClientWrapper {
 
       await Promise.all(resources.map(({ id }) => this.deleteItem(id, partitionKey)));
       return resources.length;
+    },
+
+    async queryById<T extends ItemDefinition>(id: string): Promise<T[]> {
+      const { resources } = await container.items
+        .query<T>({
+          query: 'SELECT * FROM c WHERE c.id = @id',
+          parameters: [{ name: '@id', value: id }],
+        })
+        .fetchAll();
+      return resources;
     },
   };
 }

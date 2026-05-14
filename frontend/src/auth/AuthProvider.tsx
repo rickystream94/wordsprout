@@ -1,6 +1,6 @@
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { MsalProvider, useMsal, useIsAuthenticated } from '@azure/msal-react';
-import { type ReactNode, createContext, useContext, useState } from 'react';
+import { type ReactNode, createContext, useEffect, useState } from 'react';
 import { msalInstance } from './msalConfig';
 import {
   setGoogleCredential,
@@ -9,7 +9,9 @@ import {
   getGoogleEmail,
   getGoogleSub,
 } from './googleAuth';
-import { GOOGLE_CLIENT_ID } from '../config/env';
+import { clearSession, getStoredRefreshToken, hasValidSession, storeSession } from './sessionTokens';
+import { exchangeOidcForSession } from '../services/api';
+import { API_BASE, GOOGLE_CLIENT_ID } from '../config/env';
 
 // GIS attaches to window.google at runtime — declare minimally to avoid ts-ignore
 declare global {
@@ -44,6 +46,8 @@ const AuthContext = createContext<AuthContextValue>({
   logout: async () => {},
 });
 
+export { AuthContext };
+
 function AuthContextProvider({ children }: { children: ReactNode }) {
   const { instance, accounts } = useMsal();
   const msIsAuthenticated = useIsAuthenticated();
@@ -54,10 +58,15 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
     () => (isGoogleAuthenticated() ? getGoogleCredential() : null),
   );
 
+  // Backend session state — true when we have a valid access token
+  const [sessionActive, setSessionActive] = useState(() => hasValidSession());
+
   const googleActive = googleCredential !== null && isGoogleAuthenticated();
   const msActive = msIsAuthenticated && accounts.length > 0;
 
-  const effectivelyAuthenticated = googleActive || msActive;
+  // User is authenticated if they have a backend session OR an active OIDC session
+  // (backward compat for the window between login and session exchange)
+  const effectivelyAuthenticated = sessionActive || googleActive || msActive;
 
   const provider: AuthProvider = googleActive
     ? 'google'
@@ -81,6 +90,15 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
     ? getGoogleSub(googleCredential)
     : ((msAccount?.idTokenClaims?.['sub'] as string | undefined) ?? null);
 
+  // Exchange an OIDC token for a backend session (fire-and-forget)
+  const exchangeForSession = async (oidcToken: string) => {
+    const session = await exchangeOidcForSession(oidcToken);
+    if (session) {
+      storeSession(session.accessToken, session.refreshToken);
+      setSessionActive(true);
+    }
+  };
+
   const loginWithMicrosoft = async () => {
     await instance.loginRedirect({ scopes: ['openid', 'profile', 'email'] });
   };
@@ -88,12 +106,59 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = (credential: string) => {
     setGoogleCredential(credential);
     setGoogleCredentialState(credential);
+    // Exchange Google ID token for backend session
+    void exchangeForSession(credential);
   };
+
+  // After MSAL redirect completes, exchange the OIDC token for a backend session
+  useEffect(() => {
+    if (msActive && !sessionActive) {
+      const account = accounts[0];
+      if (account) {
+        instance.acquireTokenSilent({
+          account: account as import('@azure/msal-browser').AccountInfo,
+          scopes: ['openid', 'profile', 'email'],
+        }).then((result) => {
+          void exchangeForSession(result.idToken);
+        }).catch(() => {
+          // Silent acquire failed — session exchange skipped; OIDC token used as fallback
+        });
+      }
+    }
+  // Only run when MS auth state changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [msActive]);
+
+  // Listen for session-expired event to clear session state
+  useEffect(() => {
+    const handler = () => {
+      clearSession();
+      setSessionActive(false);
+    };
+    window.addEventListener('wordsprout:session-expired', handler);
+    return () => window.removeEventListener('wordsprout:session-expired', handler);
+  }, []);
 
   // Backward-compatible alias
   const login = loginWithMicrosoft;
 
   const logout = async () => {
+    // Revoke backend session if we have one
+    const refreshToken = getStoredRefreshToken();
+    if (refreshToken) {
+      try {
+        await fetch(`${API_BASE}/auth/session`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+      } catch {
+        // Best-effort — proceed with local cleanup regardless
+      }
+    }
+    clearSession();
+    setSessionActive(false);
+
     if (googleActive) {
       setGoogleCredential(null);
       setGoogleCredentialState(null);
@@ -139,6 +204,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+

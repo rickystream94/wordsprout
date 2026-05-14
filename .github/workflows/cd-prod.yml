@@ -113,6 +113,7 @@ jobs:
             --parameters "entraTenantId=${{ steps.cfg.outputs.tenant_id }}" \
             --parameters "entraClientId=${{ steps.cfg.outputs.entra_client_id }}" \
             --parameters "googleClientId=${{ steps.cfg.outputs.google_client_id }}" \
+            --parameters "sessionSecret=${{ secrets.SESSION_SECRET }}" \
             --output json)
           swa_hostname=$(echo "$output" | jq -r '.properties.outputs.swaHostname.value')
           echo "swa_hostname=$swa_hostname" >> "$GITHUB_OUTPUT"

@@ -100,6 +100,17 @@ export interface RateLimitEntry extends CosmosDocument {
   ttl: number;           // Cosmos TTL in seconds; document auto-deletes when it expires
 }
 
+export type AuthProvider = 'microsoft' | 'google';
+
+export interface SessionDocument extends CosmosDocument {
+  type: 'session';
+  tokenHash: string;       // SHA-256 hex digest of the raw refresh token
+  provider: AuthProvider;  // OIDC provider used to create the session
+  email: string;
+  expiresAt: string;       // ISO 8601 — when the refresh token expires
+  ttl: number;             // Cosmos TTL in seconds; document auto-deletes on expiry
+}
+
 // ─── API request / response shapes ────────────────────────────────────────────
 
 export interface Language {

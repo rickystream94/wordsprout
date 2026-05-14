@@ -160,13 +160,13 @@ async function _doReplayQueue(): Promise<void> {
       lastAttemptAt: new Date().toISOString(),
     });
 
-    try {
-      const init: RequestInit = {
-        method: mutation.method,
-        headers: { 'Content-Type': 'application/json' },
-      };
-      if (mutation.body) init.body = mutation.body;
+    const init: RequestInit = {
+      method: mutation.method,
+      headers: { 'Content-Type': 'application/json' },
+    };
+    if (mutation.body) init.body = mutation.body;
 
+    try {
       // Acquire a fresh token the same way api.ts does
       const authToken = await getAccessToken();
       if (authToken) {
@@ -182,9 +182,24 @@ async function _doReplayQueue(): Promise<void> {
       // Success — remove from queue
       await db.pendingSync.delete(mutation.id);
     } catch (err: unknown) {
-      // 401 = token expired or invalid — the mutations are still valid, just keep
-      // them pending so they replay after the user re-authenticates.
+      // 401 = token expired or invalid — attempt a silent refresh before giving up.
+      // getAccessToken() will try: stored access token → refresh → OIDC fallback.
       if (err instanceof ApiRequestError && err.statusCode === 401) {
+        const freshToken = await getAccessToken();
+        if (freshToken) {
+          // Retry the mutation once with the fresh token
+          try {
+            (init.headers as Record<string, string>)['Authorization'] = `Bearer ${freshToken}`;
+            const retryResponse = await fetch(mutation.url, init);
+            if (retryResponse.ok) {
+              await db.pendingSync.delete(mutation.id);
+              continue;
+            }
+          } catch {
+            // Retry failed — fall through to session-expired
+          }
+        }
+        // Could not refresh — keep pending and signal session expired
         await db.pendingSync.update(mutation.id, { status: 'pending' });
         window.dispatchEvent(new CustomEvent('wordsprout:session-expired'));
         return;
