@@ -234,7 +234,7 @@
 
 @media (max-width: 640px) {
   .fab {
-    bottom: var(--space-5);
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px) + var(--space-4));
     right: var(--space-5);
   }
 }
