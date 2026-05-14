@@ -104,6 +104,17 @@ export default function ReviewCard({
         <span className={styles.sourceText}>{entry.sourceText}</span>
       </p>
 
+      {(entry.partOfSpeech || entry.tags.length > 0) && (
+        <div className={styles.meta}>
+          {entry.partOfSpeech && (
+            <span className={styles.posBadge}>{entry.partOfSpeech.replace('_', ' ')}</span>
+          )}
+          {entry.tags.map((tag) => (
+            <span key={tag} className={styles.tagBadge}>#{tag}</span>
+          ))}
+        </div>
+      )}
+
       {hintStr && !answered && (
         <p className={styles.hintReveal} aria-label="Hint">
           💡 {hintStr}
