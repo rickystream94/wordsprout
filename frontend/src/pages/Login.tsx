@@ -38,6 +38,10 @@ export default function Login() {
         <p className={styles.tagline}>Grow your words.</p>
         <p className={styles.description}>Your personal vocabulary notebook — capture words you encounter, then master them through adaptive flashcard review.</p>
 
+        <Link to="/about" className={styles.howItWorksBtn}>
+          How does it work? →
+        </Link>
+
         <div className={styles.signInButtons}>
           <button className={styles.msBtn} onClick={loginWithMicrosoft}>
             <MicrosoftLogo />

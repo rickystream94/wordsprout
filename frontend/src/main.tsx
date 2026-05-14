@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
-import { clearSession } from './auth/sessionTokens';
+import { clearSession, getStoredAccessToken } from './auth/sessionTokens';
 import { initializeMsal } from './auth/msalConfig';
 import { ThemeProvider } from './store/ThemeContext';
 import { replayQueue, pullFromServer, SYNC_INTERVAL_MS, PULL_TTL_MS } from './services/sync';
@@ -21,27 +21,33 @@ import AccessBlockedPage from './pages/AccessBlockedPage';
 import NotFound from './pages/NotFound';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
+import About from './pages/About';
 import './styles/tokens.css';
 import './styles/global.css';
 
+// Public routes that never need sync and must not be redirected away from
+const PUBLIC_ROUTES = ['/login', '/about', '/privacy', '/terms', '/access-blocked', '/request-access'];
+const isPublicRoute = () => PUBLIC_ROUTES.some(r => window.location.pathname.startsWith(r));
+
 // ─── T016: Wire sync replay + inbound pull to online + visibilitychange events ─
 window.addEventListener('online', () => {
+  if (!getStoredAccessToken()) return;
   replayQueue().catch(console.error);
   pullFromServer().catch(console.error);
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && navigator.onLine) {
+  if (document.visibilityState === 'visible' && navigator.onLine && getStoredAccessToken()) {
     replayQueue().catch(console.error);
     pullFromServer().catch(console.error);
   }
 });
 
 // Periodic outbound sync so queued mutations don't wait for events
-setInterval(() => replayQueue().catch(console.error), SYNC_INTERVAL_MS);
+setInterval(() => { if (getStoredAccessToken()) replayQueue().catch(console.error); }, SYNC_INTERVAL_MS);
 
 // Periodic inbound pull so changes from other devices appear without needing a tab switch
-setInterval(() => pullFromServer().catch(console.error), PULL_TTL_MS);
+setInterval(() => { if (getStoredAccessToken()) pullFromServer().catch(console.error); }, PULL_TTL_MS);
 
 // ─── Handle permanent 403: sync queue cleared, redirect to access-blocked ─────
  window.addEventListener('wordsprout:access-revoked', () => {
@@ -57,7 +63,8 @@ window.addEventListener('wordsprout:session-expired', () => {
   clearSession();
   // Clear Google credential so AuthProvider re-evaluates
   localStorage.removeItem('wordsprout:google_credential');
-  // Dispatch a second event that AuthProvider listens for to update React state.
+  // Don't redirect away from public pages — the user doesn't need to be logged in there
+  if (isPublicRoute()) return;
   // The hard redirect is kept as a fallback in case the React tree is not mounted
   // (e.g. during initial load). AuthProvider will prevent the redirect when it
   // handles the event first.
@@ -91,6 +98,7 @@ async function bootstrap() {
             <Routes>
               {/* Public routes — no auth required */}
               <Route path="/login" element={<Login />} />
+              <Route path="/about" element={<About />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<Terms />} />
 
