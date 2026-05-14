@@ -54,6 +54,17 @@
   color: var(--chip-label-color);
 }
 
+/* On narrow screens hide labels for inactive chips; keep label for the active one */
+@media (max-width: 480px) {
+  .chipLabel {
+    display: none;
+  }
+
+  .rangeChipActive .chipLabel {
+    display: block;
+  }
+}
+
 /* ─── Track ────────────────────────────────────────────────────────────────── */
 
 .trackWrapper {
