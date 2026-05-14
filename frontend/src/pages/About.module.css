@@ -2,6 +2,7 @@
   min-height: 100vh;
   background: var(--bg-base);
   color: var(--text-primary);
+  overflow-x: clip;
 }
 
 /* ── Top bar ────────────────────────────────────────────── */
@@ -620,6 +621,30 @@
 
   .sectionTitle {
     font-size: var(--text-2xl);
+  }
+
+  .topBar {
+    padding: var(--space-3) var(--space-4);
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .topBarNav {
+    order: 3;
+    width: 100%;
+    flex: none;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: var(--space-1);
+  }
+
+  .topBarNav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .topBarActions {
+    margin-left: auto;
   }
 
   .step {

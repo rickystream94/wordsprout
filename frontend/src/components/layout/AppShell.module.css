@@ -4,6 +4,7 @@
   min-height: 100dvh;
   background: var(--bg-base);
   color: var(--text-primary);
+  overflow-x: clip;
 }
 
 .header {
