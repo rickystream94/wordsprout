@@ -36,7 +36,7 @@ export function SortDropdown<T extends string>({ value, options, onChange, label
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className={styles.dropdownLabel}><span style={{ color: 'var(--text-muted)', marginRight: 'var(--space-1)' }}>{label}:</span>{selected?.label}</span>
+        <span className={styles.dropdownLabel}>{label ? <span style={{ color: 'var(--text-muted)', marginRight: 'var(--space-1)' }}>{label}:</span> : null}{selected?.label}</span>
         <svg
           className={`${styles.dropdownChevron} ${open ? styles.dropdownChevronOpen : ''}`}
           width="12" height="8" viewBox="0 0 12 8" fill="none" aria-hidden="true"

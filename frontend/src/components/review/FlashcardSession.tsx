@@ -19,6 +19,7 @@ import styles from './FlashcardSession.module.css';
 interface FlashcardSessionProps {
   entries: DBEntry[];
   onDone: (results: SessionResult[]) => void;
+  targetLanguageName?: string;
 }
 
 export interface SessionResult {
@@ -29,7 +30,7 @@ export interface SessionResult {
   isSynonymHit: boolean;
 }
 
-export default function FlashcardSession({ entries, onDone }: FlashcardSessionProps) {
+export default function FlashcardSession({ entries, onDone, targetLanguageName }: FlashcardSessionProps) {
   const [index, setIndex] = useState(0);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [evalResult, setEvalResult] = useState<EvalResult | 'revealed' | undefined>(undefined);
@@ -185,6 +186,7 @@ export default function FlashcardSession({ entries, onDone }: FlashcardSessionPr
         oldScore={currentResult?.oldScore}
         newScore={currentResult?.newScore}
         submittedText={submittedText}
+        targetLanguageName={targetLanguageName}
       />
 
       {evalResult !== undefined && (

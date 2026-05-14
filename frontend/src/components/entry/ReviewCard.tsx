@@ -27,6 +27,8 @@ export interface ReviewCardProps {
   newScore?: number;
   /** The text the user submitted (shown in result for wrong/typo) */
   submittedText?: string;
+  /** Target language name shown in the translate prompt */
+  targetLanguageName?: string;
 }
 
 export default function ReviewCard({
@@ -43,6 +45,7 @@ export default function ReviewCard({
   oldScore,
   newScore,
   submittedText,
+  targetLanguageName,
 }: ReviewCardProps) {
   const [input, setInput] = useState('');
   const [animScore, setAnimScore] = useState<number>(entry.learningScore);
@@ -100,7 +103,9 @@ export default function ReviewCard({
       )}
 
       <p className={styles.prompt}>
-        <span className={styles.promptLabel}>Translate:</span>
+        <span className={styles.promptLabel}>
+            {targetLanguageName ? `Translate to ${targetLanguageName}:` : 'Translate:'}
+          </span>
         <span className={styles.sourceText}>{entry.sourceText}</span>
       </p>
 

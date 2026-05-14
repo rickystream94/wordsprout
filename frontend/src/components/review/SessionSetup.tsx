@@ -39,7 +39,7 @@ export default function SessionSetup({ phrasebooks, onStart }: SessionSetupProps
             label: `${pb.name} (${pb.entryCount} ${pb.entryCount === 1 ? 'entry' : 'entries'})`,
           }))}
           onChange={(v) => setSelectedPhrasebookId(v)}
-          label="Phrasebook"
+          label=""
         />
       </div>
 

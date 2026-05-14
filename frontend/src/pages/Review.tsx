@@ -16,6 +16,7 @@ export default function Review() {
   const [phase, setPhase] = useState<Phase>('setup');
   const [sessionEntries, setSessionEntries] = useState<DBEntry[]>([]);
   const [results, setResults] = useState<SessionResult[]>([]);
+  const [targetLanguageName, setTargetLanguageName] = useState<string | undefined>(undefined);
 
   const phrasebooks = useLiveQuery(
     () => (userId ? getPhrasebooks(userId) : Promise.resolve([])),
@@ -26,6 +27,7 @@ export default function Review() {
     if (!userId) return;
     const entries = await getEntriesForSession(userId, type, size, phrasebookId);
     setSessionEntries(entries);
+    setTargetLanguageName(phrasebooks.find((pb) => pb.id === phrasebookId)?.targetLanguageName);
     setPhase('session');
   }
 
@@ -43,7 +45,7 @@ export default function Review() {
           </button>
           <p className={styles.exitNote}>Scores from answered cards are already saved.</p>
         </div>
-        <FlashcardSession entries={sessionEntries} onDone={handleSessionDone} />
+        <FlashcardSession entries={sessionEntries} onDone={handleSessionDone} targetLanguageName={targetLanguageName} />
       </main>
     );
   }
