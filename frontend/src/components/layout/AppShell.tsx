@@ -1,5 +1,7 @@
 import { NavLink, Link, Outlet } from 'react-router-dom';
 import { useTheme } from '../../store/ThemeContext';
+import { useBackButtonExit } from '../../hooks/useBackButtonExit';
+import ExitToast from '../common/ExitToast';
 import OfflineIndicator from '../common/OfflineIndicator';
 import SyncIndicator from '../common/SyncIndicator';
 import UserMenu from './UserMenu';
@@ -7,6 +9,7 @@ import styles from './AppShell.module.css';
 
 export default function AppShell() {
   const { theme, toggleTheme } = useTheme();
+  const { showExitToast } = useBackButtonExit();
 
   return (
     <div className={styles.shell}>
@@ -56,6 +59,7 @@ export default function AppShell() {
         <Link to="/terms" className={styles.footerLink}>Terms &amp; Conditions</Link>
       </footer>
       <OfflineIndicator />
+      <ExitToast visible={showExitToast} />
       <nav className={styles.bottomNav} aria-label="Main navigation">
         <NavLink to="/" end className={({ isActive }) => isActive ? styles.bottomNavItemActive : styles.bottomNavItem}>
           <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 14.25V7.5l6.5-5.5 6.5 5.5v6.75a.75.75 0 0 1-.75.75H10v-4.5H6v4.5H2.25a.75.75 0 0 1-.75-.75Z"/></svg>
