@@ -203,7 +203,41 @@ The script:
 
 ---
 
-## 8 — AI Enrichment (Temporarily Disabled)
+## 8 — Seeding Local Dev Data
+
+The repo includes a synthetic data seed script that populates `api/.cosmos-mock.json` with ~300 vocabulary entries across 6 language pairs (EN→IT, ES, FR, DE, JA, PT), plus enrichments. The frontend auto-pulls from the API on load, so only the backend mock file needs seeding.
+
+### Quick start (via dev.ps1)
+
+```powershell
+# Start local dev servers AND seed data in one step
+.\dev.ps1 -Seed
+```
+
+Requires a prior login so that `.cosmos-mock.json` exists with your userId.
+
+### Standalone
+
+```powershell
+# Auto-discovers userId from existing .cosmos-mock.json
+.\scripts\seed-local.ps1
+
+# Or specify userId explicitly
+.\scripts\seed-local.ps1 -UserId "your-oauth-subject-id"
+```
+
+### From api/ directory
+
+```powershell
+cd api
+npm run seed -- --userId "your-oauth-subject-id"
+```
+
+The seed script is idempotent — it clears all existing documents for the target userId before inserting fresh data.
+
+---
+
+## 9 — AI Enrichment (Temporarily Disabled)
 
 AI enrichment via Azure OpenAI is currently disabled while a GPT-4o-mini GlobalStandard quota increase is pending approval for the region defined in `infra/config.json` (`openAiLocation`). The Enrich button is greyed out in the app UI with a "Coming soon" tooltip in all non-local environments.
 
@@ -234,7 +268,7 @@ Once quota is approved:
 
 ---
 
-## 9 — Estimated Monthly Cost (DEV + PROD)
+## 10 — Estimated Monthly Cost (DEV + PROD)
 
 | Service | DEV | PROD |
 |---|---|---|

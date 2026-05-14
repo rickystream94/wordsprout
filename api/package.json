@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext ts --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint src --ext ts --report-unused-disable-directives --max-warnings 0",
+    "seed": "npx tsx ../scripts/seed-local.ts"
   },
   "main": "dist/functions/*.js",
   "dependencies": {

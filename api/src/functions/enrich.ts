@@ -1,10 +1,11 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions';
 import DOMPurify from 'isomorphic-dompurify';
 import { authorise } from '../middleware/authorise';
-import type { AIEnrichment, Phrasebook, User, VocabularyEntry } from '../models/types';
+import type { AIEnrichment, DecodedToken, Phrasebook, User, VocabularyEntry } from '../models/types';
 import { generateEnrichment } from '../services/ai';
 import { cosmosClient } from '../services/cosmos';
 import { AI_DAILY_ENRICHMENT_LIMIT } from '../config/env';
+import { authenticated } from '../utils/http';
 
 function sanitise(value: string): string {
   return DOMPurify.sanitize(value).trim();
@@ -272,4 +273,22 @@ app.http('updateEnrichment', {
   authLevel: 'anonymous',
   route: 'entries/{entryId}/enrichment',
   handler: updateEnrichment,
+});
+
+// ─── GET /enrichments (list all for the authenticated user) ──────────────────
+
+async function listEnrichments(
+  _req: HttpRequest,
+  _ctx: InvocationContext,
+  token: DecodedToken,
+): Promise<HttpResponseInit> {
+  const results = await cosmosClient.queryByPartition<AIEnrichment>(token.sub, { type: 'enrichment' });
+  return { status: 200, jsonBody: results };
+}
+
+app.http('listEnrichments', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'enrichments',
+  handler: authenticated(listEnrichments),
 });

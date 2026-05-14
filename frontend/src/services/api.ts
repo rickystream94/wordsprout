@@ -155,6 +155,10 @@ export const entriesApi = {
 
 // AI enrichment
 
+export const enrichmentsApi = {
+  list: () => apiFetch<DBEnrichment[]>('/enrichments'),
+};
+
 export interface EnrichResponse {
   enrichment: DBEnrichment;
   entry?: DBEntry;

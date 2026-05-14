@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { MutationMethod } from '../types/models';
 import { db } from './db';
-import { ApiRequestError, getAccessToken, phrasebooksApi, entriesApi } from './api';
+import { ApiRequestError, getAccessToken, phrasebooksApi, entriesApi, enrichmentsApi } from './api';
 import { rebuildIndex } from './search';
 
 // Pull TTL: always run on an empty DB (first device login), otherwise throttle
@@ -18,27 +18,70 @@ export async function pullFromServer(): Promise<void> {
   if (_pullInProgress) return;
   _pullInProgress = true;
   try {
-    const [lastPullMeta, phrasebookCount] = await Promise.all([
+    const [lastPullMeta, phrasebookCount, enrichmentCount] = await Promise.all([
       db.meta.get('lastPull'),
       db.phrasebooks.count(),
+      db.enrichments.count(),
     ]);
 
     const lastPullMs = lastPullMeta ? Number(lastPullMeta.value) : 0;
     const isStale = Date.now() - lastPullMs > PULL_TTL_MS;
-    const isEmpty = phrasebookCount === 0;
+    // Force a pull when any table is empty (handles first login AND newly-synced tables)
+    const isEmpty = phrasebookCount === 0 || enrichmentCount === 0;
 
     if (!isStale && !isEmpty) return;
 
-    const [phrasebooks, entries] = await Promise.all([
+    const [phrasebooks, entries, enrichments] = await Promise.all([
       phrasebooksApi.list(),
       entriesApi.list(),
+      enrichmentsApi.list(),
     ]);
 
-    await Promise.all([
-      db.phrasebooks.bulkPut(phrasebooks),
-      db.entries.bulkPut(entries),
-      db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
-    ]);
+    // Flush any pending local mutations to the server BEFORE replacing
+    // local tables, so offline-created items aren't lost.
+    const pendingCount = await db.pendingSync
+      .where('status')
+      .anyOf(['pending', 'syncing'])
+      .count();
+
+    if (pendingCount > 0) {
+      await replayQueue();
+
+      // Re-check: if mutations are still pending (e.g. offline), fall back to
+      // additive bulkPut so local-only rows aren't wiped.
+      const stillPending = await db.pendingSync
+        .where('status')
+        .anyOf(['pending', 'syncing'])
+        .count();
+
+      if (stillPending > 0) {
+        await Promise.all([
+          db.phrasebooks.bulkPut(phrasebooks),
+          db.entries.bulkPut(entries),
+          db.enrichments.bulkPut(enrichments),
+          db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
+        ]);
+        await rebuildIndex();
+        return;
+      }
+    }
+
+    // No pending mutations — safe to replace all local data with the server's
+    // authoritative set.  A clear+bulkPut inside a transaction avoids stale
+    // rows from previous seeds or deleted server-side documents lingering.
+    await db.transaction('rw', db.phrasebooks, db.entries, db.enrichments, db.meta, async () => {
+      await Promise.all([
+        db.phrasebooks.clear(),
+        db.entries.clear(),
+        db.enrichments.clear(),
+      ]);
+      await Promise.all([
+        db.phrasebooks.bulkPut(phrasebooks),
+        db.entries.bulkPut(entries),
+        db.enrichments.bulkPut(enrichments),
+        db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
+      ]);
+    });
 
     // Rebuild the in-memory search index with the newly pulled entries
     await rebuildIndex();

@@ -14,9 +14,20 @@
     Auth settings (ENTRA_CLIENT_ID, GOOGLE_CLIENT_ID) are auto-populated in
     api/local.settings.json from infra/config.json — no manual setup required.
 
+.PARAMETER Seed
+    After starting servers, run the seed script to populate api/.cosmos-mock.json
+    with synthetic vocabulary data. UserId is auto-discovered from the existing
+    mock file. If no mock file exists, log in once first, then re-run with -Seed.
+
 .EXAMPLE
     .\dev.ps1
+
+.EXAMPLE
+    .\dev.ps1 -Seed
 #>
+param(
+    [switch]$Seed
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -136,3 +147,10 @@ Write-Host "In LOCAL mode:" -ForegroundColor DarkGray
  Write-Host "  · Cosmos DB is an in-memory mock (data resets on API restart)" -ForegroundColor DarkGray
  Write-Host "  · AI enrichment returns fixture data (no Azure AI key needed)" -ForegroundColor DarkGray
 Write-Host ""
+
+# ─── Optional: seed mock data ────────────────────────────────────────────────
+
+if ($Seed) {
+    Write-Host "Running seed script..." -ForegroundColor Cyan
+    & (Join-Path $root 'scripts' 'seed-local.ps1')
+}
