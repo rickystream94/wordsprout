@@ -1,9 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
 import { quotaApi } from '../../services/api';
 import { ApiRequestError } from '../../services/api';
 import { pullFromServer } from '../../services/sync';
+import styles from './AuthGuard.module.css';
+
+const loadingMessages = [
+  'Sprouting words…',
+  'Watering vocabulary…',
+  'Growing phrases…',
+  'Planting syllables…',
+  'Unfurling sentences…',
+];
 
 type AllowlistState = 'checking' | 'allowed' | 'blocked';
 
@@ -18,6 +27,10 @@ export default function AuthGuard() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [allowlistState, setAllowlistState] = useState<AllowlistState>('checking');
+  const loadingMessage = useMemo(
+    () => loadingMessages[Math.floor(Math.random() * loadingMessages.length)],
+    [],
+  );
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -55,9 +68,10 @@ export default function AuthGuard() {
 
   if (allowlistState === 'checking') {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
-        <span aria-live="polite" aria-busy="true" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>
-          Checking access…
+      <div className={styles.loadingContainer}>
+        <div className={styles.spinner} />
+        <span className={styles.loadingText} aria-live="polite" aria-busy="true">
+          {loadingMessage}
         </span>
       </div>
     );
