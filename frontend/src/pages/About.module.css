@@ -9,8 +9,8 @@
 .topBar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--space-4) var(--space-6);
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-6);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-card);
   position: sticky;
@@ -26,6 +26,7 @@
   font-weight: var(--font-bold);
   color: var(--surface-brand);
   text-decoration: none;
+  flex-shrink: 0;
 }
 
 .topBarLogoIcon {
@@ -679,5 +680,24 @@
 
   .cta {
     padding: var(--space-8) var(--space-4);
+  }
+}
+
+@media (max-width: 540px) {
+  .navLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .navLink,
+  .navLinkActive {
+    padding: var(--space-2);
   }
 }
