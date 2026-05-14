@@ -44,6 +44,9 @@
 
 .link,
 .activeLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
   padding: var(--space-1) var(--space-3);
