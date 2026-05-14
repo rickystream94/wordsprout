@@ -106,7 +106,7 @@
 [data-theme='dark'] .state_echoing { color: #fcd34d; }
 
 .state_inscribed {
-  background: color-mix(in srgb, #818cf8 15%, transparent);
+  background: color-mix(in srgb, #6366f1 15%, transparent);
   color: #4338ca;
 }
 [data-theme='dark'] .state_inscribed { color: #a5b4fc; }

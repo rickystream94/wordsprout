@@ -127,5 +127,7 @@
 .dormant .fill   { background: #94a3b8; }
 .sprouting .fill { background: #34d399; }
 .echoing .fill   { background: #f59e0b; }
-.inscribed .fill { background: #818cf8; }
+.inscribed .fill { background: #6366f1; }
 .engraved .fill  { background: #a855f7; }
+
+[data-theme='dark'] .inscribed .fill { background: #818cf8; }
