@@ -30,7 +30,7 @@ export default function PartOfSpeechSelector({ value, onChange }: PartOfSpeechSe
       value={value}
       options={OPTIONS}
       onChange={(v) => onChange(v as PartOfSpeech | '')}
-      label="Part of speech"
+      label=""
     />
   );
 }

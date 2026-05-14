@@ -219,7 +219,7 @@ export default function EntryForm({ onDone, initialValues, initialEnrichment, ex
           value={register}
           options={REGISTER_OPTIONS}
           onChange={setRegister}
-          label="Register"
+          label=""
         />
       </div>
 
