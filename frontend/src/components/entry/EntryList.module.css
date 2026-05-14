@@ -112,10 +112,10 @@
 [data-theme='dark'] .state_inscribed { color: #a5b4fc; }
 
 .state_engraved {
-  background: color-mix(in srgb, #10b981 15%, transparent);
-  color: #047857;
+  background: color-mix(in srgb, #a855f7 15%, transparent);
+  color: #6d28d9;
 }
-[data-theme='dark'] .state_engraved { color: #34d399; }
+[data-theme='dark'] .state_engraved { color: #c084fc; }
 
 .posBadge {
   font-size: var(--text-xs);

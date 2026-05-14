@@ -111,16 +111,21 @@
 .sprouting { --chip-label-color: #059669; }
 .echoing   { --chip-label-color: #b45309; }
 .inscribed { --chip-label-color: #4f46e5; }
-.engraved  { --chip-label-color: #047857; }
+.engraved  { --chip-label-color: #7c3aed; }
 
-[data-theme='dark'] .dormant   { --chip-label-color: #94a3b8; }
+[data-theme='dark'] .dormant   { --chip-label-color: #e2e8f0; }
 [data-theme='dark'] .sprouting { --chip-label-color: #34d399; }
 [data-theme='dark'] .echoing   { --chip-label-color: #fcd34d; }
 [data-theme='dark'] .inscribed { --chip-label-color: #a5b4fc; }
-[data-theme='dark'] .engraved  { --chip-label-color: #34d399; }
+[data-theme='dark'] .engraved  { --chip-label-color: #c084fc; }
+
+/* Dormant chip in dark mode: give it a subtle bright background so 🌑 emoji is visible */
+[data-theme='dark'] .dormant.rangeChipActive {
+  background: rgba(226, 232, 240, 0.12);
+}
 
 .dormant .fill   { background: #94a3b8; }
 .sprouting .fill { background: #34d399; }
 .echoing .fill   { background: #f59e0b; }
 .inscribed .fill { background: #818cf8; }
-.engraved .fill  { background: #10b981; }
+.engraved .fill  { background: #a855f7; }

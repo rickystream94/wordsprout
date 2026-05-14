@@ -9,6 +9,6 @@ param location = 'northeurope'
 param swaLocation = 'westeurope'
 param aiDailyEnrichmentLimit = 20
 param sessionSecret = 'REPLACE_AT_DEPLOY_TIME'
-
-// entraTenantId — required, passed at deploy time from config.json (.tenantId)
-// entraClientId — required, passed at deploy time from config.json (.environments.prod.entraClientId)
+param entraTenantId = 'REPLACE_AT_DEPLOY_TIME'
+param entraClientId = 'REPLACE_AT_DEPLOY_TIME'
+param googleClientId = 'REPLACE_AT_DEPLOY_TIME'
