@@ -42,18 +42,27 @@ export async function exchangeOidcForSession(oidcToken: string): Promise<Session
   return exchangeInFlight;
 }
 
+// Deduplication: only one refresh request in-flight at a time
+let refreshInFlight: Promise<SessionResponse | null> | null = null;
+
 async function refreshSessionTokens(refreshToken: string): Promise<SessionResponse | null> {
-  try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as SessionResponse;
-  } catch {
-    return null;
-  }
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as SessionResponse;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
 }
 
 // ─── OIDC token acquisition (fallback when no session exists) ─────────────────
