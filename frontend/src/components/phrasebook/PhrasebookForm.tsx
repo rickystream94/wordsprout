@@ -171,7 +171,7 @@ export default function PhrasebookForm({ onDone, initialValues }: PhrasebookForm
 
       <LanguageSelector
         id="pb-source"
-        label="Source language (you know)"
+        label="Written in"
         value={sourceLangCode}
         languages={languages}
         onChange={(code, name) => { setSourceLangCode(code); setSourceLangName(name); }}
@@ -180,7 +180,7 @@ export default function PhrasebookForm({ onDone, initialValues }: PhrasebookForm
 
       <LanguageSelector
         id="pb-target"
-        label="Target language (you're learning)"
+        label="Translated to"
         value={targetLangCode}
         languages={languages}
         onChange={(code, name) => { setTargetLangCode(code); setTargetLangName(name); }}

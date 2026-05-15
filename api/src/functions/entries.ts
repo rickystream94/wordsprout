@@ -55,10 +55,16 @@ async function createEntry(req: HttpRequest, _ctx: InvocationContext, token: Dec
   });
   const rawTargetText = body.targetText ? normalizeEntryText(sanitise(body.targetText)) : undefined;
   const dupSrc = existing.find((e) => normalizeEntryText(e.sourceText) === sourceText);
-  if (dupSrc) return apiError(409, 'An entry with this source text already exists in the phrasebook.');
+  if (dupSrc) {
+    const label = dupSrc.targetText ? `"${dupSrc.sourceText}" → "${dupSrc.targetText}"` : `"${dupSrc.sourceText}"`;
+    return apiError(409, `An entry with this source text already exists in the phrasebook (${label}).`);
+  }
   if (rawTargetText) {
     const dupTgt = existing.find((e) => e.targetText && normalizeEntryText(e.targetText) === rawTargetText);
-    if (dupTgt) return apiError(409, 'An entry with this translation already exists in the phrasebook.');
+    if (dupTgt) {
+      const label = `"${dupTgt.sourceText}" → "${dupTgt.targetText}"`;
+      return apiError(409, `An entry with this translation already exists in the phrasebook (${label}).`);
+    }
   }
 
   const now = new Date().toISOString();
@@ -66,6 +72,14 @@ async function createEntry(req: HttpRequest, _ctx: InvocationContext, token: Dec
   // Use the client-provided id if it's a valid UUID, otherwise generate one.
   // This ensures subsequent PUT/DELETE mutations in the sync queue reference the same id.
   const clientId = resolveId(body.id);
+
+  // Idempotency: if this exact mutation was already applied (e.g. client sent it,
+  // server wrote it, but the response never reached the client — common after a tab
+  // close mid-sync), just return the existing entry rather than 409-ing on text dups.
+  const idempotentEntry = await cosmosClient.pointRead<VocabularyEntry>(clientId, token.sub);
+  if (idempotentEntry && idempotentEntry.type === 'entry' && idempotentEntry.phrasebookId === phrasebookId) {
+    return { status: 200, jsonBody: idempotentEntry };
+  }
 
   const entry: VocabularyEntry = {
     id: clientId,

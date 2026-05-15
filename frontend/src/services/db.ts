@@ -4,6 +4,12 @@ import type {
   PartOfSpeech,
   SyncStatus,
 } from '../types/models';
+import {
+  TEMPLATE_ENTRIES,
+  TEMPLATE_LANGUAGES,
+  type TemplateLanguageCode,
+} from '../data/templatePhrasebooks';
+import { randomUUID } from '../utils/uuid';
 
 // ─── Client-side model types (mirrors api/src/models/types.ts) ────────────────
 
@@ -16,6 +22,7 @@ export interface DBPhrasebook {
   targetLanguageCode: string;
   targetLanguageName: string;
   entryCount: number;
+  fromTemplate?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -114,7 +121,24 @@ export const db = new WordSproutDB();
 
 // ─── T022: Phrasebook CRUD ────────────────────────────────────────────────────
 
+export class DuplicateLanguagePairError extends Error {
+  constructor(sourceLanguageName: string, targetLanguageName: string) {
+    super(`A phrasebook for ${sourceLanguageName} → ${targetLanguageName} already exists.`);
+    this.name = 'DuplicateLanguagePairError';
+  }
+}
+
 export async function createPhrasebook(data: Omit<DBPhrasebook, 'id'> & { id: string }): Promise<DBPhrasebook> {
+  // Duplicate language-pair guard (FR-011)
+  const duplicate = await db.phrasebooks
+    .where('userId').equals(data.userId)
+    .filter(
+      (pb) => pb.sourceLanguageCode === data.sourceLanguageCode && pb.targetLanguageCode === data.targetLanguageCode,
+    )
+    .first();
+  if (duplicate) {
+    throw new DuplicateLanguagePairError(data.sourceLanguageName, data.targetLanguageName);
+  }
   await db.phrasebooks.add(data);
   return data;
 }
@@ -143,6 +167,93 @@ export async function deletePhrasebook(id: string): Promise<void> {
     }
     await db.phrasebooks.delete(id);
   });
+}
+
+// ─── Template phrasebook generation ──────────────────────────────────────────
+
+/**
+ * Generate a template phrasebook for the given target language.
+ * Writes 1 phrasebook + 50 entries to IndexedDB atomically,
+ * then enqueues 51 sync mutations (phrasebook first, then entries).
+ *
+ * @throws {DuplicateLanguagePairError} if a phrasebook for en→targetCode already exists.
+ */
+export async function generateTemplatePhrasebook(
+  userId: string,
+  targetCode: TemplateLanguageCode,
+  apiBase: string,
+): Promise<DBPhrasebook> {
+  const targetLang = TEMPLATE_LANGUAGES.find((l) => l.code === targetCode);
+  if (!targetLang) throw new Error(`Unsupported template language code: ${targetCode}`);
+
+  // Duplicate guard
+  const duplicate = await db.phrasebooks
+    .where('userId').equals(userId)
+    .filter((pb) => pb.sourceLanguageCode === 'en' && pb.targetLanguageCode === targetCode)
+    .first();
+  if (duplicate) throw new DuplicateLanguagePairError('English', targetLang.name);
+
+  const now = new Date().toISOString();
+  const phrasebookId = randomUUID();
+
+  const phrasebook: DBPhrasebook = {
+    id: phrasebookId,
+    userId,
+    name: `English → ${targetLang.name} Starter`,
+    sourceLanguageCode: 'en',
+    sourceLanguageName: 'English',
+    targetLanguageCode: targetCode,
+    targetLanguageName: targetLang.name,
+    entryCount: 50,
+    fromTemplate: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const entries: (DBEntry & { id: string })[] = TEMPLATE_ENTRIES.map((te) => ({
+    id: randomUUID(),
+    userId,
+    phrasebookId,
+    sourceText: te.sourceText,
+    targetText: te.translations[targetCode],
+    tags: te.tags,
+    partOfSpeech: te.partOfSpeech,
+    learningScore: 0,
+    lastReviewedDate: null,
+    createdAt: now,
+    updatedAt: now,
+  }));
+
+  // Write 51 records atomically (1 phrasebook + 50 entries) + enqueue sync mutations.
+  // Enrichments are intentionally omitted: the static template data is in English (the
+  // source language) and there is no POST /enrichments API endpoint. Users can generate
+  // per-language enrichments via the AI enrichment feature on individual entries.
+  await db.transaction('rw', db.phrasebooks, db.entries, db.pendingSync, async () => {
+    await db.phrasebooks.add(phrasebook);
+    await db.entries.bulkAdd(entries);
+
+    // Enqueue sync: phrasebook first, then entries
+    await db.pendingSync.add({
+      url: `${apiBase}/phrasebooks`,
+      method: 'POST',
+      body: JSON.stringify(phrasebook),
+      retryCount: 0,
+      status: 'pending',
+      createdAt: now,
+    });
+    for (const entry of entries) {
+      await db.pendingSync.add({
+        url: `${apiBase}/entries`,
+        method: 'POST',
+        body: JSON.stringify(entry),
+        retryCount: 0,
+        status: 'pending',
+        createdAt: now,
+      });
+    }
+  });
+
+  return phrasebook;
 }
 
 // ─── T023: VocabularyEntry CRUD ───────────────────────────────────────────────
