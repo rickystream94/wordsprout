@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
 import { quotaApi } from '../../services/api';
@@ -14,6 +14,20 @@ const loadingMessages = [
   'Unfurling sentences…',
 ];
 
+const loadingMessage =
+  loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+
+function LoadingSpinner() {
+  return (
+    <div className={styles.loadingContainer}>
+      <div className={styles.spinner} />
+      <span className={styles.loadingText} aria-live="polite" aria-busy="true">
+        {loadingMessage}
+      </span>
+    </div>
+  );
+}
+
 type AllowlistState = 'checking' | 'allowed' | 'blocked';
 
 /**
@@ -24,13 +38,9 @@ type AllowlistState = 'checking' | 'allowed' | 'blocked';
  * - Renders a loading state while the probe is in-flight.
  */
 export default function AuthGuard() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, sessionRestoring } = useAuth();
   const navigate = useNavigate();
   const [allowlistState, setAllowlistState] = useState<AllowlistState>('checking');
-  const loadingMessage = useMemo(
-    () => loadingMessages[Math.floor(Math.random() * loadingMessages.length)],
-    [],
-  );
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -64,17 +74,14 @@ export default function AuthGuard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
+  if (!isAuthenticated && sessionRestoring) {
+    return <LoadingSpinner />;
+  }
+
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   if (allowlistState === 'checking') {
-    return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.spinner} />
-        <span className={styles.loadingText} aria-live="polite" aria-busy="true">
-          {loadingMessage}
-        </span>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return <Outlet />;

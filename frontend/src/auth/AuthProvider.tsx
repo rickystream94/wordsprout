@@ -10,7 +10,7 @@ import {
   getGoogleSub,
 } from './googleAuth';
 import { clearSession, getStoredRefreshToken, hasValidSession, storeSession } from './sessionTokens';
-import { exchangeOidcForSession } from '../services/api';
+import { exchangeOidcForSession, getAccessToken } from '../services/api';
 import { API_BASE, GOOGLE_CLIENT_ID } from '../config/env';
 
 // GIS attaches to window.google at runtime — declare minimally to avoid ts-ignore
@@ -24,6 +24,8 @@ type AuthProvider = 'microsoft' | 'google' | null;
 
 interface AuthContextValue {
   isAuthenticated: boolean;
+  /** True while a session-restore (refresh) is in progress on app startup. */
+  sessionRestoring: boolean;
   provider: AuthProvider;
   userId: string | null;
   email: string | null;
@@ -36,6 +38,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue>({
   isAuthenticated: false,
+  sessionRestoring: false,
   provider: null,
   userId: null,
   email: null,
@@ -60,6 +63,11 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
 
   // Backend session state — true when we have a valid access token
   const [sessionActive, setSessionActive] = useState(() => hasValidSession());
+
+  // True while we're attempting to restore a session from a stored refresh token
+  const [sessionRestoring, setSessionRestoring] = useState(
+    () => !hasValidSession() && getStoredRefreshToken() !== null,
+  );
 
   const googleActive = googleCredential !== null && isGoogleAuthenticated();
   const msActive = msIsAuthenticated && accounts.length > 0;
@@ -139,6 +147,23 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('wordsprout:session-expired', handler);
   }, []);
 
+  // On mount: if access token is expired but a refresh token exists, proactively
+  // refresh the session so the user isn't bounced to /login unnecessarily.
+  useEffect(() => {
+    if (!sessionActive && getStoredRefreshToken()) {
+      setSessionRestoring(true);
+      getAccessToken().then((token) => {
+        if (token) setSessionActive(true);
+      }).catch(() => {
+        // Refresh failed — user will see login page
+      }).finally(() => {
+        setSessionRestoring(false);
+      });
+    }
+  // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Backward-compatible alias
   const login = loginWithMicrosoft;
 
@@ -179,6 +204,7 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         isAuthenticated: effectivelyAuthenticated,
+        sessionRestoring,
         provider,
         userId,
         email,
