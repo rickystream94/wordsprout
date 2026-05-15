@@ -28,10 +28,26 @@ async function createPhrasebook(
     return apiError(400, 'name, sourceLanguageCode, and targetLanguageCode are required');
   }
 
+  // Duplicate language-pair guard (FR-011)
+  const existing = await cosmosClient.queryByPartition<Phrasebook>(token.sub, { type: 'phrasebook' });
+  const duplicate = existing.find(
+    (pb) => pb.sourceLanguageCode === sourceLanguageCode && pb.targetLanguageCode === targetLanguageCode,
+  );
+  if (duplicate) {
+    return apiError(409, `You already have a phrasebook for ${sourceLanguageName || sourceLanguageCode} → ${targetLanguageName || targetLanguageCode}.`);
+  }
+
   const now = new Date().toISOString();
 
   // Use the client-provided id if it's a valid UUID, otherwise generate one.
   const clientId = resolveId(body.id);
+
+  // Idempotency: if this phrasebook was already created (client sent it, server wrote it,
+  // but response never arrived — common after a tab close mid-sync), return the existing one.
+  const idempotentPb = await cosmosClient.pointRead<Phrasebook>(clientId, token.sub);
+  if (idempotentPb && idempotentPb.type === 'phrasebook') {
+    return { status: 200, jsonBody: idempotentPb };
+  }
 
   const phrasebook: Phrasebook = {
     id: clientId,
@@ -43,6 +59,7 @@ async function createPhrasebook(
     targetLanguageCode,
     targetLanguageName,
     entryCount: 0,
+    ...(body.fromTemplate === true ? { fromTemplate: true } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -106,6 +123,10 @@ async function updatePhrasebook(
     targetLanguageName: body.targetLanguageName !== undefined ? sanitise(body.targetLanguageName) : existing.targetLanguageName,
     updatedAt: new Date().toISOString(),
   };
+  // Allow badge dismissal: if the client explicitly sends fromTemplate: false, clear the flag.
+  if (body.fromTemplate === false) {
+    delete updated.fromTemplate;
+  }
 
   await cosmosClient.upsert(updated);
   return { status: 200, jsonBody: updated };

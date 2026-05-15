@@ -63,7 +63,6 @@ export default function SyncIndicator() {
   if (!hasPending && !hasFailed) return null;
 
   // Any pending mutation carrying an errorMessage was blocked by a network/server error
-  const lastError = pendingMutations?.find((m) => m.errorMessage)?.errorMessage;
 
   return (
     <>
@@ -102,17 +101,22 @@ export default function SyncIndicator() {
           <ul className={styles.failList}>
             {failedMutations?.map((m) => (
               <li key={m.id} className={styles.failItem}>
-                <span className={styles.method}>{m.method}</span>
-                <span className={styles.url}>{m.url}</span>
-                <button
-                  type="button"
-                  className={styles.discardBtn}
-                  onClick={() => m.id !== undefined && discardMutation(m.id)}
-                  aria-label="Discard this failed operation"
-                  title="Discard"
-                >
-                  ✕
-                </button>
+                <div className={styles.failItemRow}>
+                  <span className={styles.method}>{m.method}</span>
+                  <span className={styles.url}>{m.url}</span>
+                  <button
+                    type="button"
+                    className={styles.discardBtn}
+                    onClick={() => m.id !== undefined && discardMutation(m.id)}
+                    aria-label="Discard this failed operation"
+                    title="Discard"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {m.errorMessage && (
+                  <p className={styles.failItemError}>{m.errorMessage}</p>
+                )}
               </li>
             ))}
           </ul>
@@ -145,16 +149,16 @@ export default function SyncIndicator() {
               <>Next sync in {secsRemaining}s</>
             )}
           </p>
-          {lastError && (
-            <p className={styles.errorHint}>
-              Last attempt failed: {lastError}. Will retry automatically when back online.
-            </p>
-          )}
           <ul className={styles.failList}>
             {pendingMutations?.map((m) => (
               <li key={m.id} className={styles.failItem}>
-                <span className={styles.pendingMethod}>{m.method}</span>
-                <span className={styles.url}>{m.url}</span>
+                <div className={styles.failItemRow}>
+                  <span className={styles.pendingMethod}>{m.method}</span>
+                  <span className={styles.url}>{m.url}</span>
+                </div>
+                {m.errorMessage && (
+                  <p className={styles.failItemError}>{m.errorMessage}. Will retry automatically.</p>
+                )}
               </li>
             ))}
           </ul>

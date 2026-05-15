@@ -176,7 +176,17 @@ async function _doReplayQueue(): Promise<void> {
       const response = await fetch(mutation.url, init);
 
       if (!response.ok) {
-        throw new ApiRequestError(response.status, `HTTP ${response.status}`);
+        // Try to surface the API's own error message rather than the bare HTTP status.
+        let apiMessage = `HTTP ${response.status}`;
+        try {
+          const errBody = (await response.json()) as { message?: string };
+          if (typeof errBody.message === 'string' && errBody.message) {
+            apiMessage = errBody.message;
+          }
+        } catch {
+          // ignore JSON parse failure — fall back to HTTP status string
+        }
+        throw new ApiRequestError(response.status, apiMessage);
       }
 
       // Success — remove from queue
@@ -216,6 +226,13 @@ async function _doReplayQueue(): Promise<void> {
       // 404 = the referenced resource no longer exists — this mutation can never succeed.
       // Discard it silently rather than burning retries.
       if (err instanceof ApiRequestError && err.statusCode === 404) {
+        await db.pendingSync.delete(mutation.id);
+        continue;
+      }
+
+      // 409 = conflict — a resource with this content already exists on the server.
+      // Retrying will never resolve the conflict; discard silently.
+      if (err instanceof ApiRequestError && err.statusCode === 409) {
         await db.pendingSync.delete(mutation.id);
         continue;
       }

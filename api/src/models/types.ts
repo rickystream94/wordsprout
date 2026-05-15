@@ -55,6 +55,7 @@ export interface Phrasebook extends CosmosDocument {
   targetLanguageCode: string;  // ISO 639-1
   targetLanguageName: string;
   entryCount: number;
+  fromTemplate?: boolean;
 }
 
 export interface VocabularyEntry extends CosmosDocument {
