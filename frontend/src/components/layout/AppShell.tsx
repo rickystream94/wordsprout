@@ -1,6 +1,7 @@
 import { NavLink, Link, Outlet } from 'react-router-dom';
 import { useTheme } from '../../store/ThemeContext';
 import { useBackButtonExit } from '../../hooks/useBackButtonExit';
+import { QuotaProvider } from '../../hooks/useQuota';
 import ExitToast from '../common/ExitToast';
 import OfflineIndicator from '../common/OfflineIndicator';
 import SyncIndicator from '../common/SyncIndicator';
@@ -12,6 +13,7 @@ export default function AppShell() {
   const { showExitToast } = useBackButtonExit();
 
   return (
+    <QuotaProvider>
     <div className={styles.shell}>
       <header className={styles.header}>
         <NavLink to="/" className={styles.logo}>
@@ -79,5 +81,6 @@ export default function AppShell() {
         </NavLink>
       </nav>
     </div>
+    </QuotaProvider>
   );
 }

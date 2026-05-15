@@ -4,8 +4,8 @@ import { enrichApi } from '../../services/api';
 import { usePendingIds } from '../../services/sync';
 import { scoreToRange } from '../../services/scoring';
 import { FEATURES_AI_ENABLED } from '../../config/env';
+import { useQuota } from '../../hooks/useQuota';
 import EnrichmentPanel from './EnrichmentPanel';
-import QuotaIndicator from './QuotaIndicator';
 import LearningScoreBar from './LearningScoreBar';
 import ConfirmDialog from '../common/ConfirmDialog';
 import styles from './EntryList.module.css';
@@ -82,6 +82,7 @@ function EntryCard({
   const [confirmingReEnrich, setConfirmingReEnrich] = useState(false);
   const [enrichLoading, setEnrichLoading] = useState(false);
   const [enrichError, setEnrichError] = useState<string | null>(null);
+  const { quota, remaining, isLow, isExhausted, refreshQuota } = useQuota();
 
   // Keep entry in sync with parent prop
   if (initialEntry.updatedAt !== entry.updatedAt && initialEntry.id === entry.id) {
@@ -125,6 +126,7 @@ function EntryCard({
       const enrichmentData = result.enrichment ?? result;
       await upsertEnrichment(enrichmentData);
       setEnrichment(enrichmentData);
+      refreshQuota();
 
       // If AI provided updates to the entry (translation, partOfSpeech), apply them
       if (result.entry) {
@@ -223,7 +225,12 @@ function EntryCard({
                   aria-busy={enrichLoading}
                 >
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.53 1.282a.5.5 0 0 1 .94 0l1.363 3.738 3.738 1.363a.5.5 0 0 1 0 .94l-3.738 1.363-1.363 3.738a.5.5 0 0 1-.94 0L6.167 8.686 2.43 7.323a.5.5 0 0 1 0-.94l3.738-1.363zM2.5 1a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1H3v1a.5.5 0 0 1-1 0V3.5h-1a.5.5 0 0 1 0-1H2v-1A.5.5 0 0 1 2.5 1zm10 9a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1h-1v1a.5.5 0 0 1-1 0v-1h-1a.5.5 0 0 1 0-1h1v-1a.5.5 0 0 1 .5-.5z"/></svg>
-                  {enrichLoading ? (hasEnrichment ? 'Regenerating…' : 'Enriching…') : (hasEnrichment ? 'Re-enrich' : 'Enrich')}
+                  <span>{enrichLoading ? (hasEnrichment ? 'Regenerating…' : 'Enriching…') : (hasEnrichment ? 'Re-enrich' : 'Enrich')}</span>
+                  {quota && !enrichLoading && (
+                    <span className={`${styles.quotaHint} ${isLow ? styles.quotaHintLow : ''} ${isExhausted ? styles.quotaHintExhausted : ''}`}>
+                      {isExhausted ? '· exhausted' : `· ${remaining} left`}
+                    </span>
+                  )}
                 </button>
               </span>
 
@@ -268,8 +275,6 @@ function EntryCard({
               />
             )}
           </div>
-
-          <QuotaIndicator />
         </div>
       )}
     </li>

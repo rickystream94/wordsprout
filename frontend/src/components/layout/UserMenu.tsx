@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../auth/useAuth';
+import { useQuota } from '../../hooks/useQuota';
 import { deleteAccount } from '../../services/api';
 import { clearLocalData } from '../../services/db';
 import styles from './UserMenu.module.css';
@@ -8,6 +9,7 @@ type DeleteState = 'idle' | 'confirming' | 'deleting' | 'error';
 
 export default function UserMenu() {
   const { email, provider, logout } = useAuth();
+  const { quota, remaining, isLow, isExhausted } = useQuota();
   const [open, setOpen] = useState(false);
   const [deleteState, setDeleteState] = useState<DeleteState>('idle');
   const menuRef = useRef<HTMLDivElement>(null);
@@ -61,6 +63,9 @@ export default function UserMenu() {
           onClick={() => setOpen((v) => !v)}
         >
           {initial}
+          {(isLow || isExhausted) && (
+            <span className={`${styles.badge} ${isExhausted ? styles.badgeExhausted : styles.badgeLow}`} aria-hidden="true" />
+          )}
         </button>
 
         {open && (
@@ -69,6 +74,20 @@ export default function UserMenu() {
               <span className={styles.email}>{email}</span>
               <span className={styles.provider}>{providerLabel}</span>
             </div>
+            <hr className={styles.separator} />
+            {quota && (
+              <div className={`${styles.quotaSection} ${isLow ? styles.quotaLow : ''} ${isExhausted ? styles.quotaExhausted : ''}`}>
+                <span className={styles.quotaLabel}>
+                  {isExhausted
+                    ? 'Daily AI quota exhausted'
+                    : `Daily AI enrichments: ${remaining} / ${quota.aiDailyEnrichmentLimit}`}
+                </span>
+                <div className={styles.quotaTrack} role="progressbar" aria-valuenow={Math.round((quota.aiQuotaUsedToday / quota.aiDailyEnrichmentLimit) * 100)} aria-valuemin={0} aria-valuemax={100}>
+                  <div className={styles.quotaFill} style={{ width: `${Math.round((quota.aiQuotaUsedToday / quota.aiDailyEnrichmentLimit) * 100)}%` }} />
+                </div>
+                <span className={styles.quotaReset}>Resets at {new Date(quota.aiQuotaResetAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+            )}
             <hr className={styles.separator} />
             <button
               className={styles.signOutBtn}

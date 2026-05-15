@@ -210,3 +210,72 @@
   background: var(--bg-subtle);
   color: var(--text-primary);
 }
+
+/* ── Badge indicator on avatar ───────────────────────────────────────── */
+
+.badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--bg-elevated);
+}
+
+.badgeLow {
+  background: var(--color-warning, #f59e0b);
+}
+
+.badgeExhausted {
+  background: var(--color-error, #dc2626);
+}
+
+/* ── Quota section in dropdown ───────────────────────────────────────── */
+
+.quotaSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1);
+}
+
+.quotaLabel {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.quotaLow .quotaLabel {
+  color: var(--color-warning-text, #92400e);
+}
+
+.quotaExhausted .quotaLabel {
+  color: var(--color-error, #dc2626);
+}
+
+.quotaTrack {
+  height: 4px;
+  background: var(--border-subtle);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.quotaFill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}
+
+.quotaLow .quotaFill {
+  background: var(--color-warning, #f59e0b);
+}
+
+.quotaExhausted .quotaFill {
+  background: var(--color-error, #dc2626);
+}
+
+.quotaReset {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

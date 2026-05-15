@@ -319,3 +319,22 @@
 .emptyIcon {
   font-size: 2.5rem;
 }
+
+/* ── Inline quota hint inside Enrich button ──────────────────────────── */
+
+.quotaHint {
+  font-size: 10px;
+  opacity: 0.75;
+  font-weight: 400;
+  margin-left: 2px;
+}
+
+.quotaHintLow {
+  color: var(--color-warning-bg, #fef3c7);
+  opacity: 1;
+}
+
+.quotaHintExhausted {
+  color: var(--color-error-bg, #fecaca);
+  opacity: 1;
+}
