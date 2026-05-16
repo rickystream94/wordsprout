@@ -65,7 +65,7 @@ export interface SearchResult {
 
 export function search(query: string): SearchResult[] {
   if (!query.trim()) return [];
-  return index.search(query).map((r) => ({ id: r.id, score: r.score }));
+  return index.search(query, { combineWith: 'AND' }).map((r) => ({ id: r.id, score: r.score }));
 }
 
 export function searchIds(query: string): Set<string> {

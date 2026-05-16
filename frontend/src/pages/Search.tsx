@@ -213,7 +213,7 @@ export default function Search() {
             onDone={handleEditEntry}
             initialValues={editingEntry}
             initialEnrichment={editingEnrichment}
-            existingEntries={loadedEntries}
+            existingEntries={loadedEntries.filter((e) => e.phrasebookId === editingEntry.phrasebookId)}
             sourceLanguageName={allPhrasebooks?.find((pb) => pb.id === editingEntry.phrasebookId)?.sourceLanguageName}
             targetLanguageName={allPhrasebooks?.find((pb) => pb.id === editingEntry.phrasebookId)?.targetLanguageName}
           />
