@@ -71,3 +71,15 @@ export function isAccessTokenExpiringSoon(bufferMs = 60_000): boolean {
   if (!claims) return true;
   return claims.exp * 1000 - Date.now() < bufferMs;
 }
+
+/**
+ * Decodes and returns the claims from the stored access token (even if expired).
+ * Used to derive provider/userId/email after a session restore.
+ */
+export function getSessionClaims(): { sub: string; email: string; provider: string } | null {
+  const token = localStorage.getItem(ACCESS_KEY);
+  if (!token) return null;
+  const claims = decodeAccessToken(token);
+  if (!claims || !claims.provider) return null;
+  return { sub: claims.sub, email: claims.email ?? '', provider: claims.provider };
+}

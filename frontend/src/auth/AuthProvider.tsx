@@ -12,7 +12,7 @@ import {
   getGoogleSub,
 } from './googleAuth';
 import { fetchMsProfilePhoto, clearMsPhotoCache } from './msGraphAuth';
-import { clearSession, getStoredRefreshToken, hasValidSession, storeSession } from './sessionTokens';
+import { clearSession, getSessionClaims, getStoredRefreshToken, hasValidSession, storeSession } from './sessionTokens';
 import { exchangeOidcForSession, getAccessToken } from '../services/api';
 import { API_BASE, GOOGLE_CLIENT_ID } from '../config/env';
 
@@ -85,27 +85,40 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
   // (backward compat for the window between login and session exchange)
   const effectivelyAuthenticated = sessionActive || googleActive || msActive;
 
-  const provider: AuthProvider = googleActive
-    ? 'google'
-    : msActive
-      ? 'microsoft'
-      : null;
+  // When a backend session is active, derive identity from the session token
+  // claims (they persist across OIDC token expiry). Fall back to OIDC sources
+  // only during the initial login window before session exchange completes.
+  const sessionClaims = sessionActive ? getSessionClaims() : null;
+
+  const provider: AuthProvider = sessionClaims
+    ? (sessionClaims.provider as AuthProvider)
+    : googleActive
+      ? 'google'
+      : msActive
+        ? 'microsoft'
+        : null;
 
   const msAccount = accounts[0];
 
-  const userId = googleActive && googleCredential
-    ? getGoogleSub(googleCredential)
-    : (msAccount?.localAccountId ?? null);
+  const userId = sessionClaims
+    ? sessionClaims.sub
+    : googleActive && googleCredential
+      ? getGoogleSub(googleCredential)
+      : (msAccount?.localAccountId ?? null);
 
-  const email = googleActive && googleCredential
-    ? getGoogleEmail(googleCredential)
-    : (msAccount?.idTokenClaims?.['email'] as string | undefined ??
-       msAccount?.username ??
-       null);
+  const email = sessionClaims
+    ? sessionClaims.email
+    : googleActive && googleCredential
+      ? getGoogleEmail(googleCredential)
+      : (msAccount?.idTokenClaims?.['email'] as string | undefined ??
+         msAccount?.username ??
+         null);
 
-  const sub = googleActive && googleCredential
-    ? getGoogleSub(googleCredential)
-    : ((msAccount?.idTokenClaims?.['sub'] as string | undefined) ?? null);
+  const sub = sessionClaims
+    ? sessionClaims.sub
+    : googleActive && googleCredential
+      ? getGoogleSub(googleCredential)
+      : ((msAccount?.idTokenClaims?.['sub'] as string | undefined) ?? null);
 
   const googlePicture = googleActive && googleCredential ? getGooglePicture(googleCredential) : null;
   const picture = googleActive ? googlePicture : msPicture;
