@@ -217,9 +217,14 @@ if (-not $SkipApp) {
         --output tsv
 
     $distPath = Join-Path $RepoRoot 'frontend' 'dist'
-    npx --yes @azure/static-web-apps-cli deploy $distPath `
+    # SWA CLI 2.x: use --output-location (not positional path) and --deployment-environment
+    # Pass token via env var to avoid PowerShell special-char issues
+    $env:SWA_CLI_DEPLOYMENT_TOKEN = $swaToken
+    npx --yes @azure/static-web-apps-cli@2 deploy `
+        --output-location $distPath `
         --deployment-token $swaToken `
-        --env default
+        --env production `
+        --no-use-keychain
 
     if ($LASTEXITCODE -ne 0) {
         Write-Fail 'SWA frontend deployment failed. Review the error above.'
