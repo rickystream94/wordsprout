@@ -88,5 +88,20 @@ export function createMockCosmosClient(): CosmosClientWrapper {
       const doc = store.get(id);
       return doc ? [doc as T] : [];
     },
+
+    async queryByTagInPartition<T extends ItemDefinition>(
+      partitionKey: string,
+      tag: string,
+    ): Promise<T[]> {
+      const results: T[] = [];
+      for (const doc of store.values()) {
+        if ((doc as Record<string, unknown>)['userId'] !== partitionKey) continue;
+        const tags = (doc as Record<string, unknown>)['tags'];
+        if (Array.isArray(tags) && (tags as string[]).includes(tag)) {
+          results.push(doc as T);
+        }
+      }
+      return results;
+    },
   };
 }

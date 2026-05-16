@@ -3,6 +3,7 @@ import { useAuth } from '../../auth/useAuth';
 import { useQuota } from '../../hooks/useQuota';
 import { deleteAccount } from '../../services/api';
 import { clearLocalData } from '../../services/db';
+import TagManagerModal from '../tags/TagManagerModal';
 import styles from './UserMenu.module.css';
 
 type DeleteState = 'idle' | 'confirming' | 'deleting' | 'error';
@@ -12,6 +13,7 @@ export default function UserMenu() {
   const { quota, remaining, isLow, isExhausted } = useQuota();
   const [open, setOpen] = useState(false);
   const [deleteState, setDeleteState] = useState<DeleteState>('idle');
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const initial = email ? email[0].toUpperCase() : '?';
@@ -92,6 +94,17 @@ export default function UserMenu() {
             <button
               className={styles.signOutBtn}
               role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                setTagManagerOpen(true);
+              }}
+            >
+              Manage tags
+            </button>
+            <hr className={styles.separator} />
+            <button
+              className={styles.signOutBtn}
+              role="menuitem"
               onClick={async () => {
                 setOpen(false);
                 await logout();
@@ -117,6 +130,8 @@ export default function UserMenu() {
           </div>
         )}
       </div>
+
+      {tagManagerOpen && <TagManagerModal onClose={() => setTagManagerOpen(false)} />}
 
       {deleteState === 'confirming' && (
         <div className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title">

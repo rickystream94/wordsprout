@@ -10,6 +10,7 @@ import TagInput from './TagInput';
 import ChipInput from './ChipInput';
 import { SortDropdown, type SortOption } from '../search/SortDropdown';
 import Tooltip from '../common/Tooltip';
+import TagManagerModal from '../tags/TagManagerModal';
 import styles from './EntryForm.module.css';
 
 export interface EntryFormData {
@@ -79,6 +80,7 @@ export default function EntryForm({ onDone, initialValues, initialEnrichment, ex
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [warnings, setWarnings] = useState<string[]>([]);
   const [pendingSubmit, setPendingSubmit] = useState(false);
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
 
   // Enrichment editing state (only when editing an existing entry)
   const [exampleSentences, setExampleSentences] = useState<string[]>(initialEnrichment?.exampleSentences ?? []);
@@ -294,9 +296,32 @@ export default function EntryForm({ onDone, initialValues, initialEnrichment, ex
 
       {/* Tags */}
       <div className={styles.field}>
-        <label className={styles.label}>Tags</label>
+        <div className={styles.labelRow}>
+          <span className={styles.label}>Tags</span>
+          {(tagSuggestions?.length ?? 0) > 0 && (
+            <button
+              type="button"
+              className={styles.manageTagsBtn}
+              onClick={() => setTagManagerOpen(true)}
+            >
+              Manage tags
+            </button>
+          )}
+        </div>
         <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions ?? []} />
       </div>
+
+      {tagManagerOpen && (
+        <TagManagerModal
+          onClose={() => setTagManagerOpen(false)}
+          onTagRenamed={(oldTag, newTag) =>
+            setTags((prev) => [...new Set(prev.map((t) => (t === oldTag ? newTag : t)))])
+          }
+          onTagDeleted={(tagName) =>
+            setTags((prev) => prev.filter((t) => t !== tagName))
+          }
+        />
+      )}
 
       {/* ── Enrichment fields ─────────────────────────────────────────── */}
       {isEditing ? (

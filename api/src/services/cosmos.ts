@@ -44,6 +44,12 @@ export interface CosmosClientWrapper {
    * Used when the partition key is unknown (e.g. session refresh by token hash).
    */
   queryById<T extends ItemDefinition>(id: string): Promise<T[]>;
+
+  /**
+   * Query all documents in a partition whose `tags` array contains the given tag value.
+   * Uses ARRAY_CONTAINS in Cosmos SQL for efficient server-side filtering.
+   */
+  queryByTagInPartition<T extends ItemDefinition>(partitionKey: string, tag: string): Promise<T[]>;
 }
 
 // ─── Real Cosmos DB implementation ───────────────────────────────────────────
@@ -128,6 +134,25 @@ function buildRealClient(): CosmosClientWrapper {
           query: 'SELECT * FROM c WHERE c.id = @id',
           parameters: [{ name: '@id', value: id }],
         })
+        .fetchAll();
+      return resources;
+    },
+
+    async queryByTagInPartition<T extends ItemDefinition>(
+      partitionKey: string,
+      tag: string,
+    ): Promise<T[]> {
+      const { resources } = await container.items
+        .query<T>(
+          {
+            query: 'SELECT * FROM c WHERE c.userId = @userId AND ARRAY_CONTAINS(c.tags, @tag)',
+            parameters: [
+              { name: '@userId', value: partitionKey },
+              { name: '@tag', value: tag },
+            ],
+          },
+          { partitionKey },
+        )
         .fetchAll();
       return resources;
     },

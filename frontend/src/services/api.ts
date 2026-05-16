@@ -261,6 +261,21 @@ export const entriesApi = {
     apiFetch<void>(`/entries/${id}`, { method: 'DELETE' }),
 };
 
+// Tags
+export interface TagOperationResult {
+  updatedCount: number;
+}
+
+export const tagsApi = {
+  rename: (oldTag: string, newTag: string) =>
+    apiFetch<TagOperationResult>('/tags', {
+      method: 'PATCH',
+      body: JSON.stringify({ oldTag, newTag }),
+    }),
+  delete: (tagName: string) =>
+    apiFetch<TagOperationResult>(`/tags/${encodeURIComponent(tagName)}`, { method: 'DELETE' }),
+};
+
 // AI enrichment
 
 export const enrichmentsApi = {

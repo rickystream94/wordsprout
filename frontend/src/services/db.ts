@@ -311,6 +311,42 @@ export async function getTagSuggestions(userId: string): Promise<string[]> {
   return [...tagSet].sort();
 }
 
+export async function renameTag(userId: string, oldTag: string, newTag: string): Promise<number> {
+  const entries = await db.entries
+    .where('tags')
+    .equals(oldTag)
+    .filter((e) => e.userId === userId)
+    .toArray();
+
+  const now = new Date().toISOString();
+  await Promise.all(
+    entries.map((entry) => {
+      const tags = [...new Set(entry.tags.map((t) => (t === oldTag ? newTag : t)))];
+      return db.entries.update(entry.id, { tags, updatedAt: now });
+    }),
+  );
+
+  return entries.length;
+}
+
+export async function deleteTag(userId: string, tagName: string): Promise<number> {
+  const entries = await db.entries
+    .where('tags')
+    .equals(tagName)
+    .filter((e) => e.userId === userId)
+    .toArray();
+
+  const now = new Date().toISOString();
+  await Promise.all(
+    entries.map((entry) => {
+      const tags = entry.tags.filter((t) => t !== tagName);
+      return db.entries.update(entry.id, { tags, updatedAt: now });
+    }),
+  );
+
+  return entries.length;
+}
+
 // ─── Enrichment helpers (used by US5) ────────────────────────────────────────
 
 export async function upsertEnrichment(enrichment: DBEnrichment): Promise<void> {
