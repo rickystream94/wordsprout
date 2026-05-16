@@ -131,7 +131,7 @@ export function generateUser(userId: string): SeedUser {
   const now = new Date().toISOString();
   const tomorrow = new Date(Date.now() + 86_400_000).toISOString();
   return {
-    id: `user:${userId}`,
+    id: userId,
     userId,
     type: 'user',
     email: 'local-dev@wordsprout.test',

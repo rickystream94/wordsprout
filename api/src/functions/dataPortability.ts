@@ -203,10 +203,24 @@ async function importData(
     ...sanitisedEnrichments.map((doc) => cosmosClient.upsert(doc)),
   ]);
 
-  // Step 8 — Update rate-limit timestamp on User document
-  if (user) {
-    await cosmosClient.upsert<User>({ ...user, lastImportAt: now });
-  }
+  // Step 8 — Update rate-limit timestamp on User document.
+  // If the User document doesn't exist yet (e.g. new account in local dev),
+  // create a minimal one so the rate-limit is enforced on the next import too.
+  const updatedUser: User = user
+    ? { ...user, lastImportAt: now }
+    : {
+        id: userId,
+        userId,
+        type: 'user',
+        email: '',
+        aiQuotaUsedToday: 0,
+        aiDailyEnrichmentLimit: 10,
+        aiQuotaResetAt: now,
+        lastImportAt: now,
+        createdAt: now,
+        updatedAt: now,
+      };
+  await cosmosClient.upsert<User>(updatedUser);
 
   // Step 9 — Return canonical dataset for client re-hydration
   const result: ImportResult = {
