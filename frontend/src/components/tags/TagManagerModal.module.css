@@ -175,6 +175,13 @@
   opacity: 1;
 }
 
+/* Touch devices have no hover — always show action buttons */
+@media (hover: none) {
+  .rowActions {
+    opacity: 1;
+  }
+}
+
 .iconBtn {
   background: none;
   border: none;
