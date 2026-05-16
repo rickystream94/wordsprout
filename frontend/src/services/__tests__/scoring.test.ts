@@ -11,7 +11,6 @@ import {
   todayKey,
   BASE_GAIN,
   LOSS,
-  TYPO_FACTOR,
   MAX_SCORE,
   MIN_SCORE,
 } from '../scoring';

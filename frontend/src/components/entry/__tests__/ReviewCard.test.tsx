@@ -1,7 +1,6 @@
 import { vi, describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import React from 'react';
 import ReviewCard, { type ReviewCardProps } from '../ReviewCard';
 import type { DBEntry } from '../../../services/db';
 

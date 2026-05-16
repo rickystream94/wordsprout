@@ -28,7 +28,10 @@ const PB: DBPhrasebook = {
   userId: 'user-1',
   name: 'Test Book',
   sourceLanguageCode: 'it',
+  sourceLanguageName: 'Italian',
   targetLanguageCode: 'en',
+  targetLanguageName: 'English',
+  entryCount: 1,
   createdAt: NOW,
   updatedAt: NOW,
 };

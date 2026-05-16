@@ -6,10 +6,6 @@ const {
   mockMeta, mockPhrasebooks, mockEntries, mockEnrichments, mockPendingSync, mockTransaction,
   mockPhrasebooksApi, mockEntriesApi, mockEnrichmentsApi, mockRebuildIndex,
 } = vi.hoisted(() => {
-  const mockTransaction = vi.fn(async (...args: unknown[]) => {
-    const fn = args[args.length - 1] as () => Promise<void>;
-    return fn();
-  });
   return {
     mockMeta: { get: vi.fn(async () => null as unknown), put: vi.fn(async () => undefined) },
     mockPhrasebooks: { count: vi.fn(async () => 0), clear: vi.fn(async () => undefined), bulkPut: vi.fn(async () => undefined) },
@@ -134,7 +130,7 @@ describe('enqueueMutation', () => {
     await enqueueMutation('/api/entries', 'POST', { sourceText: 'ciao' });
 
     expect(mockPendingSync.add).toHaveBeenCalledOnce();
-    const [doc] = mockPendingSync.add.mock.calls[0] as [Record<string, unknown>];
+    const [doc] = mockPendingSync.add.mock.calls[0] as unknown as [Record<string, unknown>];
     expect(doc.url).toBe('/api/entries');
     expect(doc.method).toBe('POST');
     expect(doc.status).toBe('pending');
@@ -144,14 +140,14 @@ describe('enqueueMutation', () => {
     const body = { key: 'value' };
     await enqueueMutation('/api/test', 'PUT', body);
 
-    const [doc] = mockPendingSync.add.mock.calls[0] as [Record<string, unknown>];
+    const [doc] = mockPendingSync.add.mock.calls[0] as unknown as [Record<string, unknown>];
     expect(doc.body).toBe(JSON.stringify(body));
   });
 
   it('adds mutation without body when body is undefined', async () => {
     await enqueueMutation('/api/entries/1', 'DELETE');
 
-    const [doc] = mockPendingSync.add.mock.calls[0] as [Record<string, unknown>];
+    const [doc] = mockPendingSync.add.mock.calls[0] as unknown as [Record<string, unknown>];
     expect(doc.body).toBeUndefined();
     expect(doc.method).toBe('DELETE');
   });
