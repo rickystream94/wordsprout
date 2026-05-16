@@ -35,6 +35,10 @@
 
 .EXAMPLE
     .\scripts\deploy-dev.ps1 -SkipInfra
+
+.EXAMPLE
+    # Deploy without running tests (useful when tests were already run locally)
+    .\scripts\deploy-dev.ps1 -SkipTests
 #>
 [CmdletBinding()]
 param(
@@ -45,7 +49,8 @@ param(
     [string] $Location,
 
     [switch] $SkipInfra,
-    [switch] $SkipApp
+    [switch] $SkipApp,
+    [switch] $SkipTests
 )
 
 $ErrorActionPreference = 'Stop'
@@ -187,6 +192,11 @@ if (-not $SkipApp) {
         cmd /c "rmdir /s /q node_modules" 2>$null
         npm install --prefer-offline --legacy-peer-deps
         if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
+        if (-not $SkipTests) {
+            Write-Host '  Running frontend tests...' -ForegroundColor DarkGray
+            npm run test:coverage
+            if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed' }
+        }
         npm run build -- --mode dev
         if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed' }
     } finally {
@@ -227,6 +237,11 @@ if (-not $SkipApp) {
         cmd /c "rmdir /s /q node_modules" 2>$null
         npm install --prefer-offline
         if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
+        if (-not $SkipTests) {
+            Write-Host '  Running API tests...' -ForegroundColor DarkGray
+            npm run test:coverage
+            if ($LASTEXITCODE -ne 0) { throw 'API tests failed' }
+        }
         npm run build
         if ($LASTEXITCODE -ne 0) { throw 'API build failed' }
     } finally {

@@ -107,6 +107,26 @@ requires explicit justification relative to the budget constraint.
 **Rationale**: WordSprout is a personal-scale product. Architectural discipline is the
 mechanism that keeps it financially sustainable without external funding.
 
+### VI. Test Coverage as First-Class Citizen
+
+Unit tests are not optional polish. They are a mandatory deliverable for all business logic,
+services, middleware, and UI components with non-trivial logic.
+
+- Every new API function handler, middleware, service, or utility in `api/src/` MUST have a
+  corresponding `__tests__/` file co-located next to the module.
+- Every new frontend hook, service function, or UI component with logic MUST have a
+  `__tests__/` file co-located next to the module.
+- Coverage thresholds MUST NOT be lowered without documented justification. New code MUST NOT
+  regress existing coverage.
+- AI-generated code is not exempt: all AI-assisted implementations MUST include tests before
+  merge.
+- `npm run test:coverage` MUST pass in both `api/` and `frontend/` packages before any
+  feature branch is considered complete.
+
+**Rationale**: Without automated test coverage, refactoring and feature additions become
+progressively riskier as the codebase grows. Tests are the safety net that makes continuous
+delivery sustainable.
+
 ## Technical Architecture Constraints
 
 The following stack is mandated for the initial release. Deviations require a formal
@@ -169,4 +189,4 @@ conflict exists, the constitution wins.
 - Principles III and V are non-negotiable: they MUST NOT be relaxed without a full
   architectural review and MAJOR version bump.
 
-**Version**: 1.0.0 | **Ratified**: 2026-04-12 | **Last Amended**: 2026-04-12
+**Version**: 1.1.0 | **Ratified**: 2026-04-12 | **Last Amended**: 2026-05-16
