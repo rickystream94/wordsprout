@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { InstallPromptContext } from './installPromptContext';
+import { InstallPromptContext } from './installPromptCtx';
 
 /** Non-standard browser event; only available on Android/Chrome/Edge/Samsung. */
 interface BeforeInstallPromptEvent extends Event {

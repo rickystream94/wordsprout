@@ -2,7 +2,7 @@ import { useContext } from 'react';
 import {
   InstallPromptContext,
   type InstallPromptContextValue,
-} from './installPromptContext';
+} from './installPromptCtx';
 
 export type { InstallPromptContextValue };
 
