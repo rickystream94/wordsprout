@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { getEnrichment, upsertEnrichment, updateEntry, type DBEnrichment, type DBEntry } from '../../services/db';
 import { enrichApi } from '../../services/api';
@@ -30,6 +30,12 @@ export default function EntryList({ entries, onEdit, onDelete, phrasebooks }: En
   const isOnline = navigator.onLine;
   const pendingIds = usePendingIds();
 
+  const [scrollMargin, setScrollMargin] = useState(0);
+  const listRefCallback = useCallback((node: HTMLDivElement | null) => {
+    listRef.current = node;
+    setScrollMargin(node?.offsetTop ?? 0);
+  }, []);
+
   // useWindowVirtualizer uses the window as the scroll container, keeping
   // natural page scroll behaviour (no nested scroll box).
   // scrollMargin = distance from the document top to this list — tells the
@@ -38,7 +44,7 @@ export default function EntryList({ entries, onEdit, onDelete, phrasebooks }: En
     count: entries.length,
     estimateSize: () => 88, // ~76 px collapsed card + 12 px gap
     overscan: 3,
-    scrollMargin: listRef.current?.offsetTop ?? 0,
+    scrollMargin,
   });
 
   if (entries.length === 0) {
@@ -51,7 +57,7 @@ export default function EntryList({ entries, onEdit, onDelete, phrasebooks }: En
   }
 
   return (
-    <div ref={listRef}>
+    <div ref={listRefCallback}>
       <ul
         className={styles.list}
         role="list"
