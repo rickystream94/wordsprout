@@ -120,8 +120,8 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
       ? getGoogleSub(googleCredential)
       : ((msAccount?.idTokenClaims?.['sub'] as string | undefined) ?? null);
 
-  const googlePicture = googleActive && googleCredential ? getGooglePicture(googleCredential) : null;
-  const picture = googleActive ? googlePicture : msPicture;
+  const googlePicture = googleCredential ? getGooglePicture(googleCredential) : null;
+  const picture = provider === 'google' ? googlePicture : msPicture;
 
   // Exchange an OIDC token for a backend session (fire-and-forget)
   const exchangeForSession = async (oidcToken: string) => {
