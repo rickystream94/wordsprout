@@ -1,0 +1,136 @@
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-6, 1.5rem) var(--space-4, 1rem);
+}
+
+.section {
+  margin-block: var(--space-6, 1.5rem);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-lg, 1.125rem);
+  font-weight: 600;
+  margin-bottom: var(--space-2, 0.5rem);
+}
+
+.description {
+  color: var(--color-text-muted, #6b7280);
+  margin-bottom: var(--space-4, 1rem);
+  font-size: var(--font-size-sm, 0.875rem);
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-3, 0.75rem);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4, 1rem);
+}
+
+.btn {
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btnPrimary {
+  background: var(--brand-500);
+  color: var(--text-on-brand);
+}
+
+.btnPrimary:hover {
+  background: var(--brand-600);
+}
+
+.btnSecondary {
+  background: transparent;
+  color: var(--brand-600);
+  border: 1px solid var(--brand-400);
+}
+
+.btnSecondary:hover {
+  background: var(--bg-subtle);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.statusMessage {
+  font-size: var(--font-size-sm, 0.875rem);
+  margin-top: var(--space-2, 0.5rem);
+}
+
+.statusMessage.success {
+  color: var(--color-success, #16a34a);
+}
+
+.statusMessage.error {
+  color: var(--color-danger, #dc2626);
+}
+
+/* ── Import confirmation modal ─────────────────────────────────────────── */
+
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: var(--space-4, 1rem);
+}
+
+.confirmDialog {
+  background: var(--color-surface, #fff);
+  border-radius: var(--radius-lg, 0.75rem);
+  padding: var(--space-6, 1.5rem);
+  max-width: 480px;
+  width: 100%;
+  box-shadow: var(--shadow-lg, 0 10px 25px rgba(0, 0, 0, 0.15));
+}
+
+.confirmDialog h2 {
+  font-size: var(--font-size-lg, 1.125rem);
+  font-weight: 600;
+  margin-bottom: var(--space-3, 0.75rem);
+}
+
+.confirmDialog p {
+  color: var(--color-text-muted, #6b7280);
+  font-size: var(--font-size-sm, 0.875rem);
+  line-height: 1.5;
+  margin-bottom: var(--space-4, 1rem);
+}
+
+.confirmActions {
+  display: flex;
+  gap: var(--space-3, 0.75rem);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────────── */
+
+.spinner {
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

@@ -22,6 +22,7 @@ import NotFound from './pages/NotFound';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
 import About from './pages/About';
+import Settings from './pages/Settings';
 import './styles/tokens.css';
 import './styles/global.css';
 
@@ -115,6 +116,7 @@ async function bootstrap() {
                   <Route path="/phrasebooks/:id" element={<ErrorBoundary><PhrasebookView /></ErrorBoundary>} />
                   <Route path="/search" element={<ErrorBoundary><Search /></ErrorBoundary>} />
                   <Route path="/review" element={<ErrorBoundary><Review /></ErrorBoundary>} />
+                  <Route path="/settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
                 </Route>
               </Route>
 

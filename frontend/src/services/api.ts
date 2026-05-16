@@ -208,6 +208,7 @@ import {
   type DBPhrasebook,
 } from '../services/db';
 import type { Language, UserQuota } from '../types/models';
+import type { ExportPackage } from './export';
 
 // Languages (unauthenticated)
 export const languagesApi = {
@@ -377,4 +378,21 @@ export const quotaApi = {
 // Account
 export async function deleteAccount(): Promise<void> {
   await apiFetch<void>('/account', { method: 'DELETE' }, true);
+}
+
+// Data portability
+export interface ImportResult {
+  phrasebooksImported: number;
+  entriesImported: number;
+  enrichmentsImported: number;
+  phrasebooks: DBPhrasebook[];
+  entries: DBEntry[];
+  enrichments: DBEnrichment[];
+}
+
+export async function importData(pkg: ExportPackage): Promise<ImportResult> {
+  return apiFetch<ImportResult>('/data/import', {
+    method: 'POST',
+    body: JSON.stringify(pkg),
+  });
 }

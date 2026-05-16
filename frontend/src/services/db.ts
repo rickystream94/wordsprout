@@ -407,3 +407,39 @@ export async function getEntriesForSession(
 export async function clearLocalData(): Promise<void> {
   await Dexie.delete('wordsprout');
 }
+
+// ─── Data portability (export / import) ──────────────────────────────────────
+
+/**
+ * Clears all user-owned content from IndexedDB and flushes the pending-sync
+ * queue. Used as the first step of an import restore, immediately after the
+ * server confirms a successful import and returns the canonical dataset.
+ *
+ * Runs in a single read-write transaction for atomicity.
+ */
+export async function clearUserContent(userId: string): Promise<void> {
+  await db.transaction('rw', [db.phrasebooks, db.entries, db.enrichments, db.pendingSync], async () => {
+    await db.phrasebooks.where('userId').equals(userId).delete();
+    await db.entries.where('userId').equals(userId).delete();
+    await db.enrichments.where('userId').equals(userId).delete();
+    await db.pendingSync.clear();
+  });
+}
+
+/**
+ * Bulk-writes the canonical server dataset returned by POST /data/import into
+ * IndexedDB. Uses bulkPut so that records are inserted or replaced idempotently.
+ *
+ * Runs in a single read-write transaction for atomicity.
+ */
+export async function bulkRestoreFromExport(
+  phrasebooks: DBPhrasebook[],
+  entries: DBEntry[],
+  enrichments: DBEnrichment[],
+): Promise<void> {
+  await db.transaction('rw', [db.phrasebooks, db.entries, db.enrichments], async () => {
+    await db.phrasebooks.bulkPut(phrasebooks);
+    await db.entries.bulkPut(entries);
+    await db.enrichments.bulkPut(enrichments);
+  });
+}

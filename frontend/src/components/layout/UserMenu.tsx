@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
 import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 import { useQuota } from '../../hooks/useQuota';
@@ -11,6 +12,7 @@ type DeleteState = 'idle' | 'confirming' | 'deleting' | 'error';
 
 export default function UserMenu() {
   const { email, provider, logout, picture } = useAuth();
+  const navigate = useNavigate();
   const { quota, remaining, isLow, isExhausted } = useQuota();
   const { canPromptAndroid, isIOS, isInstalled, isMobile, prompt: installPrompt } = useInstallPrompt();
   const [open, setOpen] = useState(false);
@@ -137,6 +139,14 @@ export default function UserMenu() {
               }}
             >
               Manage tags
+            </button>
+            <hr className={styles.separator} />
+            <button
+              className={styles.signOutBtn}
+              role="menuitem"
+              onClick={() => { setOpen(false); navigate('/settings'); }}
+            >
+              Settings
             </button>
             <hr className={styles.separator} />
             <button

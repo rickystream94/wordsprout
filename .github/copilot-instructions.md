@@ -1,6 +1,6 @@
 # WordSprout Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-05-15
+Auto-generated from all feature plans. Last updated: 2026-05-16
 
 ## Active Technologies
 - TypeScript 5.x (frontend + API) + React 18, Vite, Dexie.js, MiniSearch, MSAL.js v3; Azure Functions Node.js v4, @azure/cosmos, jsonwebtoken, jwks-rsa, isomorphic-dompurify (001-phrasebook-pwa-mvp)
@@ -13,6 +13,8 @@ Auto-generated from all feature plans. Last updated: 2026-05-15
 - Azure Cosmos DB Serverless (server-side); IndexedDB via Dexie.js (client-side) (004-privacy-compliance)
 - TypeScript 5.x (frontend + API) + React 18, Dexie.js 4.x, MSAL.js v3, react-router-dom (frontend); Azure Functions Node.js v4, @azure/cosmos, isomorphic-dompurify (API) (feature/005-sample-template-phrasebook)
 - IndexedDB via Dexie.js (client primary); Azure Cosmos DB Serverless NoSQL (server sync target) (feature/005-sample-template-phrasebook)
+- TypeScript 5.x (frontend + API) + React 18, Dexie.js 4.x (IndexedDB), MSAL.js v3, react-router-dom (frontend); Azure Functions Node.js v4, @azure/cosmos, isomorphic-dompurify (API) (006-data-export-import)
+- IndexedDB via Dexie.js (client primary); Azure Cosmos DB Serverless NoSQL (server) (006-data-export-import)
 
 - [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION] (001-phrasebook-pwa-mvp)
 
@@ -33,9 +35,9 @@ cd src; pytest; ruff check .
 [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]: Follow standard conventions
 
 ## Recent Changes
+- 006-data-export-import: Added TypeScript 5.x (frontend + API) + React 18, Dexie.js 4.x (IndexedDB), MSAL.js v3, react-router-dom (frontend); Azure Functions Node.js v4, @azure/cosmos, isomorphic-dompurify (API)
 - feature/005-sample-template-phrasebook: Added TypeScript 5.x (frontend + API) + React 18, Dexie.js 4.x, MSAL.js v3, react-router-dom (frontend); Azure Functions Node.js v4, @azure/cosmos, isomorphic-dompurify (API)
 - 004-privacy-compliance: Added TypeScript 5.x (frontend + API) + React 18, react-router-dom, Dexie.js 4.x, MSAL.js v3 (frontend); Azure Functions Node.js v4, @azure/cosmos, isomorphic-dompurify, jsonwebtoken, jwks-rsa (API)
-- 003-cicd-azure-infra-deploy: Added TypeScript 5.x (existing app code, unchanged); PowerShell 7.x (deploy scripts); Bicep ≥ 0.26 (IaC); GitHub Actions YAML (CI/CD) + Azure CLI ≥ 2.60, Azure Functions Core Tools v4, Bicep CLI (via `az bicep`), `azure/login@v2`, `azure/static-web-apps-deploy@v1` (GitHub Actions)
 
 
 <!-- MANUAL ADDITIONS START -->

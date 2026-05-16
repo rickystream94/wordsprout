@@ -38,6 +38,7 @@ export interface User extends CosmosDocument {
   aiQuotaUsedToday: number;
   aiQuotaResetAt: string; // ISO 8601 — UTC midnight when quota resets
   aiDailyEnrichmentLimit: number;
+  lastImportAt?: string;  // ISO 8601 — timestamp of last successful import (rate-limit gate)
 }
 
 export interface AllowList extends CosmosDocument {
@@ -153,4 +154,77 @@ export interface PendingMutation {
   createdAt: string;
   lastAttemptAt?: string;
   errorMessage?: string;
+}
+
+// ─── Data portability (export / import) ──────────────────────────────────────
+
+export interface ExportPhrasebook {
+  // Mandatory
+  id:                 string;
+  name:               string;
+  sourceLanguageCode: string;
+  targetLanguageCode: string;
+  createdAt:          string;
+  updatedAt:          string;
+  // Optional
+  sourceLanguageName?: string;
+  targetLanguageName?: string;
+  entryCount?:         number;
+  fromTemplate?:       boolean;
+}
+
+export interface ExportEntry {
+  // Mandatory
+  id:           string;
+  phrasebookId: string;
+  sourceText:   string;
+  createdAt:    string;
+  updatedAt:    string;
+  // Optional
+  targetText?:       string;
+  notes?:            string;
+  tags:              string[];
+  partOfSpeech?:     PartOfSpeech;
+  learningScore?:    number;
+  lastReviewedDate?: string | null;
+  enrichmentId?:     string;
+}
+
+export interface ExportEnrichment {
+  // Mandatory
+  id:        string;
+  entryId:   string;
+  createdAt: string;
+  updatedAt: string;
+  // Optional (all enrichment content fields)
+  exampleSentences?:  string[];
+  synonyms?:          string[];
+  antonyms?:          string[];
+  collocations?:      string[];
+  register?:          string;
+  falseFriendWarning?: string;
+  generatedAt?:       string;
+  editedAt?:          string;
+}
+
+export interface ExportData {
+  phrasebooks:  ExportPhrasebook[];
+  entries:      ExportEntry[];
+  enrichments:  ExportEnrichment[];
+}
+
+export interface ExportPackage {
+  schemaVersion: 1;
+  app:           'wordsprout';
+  exportedAt:    string;
+  data:          ExportData;
+}
+
+export interface ImportResult {
+  phrasebooksImported:  number;
+  entriesImported:      number;
+  enrichmentsImported:  number;
+  phrasebooks:          Phrasebook[];
+  entries:              VocabularyEntry[];
+  enrichments:          AIEnrichment[];
 }

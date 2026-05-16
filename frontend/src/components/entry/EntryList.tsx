@@ -186,7 +186,7 @@ function EntryCard({
   const hasEnrichment = !!enrichment?.generatedAt;
 
   return (
-    <li className={`${styles.card} ${isExpanded ? styles.cardExpanded : ''} ${isPending ? styles.cardPending : ''}`}>
+    <article className={`${styles.card} ${isExpanded ? styles.cardExpanded : ''} ${isPending ? styles.cardPending : ''}`}>
       <div
         className={styles.cardMain}
         onClick={handleToggle}
@@ -306,6 +306,6 @@ function EntryCard({
           </div>
         </div>
       )}
-    </li>
+    </article>
   );
 }
