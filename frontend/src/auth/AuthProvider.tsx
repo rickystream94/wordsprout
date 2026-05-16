@@ -81,14 +81,16 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
   const googleActive = googleCredential !== null && isGoogleAuthenticated();
   const msActive = msIsAuthenticated && accounts.length > 0;
 
-  // User is authenticated if they have a backend session OR an active OIDC session
-  // (backward compat for the window between login and session exchange)
-  const effectivelyAuthenticated = sessionActive || googleActive || msActive;
+  // User is authenticated if they have a backend session, are restoring one,
+  // or have an active OIDC session (backward compat for the login→exchange window).
+  const effectivelyAuthenticated = sessionActive || sessionRestoring || googleActive || msActive;
 
-  // When a backend session is active, derive identity from the session token
-  // claims (they persist across OIDC token expiry). Fall back to OIDC sources
-  // only during the initial login window before session exchange completes.
-  const sessionClaims = sessionActive ? getSessionClaims() : null;
+  // Derive identity from the stored session token claims (even if the access token
+  // is expired — the claims are still valid metadata). This ensures correct
+  // provider/email during session restore, before the refresh completes.
+  // Falls back to OIDC sources only during the initial login window before
+  // the first session exchange completes.
+  const sessionClaims = getSessionClaims();
 
   const provider: AuthProvider = sessionClaims
     ? (sessionClaims.provider as AuthProvider)
