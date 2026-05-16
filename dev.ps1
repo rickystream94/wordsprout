@@ -144,7 +144,7 @@ Write-Host ""
 Write-Host "In LOCAL mode:" -ForegroundColor DarkGray
  Write-Host "  · Real Google / Microsoft authentication is required" -ForegroundColor DarkGray
  Write-Host "  · Any authenticated account is allowed (no allow-list check)" -ForegroundColor DarkGray
- Write-Host "  · Cosmos DB is an in-memory mock (data resets on API restart)" -ForegroundColor DarkGray
+ Write-Host "  · Cosmos DB is a file-backed mock (data persists in api/.cosmos-mock.json)" -ForegroundColor DarkGray
  Write-Host "  · AI enrichment returns fixture data (no Azure AI key needed)" -ForegroundColor DarkGray
 Write-Host ""
 
