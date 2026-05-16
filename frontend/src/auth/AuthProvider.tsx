@@ -62,9 +62,10 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
   const msIsAuthenticated = useIsAuthenticated();
 
   // Google credential state — initialised from module store so it survives
-  // StrictMode double-renders without losing the token.
+  // StrictMode double-renders without losing the token. Load regardless of
+  // expiry so the picture URL (which doesn't expire) is always available.
   const [googleCredential, setGoogleCredentialState] = useState<string | null>(
-    () => (isGoogleAuthenticated() ? getGoogleCredential() : null),
+    () => getGoogleCredential(),
   );
 
   // Backend session state — true when we have a valid access token
@@ -223,7 +224,7 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
     clearSession();
     setSessionActive(false);
 
-    if (googleActive) {
+    if (provider === 'google') {
       setGoogleCredential(null);
       setGoogleCredentialState(null);
       // Disable One Tap auto-select so the account picker shows next time
