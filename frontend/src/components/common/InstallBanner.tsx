@@ -9,7 +9,7 @@ export default function InstallBanner() {
   return (
     <div className={styles.banner} role="complementary" aria-label="Install app prompt">
       <img
-        src="/favicon.svg"
+        src="/icons/wordsprout-logo-192.png"
         alt=""
         aria-hidden="true"
         className={styles.appIcon}

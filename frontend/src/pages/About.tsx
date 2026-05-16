@@ -13,7 +13,7 @@ export default function About() {
       {/* ── Sticky top bar ─────────────────────────────────────── */}
       <div className={styles.topBar}>
         <Link to={isAuthenticated ? '/' : '/login'} className={styles.topBarLogo}>
-          <img src="/favicon.svg" alt="" aria-hidden="true" className={styles.topBarLogoIcon} />
+          <img src="/icons/wordsprout-logo-192.png" alt="" aria-hidden="true" className={styles.topBarLogoIcon} />
           WordSprout
         </Link>
         {isAuthenticated ? (

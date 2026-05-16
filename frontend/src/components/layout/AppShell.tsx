@@ -40,7 +40,7 @@ export default function AppShell() {
     <div className={styles.shell}>
       <header className={styles.header}>
         <NavLink to="/" className={styles.logo}>
-          <img src="/favicon.svg" alt="" aria-hidden="true" className={styles.logoIcon} />
+          <img src="/icons/wordsprout-logo-192.png" alt="" aria-hidden="true" className={styles.logoIcon} />
           WordSprout
         </NavLink>
         <nav className={styles.nav}>
