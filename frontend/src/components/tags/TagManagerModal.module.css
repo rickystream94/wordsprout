@@ -175,8 +175,8 @@
   opacity: 1;
 }
 
-/* Touch devices have no hover — always show action buttons */
-@media (hover: none) {
+/* Touch devices: coarse pointer (finger) or no hover — always show action buttons */
+@media (hover: none), (pointer: coarse) {
   .rowActions {
     opacity: 1;
   }
