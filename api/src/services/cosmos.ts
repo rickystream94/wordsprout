@@ -1,4 +1,4 @@
-import { CosmosClient, type ItemDefinition } from '@azure/cosmos';
+import { CosmosClient, type FeedOptions, type ItemDefinition } from '@azure/cosmos';
 import { DefaultAzureCredential } from '@azure/identity';
 import {
   COSMOS_CONTAINER,
@@ -31,6 +31,17 @@ export interface CosmosClientWrapper {
     partitionKey: string,
     filters: Record<string, unknown>,
   ): Promise<T[]>;
+
+  /**
+   * Paginated variant of queryByPartition. Returns one page of results and
+   * an opaque `continuationToken` to fetch the next page. When
+   * `continuationToken` is `undefined` there are no more results.
+   */
+  queryByPartitionPaginated<T extends ItemDefinition>(
+    partitionKey: string,
+    filters: Record<string, unknown>,
+    options?: { maxItems?: number; continuationToken?: string },
+  ): Promise<{ items: T[]; continuationToken: string | undefined }>;
 
   /**
    * Delete all documents belonging to a partition key (userId).
@@ -113,6 +124,35 @@ function buildRealClient(): CosmosClientWrapper {
         .fetchAll();
 
       return resources;
+    },
+
+    async queryByPartitionPaginated<T extends ItemDefinition>(
+      partitionKey: string,
+      filters: Record<string, unknown>,
+      options: { maxItems?: number; continuationToken?: string } = {},
+    ): Promise<{ items: T[]; continuationToken: string | undefined }> {
+      const conditions = Object.entries(filters)
+        .map(([key]) => `c.${key} = @${key}`)
+        .join(' AND ');
+
+      const parameters: { name: string; value: string }[] = Object.entries(filters).map(([key, value]) => ({
+        name: `@${key}`,
+        value: String(value),
+      }));
+
+      const query = conditions
+        ? `SELECT * FROM c WHERE ${conditions}`
+        : 'SELECT * FROM c';
+
+      const feedOptions: FeedOptions = { partitionKey };
+      if (options.maxItems) feedOptions.maxItemCount = options.maxItems;
+      if (options.continuationToken) feedOptions.continuationToken = options.continuationToken;
+
+      const { resources, continuationToken } = await container.items
+        .query<T>({ query, parameters }, feedOptions)
+        .fetchNext();
+
+      return { items: resources, continuationToken: continuationToken ?? undefined };
     },
 
     async deleteAllForPartition(partitionKey: string): Promise<number> {

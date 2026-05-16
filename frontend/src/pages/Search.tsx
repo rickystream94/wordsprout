@@ -18,6 +18,9 @@ import styles from './Search.module.css';
 
 type SortKey = 'createdAt_desc' | 'createdAt_asc' | 'sourceText_asc' | 'sourceText_desc' | 'targetText_asc' | 'targetText_desc';
 
+/** Maximum number of entries rendered at once. Bounds DOM cost for power users. */
+const RESULTS_DISPLAY_LIMIT = 200;
+
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'createdAt_desc', label: 'Newest first' },
   { value: 'createdAt_asc',  label: 'Oldest first' },
@@ -96,6 +99,10 @@ export default function Search() {
     results = results.filter((e) => combined.has(e.id));
   }
   results = applySortEntries(results, sort);
+
+  const totalResultCount = results.length;
+  const displayedResults =
+    results.length > RESULTS_DISPLAY_LIMIT ? results.slice(0, RESULTS_DISPLAY_LIMIT) : results;
 
   // Build phrasebook id→name map; hide badge when exactly one phrasebook is selected
   const phrasebookMap = useMemo<Record<string, string>>(() => {
@@ -235,12 +242,20 @@ export default function Search() {
           onAction={() => { setQuery(''); setFilters(EMPTY_FILTERS); }}
         />
       ) : (
-        <EntryList
-          entries={results}
-          phrasebooks={phrasebookMap}
-          onEdit={(entry, enrichment) => { setEditingEntry(entry); setEditingEnrichment(enrichment); }}
-          onDelete={handleDeleteEntry}
-        />
+        <>
+          {totalResultCount > RESULTS_DISPLAY_LIMIT && (
+            <p className={styles.resultCapBanner}>
+              Showing {RESULTS_DISPLAY_LIMIT.toLocaleString()} of {totalResultCount.toLocaleString()} results
+              &nbsp;&mdash;&nbsp;refine your search to see more.
+            </p>
+          )}
+          <EntryList
+            entries={displayedResults}
+            phrasebooks={phrasebookMap}
+            onEdit={(entry, enrichment) => { setEditingEntry(entry); setEditingEnrichment(enrichment); }}
+            onDelete={handleDeleteEntry}
+          />
+        </>
       )}
     </main>
   );

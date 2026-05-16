@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { getEnrichment, upsertEnrichment, updateEntry, type DBEnrichment, type DBEntry } from '../../services/db';
 import { enrichApi } from '../../services/api';
 import { usePendingIds } from '../../services/sync';
@@ -25,8 +26,20 @@ function formatDate(iso: string): string {
 
 export default function EntryList({ entries, onEdit, onDelete, phrasebooks }: EntryListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const isOnline = navigator.onLine;
   const pendingIds = usePendingIds();
+
+  // useWindowVirtualizer uses the window as the scroll container, keeping
+  // natural page scroll behaviour (no nested scroll box).
+  // scrollMargin = distance from the document top to this list — tells the
+  // virtualizer which items are actually visible in the viewport.
+  const virtualizer = useWindowVirtualizer({
+    count: entries.length,
+    estimateSize: () => 88, // ~76 px collapsed card + 12 px gap
+    overscan: 3,
+    scrollMargin: listRef.current?.offsetTop ?? 0,
+  });
 
   if (entries.length === 0) {
     return (
@@ -38,21 +51,37 @@ export default function EntryList({ entries, onEdit, onDelete, phrasebooks }: En
   }
 
   return (
-    <ul className={styles.list}>
-      {entries.map((entry) => (
-        <EntryCard
-          key={entry.id}
-          entry={entry}
-          isExpanded={expandedId === entry.id}
-          isOnline={isOnline}
-          isPending={pendingIds.has(entry.id)}
-          phrasebookName={phrasebooks?.[entry.phrasebookId]}
-          onToggle={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
-          onEdit={onEdit}
-          onDelete={onDelete}
-        />
-      ))}
-    </ul>
+    <div ref={listRef}>
+      <ul
+        className={styles.list}
+        role="list"
+        style={{ height: `${virtualizer.getTotalSize()}px` }}
+      >
+        {virtualizer.getVirtualItems().map((vRow) => {
+          const entry = entries[vRow.index];
+          return (
+            <li
+              key={entry.id}
+              data-index={vRow.index}
+              ref={virtualizer.measureElement}
+              className={styles.virtualItem}
+              style={{ transform: `translateY(${vRow.start - virtualizer.options.scrollMargin}px)` }}
+            >
+              <EntryCard
+                entry={entry}
+                isExpanded={expandedId === entry.id}
+                isOnline={isOnline}
+                isPending={pendingIds.has(entry.id)}
+                phrasebookName={phrasebooks?.[entry.phrasebookId]}
+                onToggle={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 

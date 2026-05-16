@@ -132,6 +132,32 @@ async function listEntries(req: HttpRequest, _ctx: InvocationContext, token: Dec
   if (phrasebookId) filters['phrasebookId'] = phrasebookId;
   if (partOfSpeech) filters['partOfSpeech'] = partOfSpeech;
 
+  const limitParam = req.query.get('limit');
+  const continuationToken = req.query.get('continuationToken') ?? undefined;
+
+  // When a limit is requested (or a continuation token is supplied) respond
+  // with a paginated envelope so callers can page through large result sets.
+  if (limitParam !== null || continuationToken !== undefined) {
+    const parsedLimit = limitParam !== null ? parseInt(limitParam, 10) : 200;
+    if (isNaN(parsedLimit) || parsedLimit < 1) return apiError(400, 'limit must be a positive integer');
+    const limit = Math.min(parsedLimit, 500); // hard cap per page
+
+    const { items, continuationToken: nextToken } =
+      await cosmosClient.queryByPartitionPaginated<VocabularyEntry>(token.sub, filters, {
+        maxItems: limit,
+        continuationToken,
+      });
+
+    return {
+      status: 200,
+      jsonBody: {
+        items,
+        ...(nextToken ? { nextContinuationToken: nextToken } : {}),
+      },
+    };
+  }
+
+  // No pagination params — return flat array (backward compatibility).
   const results = await cosmosClient.queryByPartition<VocabularyEntry>(token.sub, filters);
   return { status: 200, jsonBody: results };
 }

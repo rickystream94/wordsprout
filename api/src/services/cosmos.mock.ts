@@ -70,6 +70,30 @@ export function createMockCosmosClient(): CosmosClientWrapper {
       return results;
     },
 
+    async queryByPartitionPaginated<T extends ItemDefinition>(
+      partitionKey: string,
+      filters: Record<string, unknown>,
+      options: { maxItems?: number; continuationToken?: string } = {},
+    ): Promise<{ items: T[]; continuationToken: string | undefined }> {
+      // Collect all matching docs (same logic as queryByPartition)
+      const all: T[] = [];
+      for (const doc of store.values()) {
+        if ((doc as Record<string, unknown>)['userId'] !== partitionKey) continue;
+        const matches = Object.entries(filters).every(
+          ([key, value]) => (doc as Record<string, unknown>)[key] === value,
+        );
+        if (matches) all.push(doc as T);
+      }
+
+      // Simulate pagination with a numeric offset encoded in the token
+      const offset = options.continuationToken ? parseInt(options.continuationToken, 10) : 0;
+      const limit = options.maxItems ?? all.length;
+      const page = all.slice(offset, offset + limit);
+      const nextOffset = offset + page.length;
+      const nextToken = nextOffset < all.length ? String(nextOffset) : undefined;
+      return { items: page, continuationToken: nextToken };
+    },
+
     async deleteAllForPartition(partitionKey: string): Promise<number> {
       const toDelete: string[] = [];
       for (const [key, doc] of store.entries()) {

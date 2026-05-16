@@ -234,23 +234,27 @@ export const phrasebooksApi = {
 
 // Entries
 export interface EntryQueryParams {
-  q?: string;
   phrasebookId?: string;
   tag?: string;
   partOfSpeech?: string;
-  learningState?: string;
   limit?: number;
-  offset?: number;
+  continuationToken?: string;
+}
+
+export interface PaginatedEntriesResponse {
+  items: DBEntry[];
+  nextContinuationToken?: string;
 }
 
 export const entriesApi = {
   list: (params: EntryQueryParams = {}) => {
+    const queryParams = { ...params, limit: params.limit ?? 200 };
     const qs = new URLSearchParams(
-      Object.entries(params)
+      Object.entries(queryParams)
         .filter(([, v]) => v !== undefined)
         .map(([k, v]) => [k, String(v)]),
     ).toString();
-    return apiFetch<DBEntry[]>(`/entries${qs ? `?${qs}` : ''}`);
+    return apiFetch<PaginatedEntriesResponse>(`/entries${qs ? `?${qs}` : ''}`);
   },
   get: (id: string) => apiFetch<DBEntry>(`/entries/${id}`),
   create: (data: Omit<DBEntry, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) =>

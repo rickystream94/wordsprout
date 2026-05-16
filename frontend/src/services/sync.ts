@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { MutationMethod } from '../types/models';
-import { db } from './db';
+import { db, type DBEntry } from './db';
 import { ApiRequestError, getAccessToken, phrasebooksApi, entriesApi, enrichmentsApi } from './api';
 import { rebuildIndex } from './search';
 
@@ -31,10 +31,21 @@ export async function pullFromServer(): Promise<void> {
 
     if (!isStale && !isEmpty) return;
 
-    const [phrasebooks, entries, enrichments] = await Promise.all([
+    const [phrasebooks, enrichments, allEntries] = await Promise.all([
       phrasebooksApi.list(),
-      entriesApi.list(),
       enrichmentsApi.list(),
+      // Page through entries until the server returns no continuation token.
+      // Each page is 200 items (the default page size in entriesApi.list).
+      (async () => {
+        const collected: DBEntry[] = [];
+        let token: string | undefined;
+        do {
+          const page = await entriesApi.list({ continuationToken: token });
+          collected.push(...page.items);
+          token = page.nextContinuationToken;
+        } while (token);
+        return collected;
+      })(),
     ]);
 
     // Flush any pending local mutations to the server BEFORE replacing
@@ -57,7 +68,7 @@ export async function pullFromServer(): Promise<void> {
       if (stillPending > 0) {
         await Promise.all([
           db.phrasebooks.bulkPut(phrasebooks),
-          db.entries.bulkPut(entries),
+          db.entries.bulkPut(allEntries),
           db.enrichments.bulkPut(enrichments),
           db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
         ]);
@@ -77,7 +88,7 @@ export async function pullFromServer(): Promise<void> {
       ]);
       await Promise.all([
         db.phrasebooks.bulkPut(phrasebooks),
-        db.entries.bulkPut(entries),
+        db.entries.bulkPut(allEntries),
         db.enrichments.bulkPut(enrichments),
         db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
       ]);

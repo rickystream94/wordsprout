@@ -2,9 +2,18 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  /* position:relative is required so absolutely-positioned virtual items
+     are contained within the height-constrained ul */
+  position: relative;
+}
+
+.virtualItem {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  /* padding-bottom replaces the flex gap between cards */
+  padding-bottom: var(--space-3);
 }
 
 .card {

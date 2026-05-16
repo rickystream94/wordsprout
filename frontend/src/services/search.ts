@@ -51,9 +51,25 @@ export async function rebuildIndex(userId?: string): Promise<void> {
   const synonymMap: Record<string, string[]> = {};
   for (const en of enrichments) synonymMap[en.entryId] = en.synonyms;
 
+  const docs = entries.map((e) => toDocument(e, synonymMap[e.id]));
   const fresh = buildEmptyIndex();
-  await fresh.addAllAsync(entries.map((e) => toDocument(e, synonymMap[e.id])));
-  index = fresh;
+
+  // Defer the expensive addAllAsync to an idle callback so it doesn't block
+  // the main thread during initial page load or after a sync pull.
+  // addAllAsync processes in chunks (chunkSize=50) and yields between them.
+  await new Promise<void>((resolve, reject) => {
+    const build = () =>
+      fresh
+        .addAllAsync(docs, { chunkSize: 50 })
+        .then(() => { index = fresh; resolve(); })
+        .catch(reject);
+
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(() => build());
+    } else {
+      setTimeout(build, 0);
+    }
+  });
 }
 
 // ─── Search ────────────────────────────────────────────────────────────────────
@@ -76,6 +92,7 @@ export function searchIds(query: string): Set<string> {
  * Secondary substring pass: case-insensitive infix match on sourceText,
  * targetText, notes, tags, and optional synonyms.
  * Use this alongside searchIds() to find e.g. "chair" when searching "hair".
+ * Stops after MATCH_CAP results to bound worst-case O(n) cost on large libraries.
  */
 export function substringMatch(
   query: string,
@@ -84,8 +101,10 @@ export function substringMatch(
 ): Set<string> {
   const q = query.trim().toLowerCase();
   if (!q) return new Set();
+  const MATCH_CAP = 300;
   const ids = new Set<string>();
   for (const e of entries) {
+    if (ids.size >= MATCH_CAP) break;
     if (
       e.sourceText.toLowerCase().includes(q) ||
       (e.targetText?.toLowerCase().includes(q)) ||
