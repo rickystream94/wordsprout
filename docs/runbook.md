@@ -39,7 +39,7 @@ az bicep version   # or: az bicep install
 
 ### 1.1 Register the DEV and PROD Apps (automated)
 
-Log in to the tenant, then run the setup script. It creates both app registrations with the correct SPA redirect URIs and writes the client IDs to `infra/config.json`:
+Log in to the tenant, then run the setup script. It creates both app registrations with the correct SPA redirect URIs, grants the `Microsoft Graph → User.Read` delegated permission (required to fetch the signed-in user's profile photo), and writes the client IDs to `infra/config.json`:
 
 ```powershell
 $cfg = Get-Content infra/config.json | ConvertFrom-Json
@@ -48,6 +48,8 @@ az login --tenant $cfg.tenantId
 ```
 
 After the script completes, `infra/config.json` will have `environments.dev.entraClientId` and `environments.prod.entraClientId` populated.
+
+> **`User.Read` consent**: The script declares the `User.Read` permission but does not force admin consent (which is not available for multi-tenant / personal account registrations). Users will see a **one-time consent prompt** on their first sign-in granting WordSprout permission to read their profile photo. For an Entra-managed (corporate) tenant you can pre-grant admin consent in the portal under **API permissions → Grant admin consent** to suppress the prompt for all users.
 
 > **One remaining manual step (after first PROD deploy)**: Update the PROD app registration’s redirect URI once the actual SWA hostname is known. The script registers `https://placeholder.azurestaticapps.net` as a placeholder.
 > Azure Portal → Entra ID → App registrations → `wordsprout-prod` → Authentication → replace the placeholder URI.

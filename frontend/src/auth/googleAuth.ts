@@ -22,6 +22,8 @@ export function getGoogleCredential(): string | null {
 interface GoogleClaims {
   sub: string;
   email?: string;
+  name?: string;
+  picture?: string;
   exp: number;
 }
 
@@ -47,6 +49,11 @@ export function isGoogleAuthenticated(): boolean {
 /** Returns the email from a Google credential JWT, or null. */
 export function getGoogleEmail(token: string): string | null {
   return decodeGoogleToken(token)?.email ?? null;
+}
+
+/** Returns the profile picture URL from a Google credential JWT, or null. */
+export function getGooglePicture(token: string): string | null {
+  return decodeGoogleToken(token)?.picture ?? null;
 }
 
 /**

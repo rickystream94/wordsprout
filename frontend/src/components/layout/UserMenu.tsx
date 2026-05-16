@@ -9,12 +9,15 @@ import styles from './UserMenu.module.css';
 type DeleteState = 'idle' | 'confirming' | 'deleting' | 'error';
 
 export default function UserMenu() {
-  const { email, provider, logout } = useAuth();
+  const { email, provider, logout, picture } = useAuth();
   const { quota, remaining, isLow, isExhausted } = useQuota();
   const [open, setOpen] = useState(false);
   const [deleteState, setDeleteState] = useState<DeleteState>('idle');
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
+  const [imgFailed, setImgFailed] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const showPicture = picture && picture !== imgFailed;
 
   const initial = email ? email[0].toUpperCase() : '?';
   const providerLabel = provider === 'google' ? 'Google' : 'Microsoft';
@@ -64,7 +67,11 @@ export default function UserMenu() {
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
-          {initial}
+          {showPicture ? (
+            <img src={picture} alt="" className={styles.avatarImg} referrerPolicy="no-referrer" onError={() => setImgFailed(picture)} />
+          ) : (
+            initial
+          )}
           {(isLow || isExhausted) && (
             <span className={`${styles.badge} ${isExhausted ? styles.badgeExhausted : styles.badgeLow}`} aria-hidden="true" />
           )}

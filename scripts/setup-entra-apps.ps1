@@ -115,6 +115,19 @@ function Register-EntraApp {
 
     Write-Success "SPA redirect URIs configured"
 
+    # Grant User.Read delegated permission on Microsoft Graph so the frontend
+    # can fetch the signed-in user's profile photo via the Graph API.
+    # Graph appId (well-known): 00000003-0000-0000-c000-000000000000
+    # User.Read scope ID:       e1fe6dd8-ba31-4d61-89e7-88639da4683d
+    Write-Host "  Granting Microsoft Graph User.Read delegated permission" -ForegroundColor DarkGray
+
+    az ad app permission add `
+        --id $app.appId `
+        --api '00000003-0000-0000-c000-000000000000' `
+        --api-permissions 'e1fe6dd8-ba31-4d61-89e7-88639da4683d=Scope' 2>&1 | Out-Null
+
+    Write-Success "User.Read permission added (users will be prompted to consent on first sign-in)"
+
     # Write client ID back to config.json
     $Config.environments.$Env.entraClientId = $app.appId
     Write-Success "config.json updated: environments.$Env.entraClientId = $($app.appId)"
@@ -166,6 +179,8 @@ Write-Host ''
 Write-Host 'Next steps:' -ForegroundColor Cyan
 Write-Host '  1. Copy frontend/.env.dev.example to frontend/.env.dev and fill in VITE_ENTRA_CLIENT_ID'
 Write-Host '  2. Run .\scripts\deploy-dev.ps1 (reads EntraClientId from config.json automatically)'
+Write-Host '  3. On first sign-in with a Microsoft account, users will see a one-time consent prompt'
+Write-Host '     for the User.Read permission (required to fetch their profile photo).'
 if ($Environment -eq 'prod' -or $Environment -eq 'both') {
     Write-Host '  3. Set PROD_VITE_ENTRA_CLIENT_ID as a GitHub Actions Variable'
     Write-Host '  4. After first PROD deploy, update the PROD redirect URI in the app registration:'

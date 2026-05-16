@@ -1,5 +1,6 @@
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { MsalProvider, useMsal, useIsAuthenticated } from '@azure/msal-react';
+import type { AccountInfo } from '@azure/msal-browser';
 import { type ReactNode, createContext, useEffect, useState } from 'react';
 import { msalInstance } from './msalConfig';
 import {
@@ -7,8 +8,10 @@ import {
   getGoogleCredential,
   isGoogleAuthenticated,
   getGoogleEmail,
+  getGooglePicture,
   getGoogleSub,
 } from './googleAuth';
+import { fetchMsProfilePhoto, clearMsPhotoCache } from './msGraphAuth';
 import { clearSession, getStoredRefreshToken, hasValidSession, storeSession } from './sessionTokens';
 import { exchangeOidcForSession, getAccessToken } from '../services/api';
 import { API_BASE, GOOGLE_CLIENT_ID } from '../config/env';
@@ -30,6 +33,8 @@ interface AuthContextValue {
   userId: string | null;
   email: string | null;
   sub: string | null;
+  /** Profile picture URL from the OAuth provider, or null if unavailable. */
+  picture: string | null;
   login: () => Promise<void>;
   loginWithMicrosoft: () => Promise<void>;
   loginWithGoogle: (credential: string) => void;
@@ -43,6 +48,7 @@ const AuthContext = createContext<AuthContextValue>({
   userId: null,
   email: null,
   sub: null,
+  picture: null,
   login: async () => {},
   loginWithMicrosoft: async () => {},
   loginWithGoogle: () => {},
@@ -63,6 +69,9 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
 
   // Backend session state — true when we have a valid access token
   const [sessionActive, setSessionActive] = useState(() => hasValidSession());
+
+  // Microsoft profile photo — fetched from Graph API after MS login
+  const [msPicture, setMsPicture] = useState<string | null>(null);
 
   // True while we're attempting to restore a session from a stored refresh token
   const [sessionRestoring, setSessionRestoring] = useState(
@@ -98,6 +107,9 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
     ? getGoogleSub(googleCredential)
     : ((msAccount?.idTokenClaims?.['sub'] as string | undefined) ?? null);
 
+  const googlePicture = googleActive && googleCredential ? getGooglePicture(googleCredential) : null;
+  const picture = googleActive ? googlePicture : msPicture;
+
   // Exchange an OIDC token for a backend session (fire-and-forget)
   const exchangeForSession = async (oidcToken: string) => {
     const session = await exchangeOidcForSession(oidcToken);
@@ -108,7 +120,7 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
   };
 
   const loginWithMicrosoft = async () => {
-    await instance.loginRedirect({ scopes: ['openid', 'profile', 'email'] });
+    await instance.loginRedirect({ scopes: ['openid', 'profile', 'email', 'User.Read'] });
   };
 
   const loginWithGoogle = (credential: string) => {
@@ -124,8 +136,8 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
       const account = accounts[0];
       if (account) {
         instance.acquireTokenSilent({
-          account: account as import('@azure/msal-browser').AccountInfo,
-          scopes: ['openid', 'profile', 'email'],
+          account: account as AccountInfo,
+          scopes: ['openid', 'profile', 'email', 'User.Read'],
         }).then((result) => {
           void exchangeForSession(result.idToken);
         }).catch(() => {
@@ -136,6 +148,18 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
   // Only run when MS auth state changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [msActive]);
+
+  // Fetch Microsoft profile photo when MS session becomes active
+  useEffect(() => {
+    if (!msActive || !msAccount) {
+      setMsPicture(null);
+      return;
+    }
+    void fetchMsProfilePhoto(msAccount as AccountInfo, instance).then((url) => {
+      setMsPicture(url);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [msActive, msAccount?.localAccountId]);
 
   // Listen for session-expired event to clear session state
   useEffect(() => {
@@ -190,6 +214,8 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
       // Disable One Tap auto-select so the account picker shows next time
       window.google?.accounts?.id?.disableAutoSelect();
     } else {
+      if (msAccount) clearMsPhotoCache(msAccount.localAccountId);
+      setMsPicture(null);
       try {
         await instance.logoutRedirect({ postLogoutRedirectUri: window.location.origin });
       } catch {
@@ -209,6 +235,7 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
         userId,
         email,
         sub,
+        picture,
         login,
         loginWithMicrosoft,
         loginWithGoogle,
