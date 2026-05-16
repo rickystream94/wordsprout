@@ -1,18 +1,41 @@
-import { NavLink, Link, Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { NavLink, Link, Outlet, useLocation } from 'react-router-dom';
 import { useTheme } from '../../store/ThemeContext';
 import { useBackButtonExit } from '../../hooks/useBackButtonExit';
+import { InstallPromptProvider } from '../../hooks/InstallPromptContext';
+import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 import { QuotaProvider } from '../../hooks/useQuota';
 import ExitToast from '../common/ExitToast';
+import InstallBanner from '../common/InstallBanner';
 import OfflineIndicator from '../common/OfflineIndicator';
 import SyncIndicator from '../common/SyncIndicator';
 import UserMenu from './UserMenu';
 import styles from './AppShell.module.css';
+
+/** Fires markEngaged once the user navigates to a meaningful page. */
+function EngagementTracker() {
+  const { markEngaged } = useInstallPrompt();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (
+      location.pathname.startsWith('/phrasebooks/') ||
+      location.pathname === '/search' ||
+      location.pathname === '/review'
+    ) {
+      markEngaged();
+    }
+  }, [location.pathname, markEngaged]);
+
+  return null;
+}
 
 export default function AppShell() {
   const { theme, toggleTheme } = useTheme();
   const { showExitToast } = useBackButtonExit();
 
   return (
+    <InstallPromptProvider>
     <QuotaProvider>
     <div className={styles.shell}>
       <header className={styles.header}>
@@ -61,6 +84,7 @@ export default function AppShell() {
         <Link to="/terms" className={styles.footerLink}>Terms &amp; Conditions</Link>
       </footer>
       <OfflineIndicator />
+      <InstallBanner />
       <ExitToast visible={showExitToast} />
       <nav className={styles.bottomNav} aria-label="Main navigation">
         <NavLink to="/" end className={({ isActive }) => isActive ? styles.bottomNavItemActive : styles.bottomNavItem}>
@@ -80,7 +104,9 @@ export default function AppShell() {
           <span>About</span>
         </NavLink>
       </nav>
+      <EngagementTracker />
     </div>
     </QuotaProvider>
+    </InstallPromptProvider>
   );
 }

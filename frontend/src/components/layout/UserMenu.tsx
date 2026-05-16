@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../auth/useAuth';
+import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 import { useQuota } from '../../hooks/useQuota';
 import { deleteAccount } from '../../services/api';
 import { clearLocalData } from '../../services/db';
@@ -11,10 +12,14 @@ type DeleteState = 'idle' | 'confirming' | 'deleting' | 'error';
 export default function UserMenu() {
   const { email, provider, logout, picture } = useAuth();
   const { quota, remaining, isLow, isExhausted } = useQuota();
+  const { canPromptAndroid, isIOS, isInstalled, isMobile, prompt: installPrompt } = useInstallPrompt();
   const [open, setOpen] = useState(false);
   const [deleteState, setDeleteState] = useState<DeleteState>('idle');
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const [imgFailed, setImgFailed] = useState<string | null>(null);
+  const [showIOSInstruct, setShowIOSInstruct] = useState(false);
+
+  const showInstallItem = isMobile && !isInstalled && (canPromptAndroid || isIOS);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const showPicture = picture && picture !== imgFailed;
@@ -98,6 +103,31 @@ export default function UserMenu() {
               </div>
             )}
             <hr className={styles.separator} />
+            {showInstallItem && (
+              <>
+                <button
+                  className={styles.signOutBtn}
+                  role="menuitem"
+                  onClick={async () => {
+                    if (canPromptAndroid) {
+                      setOpen(false);
+                      await installPrompt();
+                    } else {
+                      setShowIOSInstruct((v) => !v);
+                    }
+                  }}
+                >
+                  Install app
+                </button>
+                {isIOS && showIOSInstruct && (
+                  <p className={styles.iosInstruct}>
+                    Tap the <strong>Share</strong> button (↑) in Safari, then tap{' '}
+                    <strong>Add to Home Screen</strong>.
+                  </p>
+                )}
+                <hr className={styles.separator} />
+              </>
+            )}
             <button
               className={styles.signOutBtn}
               role="menuitem"

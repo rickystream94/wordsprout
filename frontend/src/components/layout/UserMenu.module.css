@@ -72,6 +72,14 @@
   margin: 0;
 }
 
+.iosInstruct {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-1);
+  line-height: 1.5;
+}
+
 .signOutBtn {
   background: none;
   border: none;
