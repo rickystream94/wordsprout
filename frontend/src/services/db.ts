@@ -10,6 +10,7 @@ import {
   type TemplateLanguageCode,
 } from '../data/templatePhrasebooks';
 import { randomUUID } from '../utils/uuid';
+import { todayKey } from './scoring';
 
 // ─── Client-side model types (mirrors api/src/models/types.ts) ────────────────
 
@@ -372,9 +373,42 @@ export async function getEntriesByScoreRange(
     .toArray();
 }
 
+/** In-place Fisher-Yates shuffle. */
+function shuffle<T>(arr: T[]): void {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+/**
+ * Given a pool of candidate entries, returns up to `size` entries ordered so
+ * that entries NOT yet reviewed on `today` come first (fresh), and entries
+ * already reviewed today are appended only when needed to reach `size`.
+ * Both groups are shuffled independently.
+ * Exported for unit-testing.
+ */
+export function prioritiseForSession(pool: DBEntry[], size: number, today: string): DBEntry[] {
+  const fresh: DBEntry[] = [];
+  const stale: DBEntry[] = [];
+  for (const e of pool) {
+    if (e.lastReviewedDate === today) {
+      stale.push(e);
+    } else {
+      fresh.push(e);
+    }
+  }
+  shuffle(fresh);
+  shuffle(stale);
+  const needed = Math.max(0, size - fresh.length);
+  return [...fresh.slice(0, size), ...stale.slice(0, needed)];
+}
+
 /** Loads candidate entries for a review session.
  *  - 'random': full entry pool, returned shuffled, up to `size`
  *  - 'targeted': prioritise low-score entries (score < 80), falling back to all
+ * Entries not yet reviewed today are always presented before those already
+ * reviewed today; stale entries are included only when needed to reach `size`.
  */
 export async function getEntriesForSession(
   userId: string,
@@ -394,12 +428,7 @@ export async function getEntriesForSession(
     pool = pool0;
   }
 
-  // Fisher-Yates shuffle
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool.slice(0, size);
+  return prioritiseForSession(pool, size, todayKey());
 }
 
 // ─── Account deletion ────────────────────────────────────────────────
