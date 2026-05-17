@@ -10,6 +10,7 @@ import { rebuildIndex } from './services/search';
 import { applyDecayRound } from './services/decay';
 import { API_BASE } from './config/env';
 import AppShell from './components/layout/AppShell';
+import ScrollToTop from './components/common/ScrollToTop';
 import AuthGuard from './components/auth/AuthGuard';
 import AuthenticatedRoute from './components/auth/AuthenticatedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -108,6 +109,7 @@ async function bootstrap() {
       <AuthProvider>
         <ThemeProvider>
           <BrowserRouter>
+            <ScrollToTop />
             <Routes>
               {/* Public routes — no auth required */}
               <Route path="/login" element={<Login />} />
