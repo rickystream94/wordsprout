@@ -1,6 +1,9 @@
-# WordSprout — Grow Your Words
+# 🌱 WordSprout — Grow Your Words
 
 A personal, offline-first vocabulary notebook for language learners. Capture words you encounter in real life, organise them into phrasebooks, and grow them from dormant to engraved through adaptive flashcard review.
+
+> [!WARNING]
+> **WordSprout is currently in preview.** New users must be explicitly allowlisted before gaining access. Everyone is welcome to register, but manual admin approval is required. This restriction will be lifted when the app reaches general availability (GA) — which is coming soon.
 
 ---
 
