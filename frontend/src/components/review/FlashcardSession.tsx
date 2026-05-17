@@ -117,7 +117,6 @@ export default function FlashcardSession({ entries, onDone, targetLanguageName }
 
     if (!reviewedToday) {
       const newScore = applyDelta(current.learningScore, delta);
-      const today = todayKey();
 
       // Reveal (peek) never resets the grace timer — score drops but decay pressure continues.
       void (async () => {

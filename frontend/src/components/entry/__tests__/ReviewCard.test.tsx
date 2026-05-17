@@ -24,6 +24,7 @@ const MOCK_ENTRY: DBEntry = {
   tags: [],
   learningScore: 50,
   lastReviewedDate: null,
+  decayBaseScore: null,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };

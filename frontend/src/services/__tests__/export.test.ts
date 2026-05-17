@@ -44,6 +44,7 @@ const ENTRY: DBEntry = {
   tags: [],
   learningScore: 0,
   lastReviewedDate: null,
+  decayBaseScore: null,
   createdAt: NOW,
   updatedAt: NOW,
 };

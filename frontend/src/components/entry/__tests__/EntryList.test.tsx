@@ -65,10 +65,10 @@ vi.mock('@tanstack/react-virtual', () => ({
 // ─── Browser API stubs ───────────────────────────────────────────────────────
 
 beforeEach(() => {
-  global.ResizeObserver = vi.fn().mockImplementation(function () {
-    this.observe = vi.fn();
-    this.unobserve = vi.fn();
-    this.disconnect = vi.fn();
+  globalThis.ResizeObserver = vi.fn().mockImplementation(function (this: ResizeObserver) {
+    (this as unknown as Record<string, unknown>).observe = vi.fn();
+    (this as unknown as Record<string, unknown>).unobserve = vi.fn();
+    (this as unknown as Record<string, unknown>).disconnect = vi.fn();
   }) as unknown as typeof ResizeObserver;
 });
 

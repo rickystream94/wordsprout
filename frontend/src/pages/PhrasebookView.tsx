@@ -97,6 +97,7 @@ export default function PhrasebookView() {
       partOfSpeech: data.partOfSpeech || undefined,
       learningScore: 0,
       lastReviewedDate: null,
+      decayBaseScore: null,
       createdAt: now,
       updatedAt: now,
     };
