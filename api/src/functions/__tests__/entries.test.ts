@@ -18,7 +18,6 @@ const mockCosmos = vi.hoisted(() => ({
 const TEST_TOKEN: DecodedToken = {
   sub: 'user-1',
   email: 'user@test.com',
-  iss: 'wordsprout',
   iat: 0,
   exp: 9999999999,
 };
@@ -76,8 +75,10 @@ const MOCK_PHRASEBOOK: Phrasebook = {
   userId: 'user-1',
   type: 'phrasebook',
   name: 'Test Book',
-  sourceLanguage: 'Italian',
-  targetLanguage: 'English',
+  sourceLanguageCode: 'it',
+  sourceLanguageName: 'Italian',
+  targetLanguageCode: 'en',
+  targetLanguageName: 'English',
   entryCount: 0,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
@@ -225,5 +226,114 @@ describe('getEntry', () => {
     ) as { status: number };
 
     expect(res.status).toBe(400);
+  });
+});
+
+// ─── updateEntry ──────────────────────────────────────────────────────────────
+
+describe('updateEntry', () => {
+  const todayUtc = new Date().toISOString().slice(0, 10);
+
+  const MOCK_ENTRY: VocabularyEntry = {
+    id: 'entry-1',
+    userId: 'user-1',
+    type: 'entry',
+    phrasebookId: 'pb-1',
+    sourceText: 'ciao',
+    tags: [],
+    learningScore: 40,
+    lastReviewedDate: todayUtc,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCosmos.pointRead.mockResolvedValue(MOCK_ENTRY);
+  });
+
+  it('returns 200 when only tags are updated (no learningScore in body)', async () => {
+    const handler = handlers.get('entries-update')!;
+    const res = await handler(
+      mockRequest({ body: { tags: ['travel'] }, params: { id: 'entry-1' }, method: 'PUT' }),
+      mockCtx,
+    ) as { status: number };
+
+    expect(res.status).toBe(200);
+  });
+
+  it('does not reject tag-only update even when entry was reviewed today', async () => {
+    // Entry was reviewed today — previously this caused a false "reviewed today" error
+    // when the client echoed learningScore unchanged.  With the fix we only send tags.
+    const handler = handlers.get('entries-update')!;
+    const res = await handler(
+      mockRequest({ body: { tags: ['grammar'] }, params: { id: 'entry-1' }, method: 'PUT' }),
+      mockCtx,
+    ) as { status: number };
+
+    expect(res.status).toBe(200);
+  });
+
+  it('does not reject when body echoes the same learningScore that is already on the server', async () => {
+    // Sending the same score (delta = 0) must never trigger either guard.
+    const handler = handlers.get('entries-update')!;
+    const res = await handler(
+      mockRequest({
+        body: { tags: ['food'], learningScore: 40 },
+        params: { id: 'entry-1' },
+        method: 'PUT',
+      }),
+      mockCtx,
+    ) as { status: number };
+
+    expect(res.status).toBe(200);
+  });
+
+  it('returns 400 when learningScore delta exceeds +10', async () => {
+    const handler = handlers.get('entries-update')!;
+    const entryWithLowScore: VocabularyEntry = { ...MOCK_ENTRY, learningScore: 0, lastReviewedDate: null };
+    mockCosmos.pointRead.mockResolvedValue(entryWithLowScore);
+
+    const res = await handler(
+      mockRequest({ body: { learningScore: 15 }, params: { id: 'entry-1' }, method: 'PUT' }),
+      mockCtx,
+    ) as { status: number; jsonBody: { message: string } };
+
+    expect(res.status).toBe(400);
+    expect(res.jsonBody.message).toBe('learningScore delta must be between -5 and +10');
+  });
+
+  it('returns 400 with "Entry already reviewed today" when score changes and already reviewed today', async () => {
+    // Entry already reviewed today, attempting a genuine score change must be rejected.
+    const handler = handlers.get('entries-update')!;
+    const res = await handler(
+      mockRequest({ body: { learningScore: 45 }, params: { id: 'entry-1' }, method: 'PUT' }),
+      mockCtx,
+    ) as { status: number; jsonBody: { message: string } };
+
+    expect(res.status).toBe(400);
+    expect(res.jsonBody.message).toBe('Entry already reviewed today');
+  });
+
+  it('returns 400 for out-of-range learningScore', async () => {
+    const handler = handlers.get('entries-update')!;
+    const res = await handler(
+      mockRequest({ body: { learningScore: 105 }, params: { id: 'entry-1' }, method: 'PUT' }),
+      mockCtx,
+    ) as { status: number; jsonBody: { message: string } };
+
+    expect(res.status).toBe(400);
+    expect(res.jsonBody.message).toBe('learningScore must be an integer between 0 and 100');
+  });
+
+  it('returns 404 when entry not found', async () => {
+    mockCosmos.pointRead.mockResolvedValue(null);
+    const handler = handlers.get('entries-update')!;
+    const res = await handler(
+      mockRequest({ body: { tags: ['test'] }, params: { id: 'missing' }, method: 'PUT' }),
+      mockCtx,
+    ) as { status: number };
+
+    expect(res.status).toBe(404);
   });
 });

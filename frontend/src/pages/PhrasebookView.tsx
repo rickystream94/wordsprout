@@ -208,7 +208,7 @@ export default function PhrasebookView() {
     }
 
     await updateEntry(entry.id, changes);
-    await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'PUT', { ...entry, ...changes });
+    await enqueueMutation(`${API_BASE}/entries/${entry.id}`, 'PUT', changes);
     void indexEntry({ ...entry, ...changes });
   }
 

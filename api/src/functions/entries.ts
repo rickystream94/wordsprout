@@ -175,29 +175,31 @@ async function updateEntry(req: HttpRequest, _ctx: InvocationContext, token: Dec
 
   const body = (await req.json()) as Partial<VocabularyEntry>;
 
-  // Validate learningScore delta (FR-021)
+  // Validate learningScore if provided
   if (body.learningScore !== undefined) {
     const newScore = Number(body.learningScore);
     if (!Number.isInteger(newScore) || newScore < 0 || newScore > 100)
       return apiError(400, 'learningScore must be an integer between 0 and 100');
-    const delta = newScore - (existing.learningScore ?? 0);
-    if (delta < -5 || delta > 10)
-      return apiError(400, 'learningScore delta must be between -5 and +10');
+    // Only enforce delta and daily-review guards when the score is actually changing.
+    // Sending the same score as the server (e.g. a tag edit that echoes the full object)
+    // must not be treated as a review attempt.
+    if (newScore !== (existing.learningScore ?? 0)) {
+      const delta = newScore - (existing.learningScore ?? 0);
+      if (delta < -5 || delta > 10)
+        return apiError(400, 'learningScore delta must be between -5 and +10');
+      // Validate daily-review uniqueness using server UTC date (FR-022)
+      // The client-submitted lastReviewedDate is irrelevant for this gate —
+      // the server's own UTC date is the authority.
+      const todayUtc = new Date().toISOString().slice(0, 10);
+      if (todayUtc === existing.lastReviewedDate)
+        return apiError(400, 'Entry already reviewed today');
+    }
   }
 
   // Validate lastReviewedDate format if provided (input boundary check)
   if (body.lastReviewedDate !== undefined && body.lastReviewedDate !== null) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(body.lastReviewedDate))
       return apiError(400, 'lastReviewedDate must be YYYY-MM-DD or null');
-  }
-
-  // Validate daily-review uniqueness using server UTC date (FR-022)
-  // The client-submitted lastReviewedDate is irrelevant for this gate —
-  // the server's own UTC date is the authority.
-  if (body.learningScore !== undefined) {
-    const todayUtc = new Date().toISOString().slice(0, 10);
-    if (todayUtc === existing.lastReviewedDate)
-      return apiError(400, 'Entry already reviewed today');
   }
 
   const updated: VocabularyEntry = {
