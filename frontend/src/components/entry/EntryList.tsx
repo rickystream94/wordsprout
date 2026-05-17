@@ -3,7 +3,8 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { getEnrichment, upsertEnrichment, updateEntry, type DBEnrichment, type DBEntry } from '../../services/db';
 import { enrichApi } from '../../services/api';
 import { usePendingIds } from '../../services/sync';
-import { scoreToRange } from '../../services/scoring';
+import { scoreToRange, todayKey } from '../../services/scoring';
+import DecayBadge from './DecayBadge';
 import { FEATURES_AI_ENABLED } from '../../config/env';
 import { useQuota } from '../../hooks/useQuota';
 import EnrichmentPanel from './EnrichmentPanel';
@@ -201,6 +202,8 @@ function EntryCard({
         aria-expanded={isExpanded}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggle(); } }}
       >
+        {/* Corner ribbon: absolutely positioned relative to .card; clicks bubble to this div */}
+        <DecayBadge entry={entry} today={todayKey()} />
         <div className={styles.texts}>
           <span className={styles.source}>{entry.sourceText}</span>
           {entry.targetText && (

@@ -1,0 +1,115 @@
+/**
+ * Right-edge status strip + floating label for entry cards.
+ * The card must have `position: relative` and `overflow: hidden` to contain
+ * and clip both elements to the card boundary.
+ */
+
+/* ─── Strip: full-height bar pinned to the right edge ───────────────────────── */
+.strip {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 5px;
+  pointer-events: none;
+}
+
+/* ─── Label: small chip anchored to the top-right (just inside the strip) ──── */
+.stripLabel {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: var(--radius-sm, 3px);
+  white-space: nowrap;
+  cursor: default;
+  z-index: 1;
+}
+
+/* ─── Fresh: recently reviewed, healthy (green) ───────────────────────────── */
+.strip.fresh {
+  background: color-mix(in srgb, #22c55e 50%, transparent);
+}
+.stripLabel.fresh {
+  color: #15803d;
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+  border: 1px solid color-mix(in srgb, #22c55e 25%, transparent);
+}
+[data-theme='dark'] .strip.fresh {
+  background: color-mix(in srgb, #4ade80 35%, transparent);
+}
+[data-theme='dark'] .stripLabel.fresh {
+  color: #4ade80;
+  background: color-mix(in srgb, #4ade80 10%, transparent);
+  border-color: color-mix(in srgb, #4ade80 25%, transparent);
+}
+
+/* ─── Grace warning: last 25% of grace period (amber) ─────────────────────── */
+.strip.graceWarning {
+  background: var(--color-warning, #f59e0b);
+}
+.stripLabel.graceWarning {
+  color: var(--color-warning-text, #92400e);
+  background: var(--color-warning-bg, #ffedd5);
+  border: 1px solid color-mix(in srgb, var(--color-warning, #f59e0b) 40%, transparent);
+}
+[data-theme='dark'] .strip.graceWarning {
+  background: var(--color-warning, #fbbf24);
+}
+[data-theme='dark'] .stripLabel.graceWarning {
+  color: var(--color-warning, #fbbf24);
+  background: rgba(251, 191, 36, 0.15);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+/* ─── Low urgency decay (amber) ─────────────────────────────────────────────── */
+.strip.low {
+  background: var(--color-warning, #f59e0b);
+}
+.stripLabel.low {
+  color: var(--color-warning-text, #92400e);
+  background: var(--color-warning-bg, #ffedd5);
+  border: 1px solid color-mix(in srgb, var(--color-warning, #f59e0b) 40%, transparent);
+}
+[data-theme='dark'] .strip.low {
+  background: var(--color-warning, #fbbf24);
+}
+[data-theme='dark'] .stripLabel.low {
+  color: var(--color-warning, #fbbf24);
+  background: rgba(251, 191, 36, 0.15);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+/* ─── Medium urgency decay (orange) ───────────────────────────────────────── */
+.strip.medium {
+  background: var(--color-warning-600, #ea580c);
+}
+.stripLabel.medium {
+  color: var(--color-warning-600, #ea580c);
+  background: color-mix(in srgb, var(--color-warning-600, #ea580c) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning-600, #ea580c) 35%, transparent);
+}
+[data-theme='dark'] .stripLabel.medium {
+  color: var(--color-warning-400, #fb923c);
+  background: color-mix(in srgb, var(--color-warning-600, #ea580c) 18%, transparent);
+  border-color: color-mix(in srgb, var(--color-warning-400, #fb923c) 35%, transparent);
+}
+
+/* ─── High urgency decay (red) ───────────────────────────────────────────────── */
+.strip.high {
+  background: var(--color-error, #e11d48);
+}
+.stripLabel.high {
+  color: var(--color-error, #e11d48);
+  background: var(--color-error-bg, rgba(248, 113, 113, 0.12));
+  border: 1px solid color-mix(in srgb, var(--color-error, #e11d48) 35%, transparent);
+}
+[data-theme='dark'] .strip.high {
+  background: var(--color-error, #f87171);
+}
+[data-theme='dark'] .stripLabel.high {
+  color: var(--color-error, #f87171);
+}

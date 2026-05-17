@@ -344,4 +344,60 @@ export const phrasebooks: PhrasebookDefinition[] = [
       { sourceText: 'rain', targetText: 'chuva', tags: ['nature'], partOfSpeech: 'noun' },
     ],
   },
+
+  // ── Decay showcase (deterministic, for local testing) ─────────────────────
+  // Each entry is fixed to a specific DecayBadge state so all visual states
+  // can be reviewed in a single seed run. Labels use [DECAY:…] prefix so they
+  // stand out in the list.
+  {
+    name: '🧪 Decay Showcase',
+    sourceLanguageCode: 'en',
+    sourceLanguageName: 'English',
+    targetLanguageCode: 'en',
+    targetLanguageName: 'English (labels)',
+    entries: [
+      {
+        sourceText: '[DECAY: none]',
+        targetText: 'never reviewed',
+        notes: 'No badge expected. decayBaseScore = null.',
+        tags: ['decay-showcase'],
+        decayScenario: 'none',
+      },
+      {
+        sourceText: '[DECAY: fresh]',
+        targetText: 'green strip + ✓ safe',
+        notes: 'Reviewed 3 days ago. Engraved (base=85, grace=21d). 18 days left → fresh zone.',
+        tags: ['decay-showcase'],
+        decayScenario: 'fresh',
+      },
+      {
+        sourceText: '[DECAY: grace warning]',
+        targetText: 'amber strip + "⏳ 4d"',
+        notes: 'Reviewed 17 days ago. Engraved (base=85, grace=21d). 4 days left → last 25% → warning.',
+        tags: ['decay-showcase'],
+        decayScenario: 'graceWarning',
+      },
+      {
+        sourceText: '[DECAY: low]',
+        targetText: 'amber strip + "↓ 3pts"',
+        notes: 'Reviewed 30 days ago. Engraved (base=80, grace=21d). 9d past grace → −3 pts (3.75%) → low.',
+        tags: ['decay-showcase'],
+        decayScenario: 'decayLow',
+      },
+      {
+        sourceText: '[DECAY: medium]',
+        targetText: 'orange strip + "↓ 9pts"',
+        notes: 'Reviewed 34 days ago. Echoing (base=50, grace=7d). 27d past grace → −9 pts (18%) → medium.',
+        tags: ['decay-showcase'],
+        decayScenario: 'decayMedium',
+      },
+      {
+        sourceText: '[DECAY: high]',
+        targetText: 'red strip + "↓ 24pts"',
+        notes: 'Reviewed 80 days ago. Echoing (base=50, grace=7d). 73d past grace → −24 pts (48%) → high.',
+        tags: ['decay-showcase'],
+        decayScenario: 'decayHigh',
+      },
+    ],
+  },
 ];

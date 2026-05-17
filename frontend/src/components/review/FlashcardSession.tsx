@@ -77,12 +77,19 @@ export default function FlashcardSession({ entries, onDone, targetLanguageName }
       const newScore = applyDelta(current.learningScore, delta);
       const today = todayKey();
 
+      // Correct answers and typos (which still gain points) both reset the
+      // grace timer and anchor the new base score.
+      // Only wrong answers leave lastReviewedDate and decayBaseScore unchanged.
+      const graceFields = result !== 'wrong'
+        ? { lastReviewedDate: today, decayBaseScore: newScore }
+        : {};
+
       void (async () => {
-        await updateEntry(current.id, { learningScore: newScore, lastReviewedDate: today });
+        await updateEntry(current.id, { learningScore: newScore, ...graceFields });
         await enqueueMutation(`${API_BASE}/entries/${current.id}`, 'PUT', {
           ...current,
           learningScore: newScore,
-          lastReviewedDate: today,
+          ...graceFields,
         });
       })();
 
@@ -112,12 +119,12 @@ export default function FlashcardSession({ entries, onDone, targetLanguageName }
       const newScore = applyDelta(current.learningScore, delta);
       const today = todayKey();
 
+      // Reveal (peek) never resets the grace timer — score drops but decay pressure continues.
       void (async () => {
-        await updateEntry(current.id, { learningScore: newScore, lastReviewedDate: today });
+        await updateEntry(current.id, { learningScore: newScore });
         await enqueueMutation(`${API_BASE}/entries/${current.id}`, 'PUT', {
           ...current,
           learningScore: newScore,
-          lastReviewedDate: today,
         });
       })();
 

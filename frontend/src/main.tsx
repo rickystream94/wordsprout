@@ -2,11 +2,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
-import { clearSession, getStoredAccessToken } from './auth/sessionTokens';
+import { clearSession, getStoredAccessToken, getSessionClaims } from './auth/sessionTokens';
 import { initializeMsal } from './auth/msalConfig';
 import { ThemeProvider } from './store/ThemeContext';
 import { replayQueue, pullFromServer, SYNC_INTERVAL_MS, PULL_TTL_MS } from './services/sync';
 import { rebuildIndex } from './services/search';
+import { applyDecayRound } from './services/decay';
+import { API_BASE } from './config/env';
 import AppShell from './components/layout/AppShell';
 import AuthGuard from './components/auth/AuthGuard';
 import AuthenticatedRoute from './components/auth/AuthenticatedRoute';
@@ -35,12 +37,16 @@ window.addEventListener('online', () => {
   if (!getStoredAccessToken()) return;
   replayQueue().catch(console.error);
   pullFromServer().catch(console.error);
+  const userId = getSessionClaims()?.sub;
+  if (userId) applyDecayRound(userId, API_BASE).catch(console.error);
 });
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && navigator.onLine && getStoredAccessToken()) {
     replayQueue().catch(console.error);
     pullFromServer().catch(console.error);
+    const userId = getSessionClaims()?.sub;
+    if (userId) applyDecayRound(userId, API_BASE).catch(console.error);
   }
 });
 
@@ -87,6 +93,12 @@ async function bootstrap() {
 
   // T033: Build MiniSearch index on startup (best-effort, non-blocking)
   rebuildIndex().catch(console.error);
+
+  // Apply learning score decay on app load (once per calendar day, no-ops if already run today)
+  const userId = getSessionClaims()?.sub;
+  if (userId && getStoredAccessToken()) {
+    applyDecayRound(userId, API_BASE).catch(console.error);
+  }
 
   const root = document.getElementById('root');
   if (!root) throw new Error('Root element not found');

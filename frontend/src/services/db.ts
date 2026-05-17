@@ -39,6 +39,7 @@ export interface DBEntry {
   partOfSpeech?: PartOfSpeech;
   learningScore: number;           // integer 0–100
   lastReviewedDate: string | null; // 'YYYY-MM-DD' local date, null = never
+  decayBaseScore: number | null;   // score at last review session; anchors decay formula; null = never reviewed
   enrichmentId?: string;
   createdAt: string;
   updatedAt: string;
@@ -221,6 +222,7 @@ export async function generateTemplatePhrasebook(
     partOfSpeech: te.partOfSpeech,
     learningScore: 0,
     lastReviewedDate: null,
+    decayBaseScore: null,
     createdAt: now,
     updatedAt: now,
   }));

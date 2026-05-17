@@ -22,10 +22,15 @@
   border-radius: var(--radius-lg);
   transition: box-shadow var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
   overflow: hidden;
+  /* Positioning context for the DecayBadge right-edge strip and label */
+  position: relative;
 }
 
 .cardExpanded {
   box-shadow: var(--shadow-md);
+  /* Raise above sibling virtual items so expanded content is never obscured
+     while the virtualizer's ResizeObserver is still propagating the new height. */
+  z-index: 1;
 }
 
 .card:not(.cardExpanded):hover {
