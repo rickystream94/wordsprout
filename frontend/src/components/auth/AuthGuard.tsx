@@ -20,6 +20,7 @@ const loadingMessage =
 function LoadingSpinner() {
   return (
     <div className={styles.loadingContainer}>
+      <img src="/icons/wordsprout-logo.png" alt="WordSprout" className={styles.logo} />
       <div className={styles.spinner} />
       <span className={styles.loadingText} aria-live="polite" aria-busy="true">
         {loadingMessage}
