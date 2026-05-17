@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
-import { clearSession, getStoredAccessToken, getSessionClaims } from './auth/sessionTokens';
+import { clearSession, getStoredAccessToken, getStoredRefreshToken, getSessionClaims } from './auth/sessionTokens';
 import { initializeMsal } from './auth/msalConfig';
 import { ThemeProvider } from './store/ThemeContext';
 import { replayQueue, pullFromServer, SYNC_INTERVAL_MS, PULL_TTL_MS } from './services/sync';
@@ -35,7 +35,7 @@ const isPublicRoute = () => PUBLIC_ROUTES.some(r => window.location.pathname.sta
 
 // ─── T016: Wire sync replay + inbound pull to online + visibilitychange events ─
 window.addEventListener('online', () => {
-  if (!getStoredAccessToken()) return;
+  if (!getStoredRefreshToken()) return;
   replayQueue().catch(console.error);
   pullFromServer().catch(console.error);
   const userId = getSessionClaims()?.sub;
@@ -43,7 +43,7 @@ window.addEventListener('online', () => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && navigator.onLine && getStoredAccessToken()) {
+  if (document.visibilityState === 'visible' && navigator.onLine && getStoredRefreshToken()) {
     replayQueue().catch(console.error);
     pullFromServer().catch(console.error);
     const userId = getSessionClaims()?.sub;
@@ -52,10 +52,10 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // Periodic outbound sync so queued mutations don't wait for events
-setInterval(() => { if (getStoredAccessToken()) replayQueue().catch(console.error); }, SYNC_INTERVAL_MS);
+setInterval(() => { if (getStoredRefreshToken()) replayQueue().catch(console.error); }, SYNC_INTERVAL_MS);
 
 // Periodic inbound pull so changes from other devices appear without needing a tab switch
-setInterval(() => { if (getStoredAccessToken()) pullFromServer().catch(console.error); }, PULL_TTL_MS);
+setInterval(() => { if (getStoredRefreshToken()) pullFromServer().catch(console.error); }, PULL_TTL_MS);
 
 // ─── Handle permanent 403: sync queue cleared, redirect to access-blocked ─────
  window.addEventListener('wordsprout:access-revoked', () => {
