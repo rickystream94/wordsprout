@@ -102,9 +102,6 @@ export default function Review() {
   // Phase: setup
   return (
     <main className={styles.page}>
-      <button type="button" className={styles.exitBtn} onClick={() => navigate(-1)}>
-        ← Back
-      </button>
       <SessionSetup
         phrasebooks={phrasebooks}
         onStart={handleStart}
