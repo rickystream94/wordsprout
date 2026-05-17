@@ -2,6 +2,11 @@ import type { DBEnrichment } from '../../services/db';
 import Tooltip from '../common/Tooltip';
 import styles from './EnrichmentPanel.module.css';
 
+const DATETIME_FMT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+function formatDateTime(iso: string): string {
+  try { return DATETIME_FMT.format(new Date(iso)); } catch { return ''; }
+}
+
 export interface EnrichmentPanelProps {
   enrichment: DBEnrichment | undefined;
 }
@@ -104,10 +109,16 @@ export default function EnrichmentPanel({ enrichment }: EnrichmentPanelProps) {
 
       {/* Meta */}
       {enrichment.generatedAt && (
-        <p className={styles.meta}>
-          Generated {new Date(enrichment.generatedAt).toLocaleDateString()}
-          {enrichment.editedAt && ` · Edited ${new Date(enrichment.editedAt).toLocaleDateString()}`}
-        </p>
+        <dl className={styles.meta}>
+          <dt>AI enriched</dt>
+          <dd>{formatDateTime(enrichment.generatedAt)}</dd>
+          {enrichment.editedAt && (
+            <>
+              <dt>Manually edited</dt>
+              <dd>{formatDateTime(enrichment.editedAt)}</dd>
+            </>
+          )}
+        </dl>
       )}
     </div>
   );

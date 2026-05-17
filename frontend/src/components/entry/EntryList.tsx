@@ -20,9 +20,9 @@ interface EntryListProps {
   phrasebooks?: Record<string, string>;
 }
 
-const DATE_FMT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
-function formatDate(iso: string): string {
-  try { return DATE_FMT.format(new Date(iso)); } catch { return ''; }
+const DATETIME_FMT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+function formatDateTime(iso: string): string {
+  try { return DATETIME_FMT.format(new Date(iso)); } catch { return ''; }
 }
 
 export default function EntryList({ entries, onEdit, onDelete, phrasebooks }: EntryListProps) {
@@ -233,7 +233,6 @@ function EntryCard({
           {entry.partOfSpeech && (
             <span className={styles.posBadge}>{entry.partOfSpeech.replace('_', ' ')}</span>
           )}
-          <span className={styles.createdAt}>{formatDate(entry.createdAt)}</span>
         </div>
 
         {entry.notes && <p className={styles.notes}>{entry.notes}</p>}
@@ -258,6 +257,19 @@ function EntryCard({
           <EnrichmentPanel
             enrichment={enrichment}
           />
+
+          <dl className={styles.entryMeta}>
+            <dt>Created on</dt>
+            <dd>{formatDateTime(entry.createdAt)}</dd>
+            <dt>Last reviewed</dt>
+            <dd>{entry.lastReviewedDate ? formatDateTime(entry.lastReviewedDate) : 'Never'}</dd>
+            {entry.updatedAt !== entry.createdAt && (
+              <>
+                <dt>Entry edited</dt>
+                <dd>{formatDateTime(entry.updatedAt)}</dd>
+              </>
+            )}
+          </dl>
 
           {enrichError && <p className={styles.enrichError}>{enrichError}</p>}
 

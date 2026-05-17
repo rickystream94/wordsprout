@@ -145,13 +145,6 @@
   color: var(--accent-300);
 }
 
-.createdAt {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin-left: auto;
-  white-space: nowrap;
-}
-
 .notes {
   font-size: var(--text-sm);
   color: var(--text-secondary);
@@ -187,6 +180,27 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+.entryMeta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  margin: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.entryMeta dt {
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.entryMeta dd {
+  margin: 0;
+  color: var(--text-muted);
 }
 
 .stateRow {

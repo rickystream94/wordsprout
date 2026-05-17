@@ -31,10 +31,8 @@ export default defineConfig({
         // Components not yet tested
         'src/components/auth/**',
         'src/components/common/**',
-        'src/components/entry/EntryList.tsx',
         'src/components/entry/EntryForm.tsx',
         'src/components/entry/ChipInput.tsx',
-        'src/components/entry/EnrichmentPanel.tsx',
         'src/components/entry/LearningScoreBar.tsx',
         'src/components/entry/PartOfSpeechSelector.tsx',
         'src/components/entry/TagInput.tsx',
