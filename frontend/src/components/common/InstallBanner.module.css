@@ -62,7 +62,7 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  background: var(--color-brand-500, #f59e0b);
+  background: var(--color-brand-500, #10b981);
   color: #fff;
   border-radius: var(--radius-sm);
   vertical-align: middle;
@@ -78,7 +78,7 @@
 
 .installBtn {
   padding: var(--space-1) var(--space-4);
-  background: var(--color-brand-500, #f59e0b);
+  background: var(--color-brand-500, #10b981);
   color: #fff;
   border: none;
   border-radius: var(--radius-full);

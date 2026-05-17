@@ -45,8 +45,8 @@
 }
 
 .templateBtn {
-  background: transparent;
-  color: var(--brand-600);
+  background: var(--bg-base);
+  color: var(--brand-700);
   border: 1px solid var(--brand-400);
   border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-4);
@@ -58,8 +58,19 @@
 }
 
 .templateBtn:hover {
-  background: color-mix(in srgb, var(--brand-500) 8%, transparent);
+  background: color-mix(in srgb, var(--brand-500) 8%, var(--bg-base));
   border-color: var(--brand-500);
+}
+
+[data-theme='dark'] .templateBtn {
+  background: var(--bg-card);
+  color: var(--brand-300);
+  border-color: var(--brand-400);
+}
+
+[data-theme='dark'] .templateBtn:hover {
+  background: color-mix(in srgb, var(--brand-400) 12%, var(--bg-card));
+  border-color: var(--brand-300);
 }
 
 .formWrapper {
@@ -137,8 +148,9 @@
 .cardCount {
   font-size: var(--text-xs);
   font-weight: 500;
-  color: var(--brand-600);
-  background: var(--brand-50);
+  color: var(--brand-700);
+  background: var(--color-brand-100);
+  border: 1px solid var(--color-brand-200);
   border-radius: var(--radius-full);
   padding: 2px 10px;
   align-self: flex-start;

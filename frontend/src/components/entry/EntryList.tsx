@@ -34,7 +34,19 @@ export default function EntryList({ entries, onEdit, onDelete, phrasebooks }: En
   const [scrollMargin, setScrollMargin] = useState(0);
   const listRefCallback = useCallback((node: HTMLDivElement | null) => {
     listRef.current = node;
-    setScrollMargin(node?.offsetTop ?? 0);
+  }, []);
+
+  // Keep scrollMargin live: re-measure whenever anything above the list changes
+  // height (e.g. the entry form opening/closing), otherwise the virtualizer uses
+  // a stale offsetTop and hides cards that are actually in the viewport.
+  useEffect(() => {
+    const node = listRef.current;
+    if (!node) return;
+    const measure = () => setScrollMargin(node.offsetTop);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(document.body);
+    return () => ro.disconnect();
   }, []);
 
   // useWindowVirtualizer uses the window as the scroll container, keeping

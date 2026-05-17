@@ -231,7 +231,7 @@
 
 .primaryBtn {
   padding: var(--space-3) var(--space-8);
-  background: var(--brand-500, #7c3aed);
+  background: var(--brand-500, #10b981);
   color: var(--text-on-brand);
   border: none;
   border-radius: var(--radius-full);
@@ -242,7 +242,7 @@
 }
 
 .primaryBtn:hover {
-  background: var(--brand-600, #6d28d9);
+  background: var(--brand-600, #059669);
 }
 
 .secondaryBtn {
