@@ -20,7 +20,13 @@ interface EntryListProps {
   phrasebooks?: Record<string, string>;
 }
 
+const DATE_FMT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 const DATETIME_FMT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+// Date-only strings (YYYY-MM-DD) are parsed as UTC midnight by the spec.
+// Appending T00:00:00 forces local-time parsing so the displayed date matches the stored day.
+function formatDate(dateKey: string): string {
+  try { return DATE_FMT.format(new Date(`${dateKey}T00:00:00`)); } catch { return ''; }
+}
 function formatDateTime(iso: string): string {
   try { return DATETIME_FMT.format(new Date(iso)); } catch { return ''; }
 }
@@ -262,7 +268,7 @@ function EntryCard({
             <dt>Created on</dt>
             <dd>{formatDateTime(entry.createdAt)}</dd>
             <dt>Last reviewed</dt>
-            <dd>{entry.lastReviewedDate ? formatDateTime(entry.lastReviewedDate) : 'Never'}</dd>
+            <dd>{entry.lastReviewedDate ? formatDate(entry.lastReviewedDate) : 'Never'}</dd>
             {entry.updatedAt !== entry.createdAt && (
               <>
                 <dt>Entry edited</dt>
