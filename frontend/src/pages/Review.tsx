@@ -3,8 +3,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import FlashcardSession, { type SessionResult } from '../components/review/FlashcardSession';
-import SessionSetup, { type SessionType } from '../components/review/SessionSetup';
-import { getEntriesForSession, getPhrasebooks, type DBEntry } from '../services/db';
+import SessionSetup, { type SessionType, type ReviewMode } from '../components/review/SessionSetup';
+import RehearseSession from '../components/review/RehearseSession';
+import { getEntriesForSession, getEntriesForRehearsal, getPhrasebooks, type DBEntry } from '../services/db';
+import type { PartOfSpeech } from '../types/models';
 import styles from './Review.module.css';
 
 type Phase = 'setup' | 'session' | 'summary';
@@ -17,17 +19,31 @@ export default function Review() {
   const [sessionEntries, setSessionEntries] = useState<DBEntry[]>([]);
   const [results, setResults] = useState<SessionResult[]>([]);
   const [targetLanguageName, setTargetLanguageName] = useState<string | undefined>(undefined);
+  const [reviewMode, setReviewMode] = useState<ReviewMode>('competitive');
 
   const phrasebooks = useLiveQuery(
     () => (userId ? getPhrasebooks(userId) : Promise.resolve([])),
     [userId],
   ) ?? [];
 
-  async function handleStart(type: SessionType, size: number, phrasebookId: string) {
+  async function handleStart(
+    mode: ReviewMode,
+    type: SessionType,
+    size: number,
+    phrasebookId: string,
+    posFilter: PartOfSpeech[],
+    tagFilter: string[],
+  ) {
     if (!userId) return;
-    const entries = await getEntriesForSession(userId, type, size, phrasebookId);
+    let entries: DBEntry[];
+    if (mode === 'rehearse') {
+      entries = await getEntriesForRehearsal(userId, type, size, phrasebookId, posFilter, tagFilter);
+    } else {
+      entries = await getEntriesForSession(userId, type, size, phrasebookId);
+    }
     setSessionEntries(entries);
     setTargetLanguageName(phrasebooks.find((pb) => pb.id === phrasebookId)?.targetLanguageName);
+    setReviewMode(mode);
     setPhase('session');
   }
 
@@ -37,6 +53,17 @@ export default function Review() {
   }
 
   if (phase === 'session') {
+    if (reviewMode === 'rehearse') {
+      return (
+        <main className={styles.page}>
+          <RehearseSession
+            entries={sessionEntries}
+            onDone={() => setPhase('setup')}
+            targetLanguageName={targetLanguageName}
+          />
+        </main>
+      );
+    }
     return (
       <main className={styles.page}>
         <div className={styles.sessionHeader}>

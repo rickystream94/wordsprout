@@ -433,6 +433,82 @@ export async function getEntriesForSession(
   return prioritiseForSession(pool, size, todayKey());
 }
 
+// ─── Rehearse session helpers ─────────────────────────────────────────────────
+
+/**
+ * Pure function: applies PoS/tag filters, sorts or shuffles, and truncates to `size`.
+ * Exported for unit testing without requiring IndexedDB.
+ */
+export function filterAndSelectEntries(
+  pool: DBEntry[],
+  type: 'random' | 'targeted',
+  size: number,
+  posFilter: PartOfSpeech[],
+  tagFilter: string[],
+): DBEntry[] {
+  let filtered = [...pool];
+  if (posFilter.length > 0) {
+    filtered = filtered.filter((e) => e.partOfSpeech !== undefined && posFilter.includes(e.partOfSpeech));
+  }
+  if (tagFilter.length > 0) {
+    filtered = filtered.filter((e) => e.tags.some((t) => tagFilter.includes(t)));
+  }
+  if (filtered.length === 0) return [];
+  if (type === 'targeted') {
+    filtered.sort((a, b) => a.learningScore - b.learningScore);
+  } else {
+    shuffle(filtered);
+  }
+  return filtered.slice(0, size);
+}
+
+/**
+ * Pure function: extracts deduplicated, alphabetically sorted tags from an entry pool.
+ * Exported for unit testing without requiring IndexedDB.
+ */
+export function collectTags(entries: DBEntry[]): string[] {
+  const tagSet = new Set<string>();
+  for (const entry of entries) {
+    for (const tag of entry.tags) {
+      tagSet.add(tag);
+    }
+  }
+  return Array.from(tagSet).sort();
+}
+
+/**
+ * Loads candidate entries for a rehearse session (read-only — no score writes).
+ * - Applies PoS filter when `posFilter` is non-empty (entry.partOfSpeech must be in list).
+ * - Applies tag filter when `tagFilter` is non-empty (entry must have at least one matching tag — OR semantics).
+ * - Both filters active: AND semantics (both must pass).
+ * - 'targeted': sort ascending by learningScore, return first `size`.
+ * - 'random': Fisher-Yates shuffle, return first `size`.
+ * - Returns entire filtered pool when pool size < `size`.
+ */
+export async function getEntriesForRehearsal(
+  userId: string,
+  type: 'random' | 'targeted',
+  size: number,
+  phrasebookId: string,
+  posFilter: PartOfSpeech[],
+  tagFilter: string[],
+): Promise<DBEntry[]> {
+  const all = await db.entries.where('phrasebookId').equals(phrasebookId).filter((e) => e.userId === userId).toArray();
+  return filterAndSelectEntries(all, type, size, posFilter, tagFilter);
+}
+
+/**
+ * Returns a deduplicated, alphabetically sorted list of all tags used by
+ * entries in the given phrasebook. Returns `[]` when no entries have tags.
+ */
+export async function getAvailableTagsForPhrasebook(
+  userId: string,
+  phrasebookId: string,
+): Promise<string[]> {
+  const entries = await db.entries.where('phrasebookId').equals(phrasebookId).filter((e) => e.userId === userId).toArray();
+  return collectTags(entries);
+}
+
 // ─── Account deletion ────────────────────────────────────────────────
 
 export async function clearLocalData(): Promise<void> {

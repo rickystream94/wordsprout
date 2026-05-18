@@ -175,3 +175,58 @@
   color: var(--text-muted);
   margin: 0;
 }
+
+.rehearseNotice {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+  font-style: italic;
+}
+
+/* Filter section (rehearse mode only) */
+.filterSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.filterCheckboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.filterNote {
+  font-size: var(--text-xs);
+  color: var(--color-warning, #b45309);
+  margin: 0;
+}
+
+.filterError {
+  font-size: var(--text-xs);
+  color: var(--color-error, #dc2626);
+  margin: 0;
+}
+
+.filterChip {
+  align-items: center;
+  border-radius: 100px;
+  border: 1.5px solid var(--border-subtle);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: var(--text-sm);
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  user-select: none;
+}
+
+.filterChip input {
+  accent-color: var(--brand-500);
+}
+
