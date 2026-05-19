@@ -90,38 +90,4 @@
   }
 }
 
-.nav {
-  bottom: 0;
-  display: flex;
-  flex-direction: row;
-  gap: var(--space-3);
-  justify-content: space-between;
-  padding: var(--space-4);
-  position: sticky;
-  background: var(--bg-card);
-  border-top: 1px solid var(--border);
-}
 
-.navBtn {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-family: inherit;
-  font-weight: var(--font-medium);
-  padding: var(--space-2) var(--space-5);
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
-}
-
-.navBtn:not(:disabled):hover {
-  background: var(--bg-subtle);
-  border-color: var(--brand-500);
-  color: var(--text-primary);
-}
-
-.navBtn:disabled {
-  cursor: not-allowed;
-  opacity: 0.35;
-}

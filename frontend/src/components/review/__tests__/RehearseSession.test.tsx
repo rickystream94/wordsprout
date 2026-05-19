@@ -27,14 +27,14 @@ vi.mock('../../../services/db', () => ({
 vi.mock('../RehearseSession.module.css', () => ({
   default: {
     session: '', header: '', exitBtn: '', progress: '', rehearseBadge: '',
-    nav: '', navBtn: '', swipeHintLeft: '', swipeHintRight: '',
+    swipeHintLeft: '', swipeHintRight: '',
   },
 }));
 
 vi.mock('../RehearseCard.module.css', () => ({
   default: {
     card: '', primary: '', sourceText: '', targetText: '', meta: '', pos: '', tag: '',
-    section: '', sectionHeading: '', list: '',
+    section: '', sectionHeading: '', list: '', nav: '', navBtn: '',
   },
 }));
 

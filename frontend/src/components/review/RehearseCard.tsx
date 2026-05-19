@@ -6,9 +6,13 @@ export interface RehearseCardProps {
   enrichment: DBEnrichment | undefined;
   targetLanguageName?: string;
   sourceLanguageName?: string;
+  onPrev: () => void;
+  onNext: () => void;
+  prevDisabled: boolean;
+  isLast: boolean;
 }
 
-export default function RehearseCard({ entry, enrichment }: RehearseCardProps) {
+export default function RehearseCard({ entry, enrichment, onPrev, onNext, prevDisabled, isLast }: RehearseCardProps) {
   const { sourceText, targetText, partOfSpeech, tags, notes } = entry;
 
   return (
@@ -95,6 +99,26 @@ export default function RehearseCard({ entry, enrichment }: RehearseCardProps) {
           )}
         </>
       )}
+
+      <nav className={styles.nav}>
+        <button
+          type="button"
+          className={styles.navBtn}
+          onClick={onPrev}
+          disabled={prevDisabled}
+          aria-label="Go to previous card"
+        >
+          ← Prev
+        </button>
+        <button
+          type="button"
+          className={styles.navBtn}
+          onClick={onNext}
+          aria-label={isLast ? 'Finish rehearse session' : 'Go to next card'}
+        >
+          {isLast ? 'Finish' : 'Next →'}
+        </button>
+      </nav>
     </article>
   );
 }

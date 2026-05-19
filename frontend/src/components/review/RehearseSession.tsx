@@ -84,28 +84,12 @@ export default function RehearseSession({ entries, onDone, targetLanguageName, s
           enrichment={enrichmentMap.get(current.id)}
           targetLanguageName={targetLanguageName}
           sourceLanguageName={sourceLanguageName}
+          onPrev={goPrev}
+          onNext={goNext}
+          prevDisabled={index === 0}
+          isLast={index === entries.length - 1}
         />
       )}
-
-      <nav className={styles.nav}>
-        <button
-          type="button"
-          className={styles.navBtn}
-          onClick={goPrev}
-          disabled={index === 0}
-          aria-label="Go to previous card"
-        >
-          ← Prev
-        </button>
-        <button
-          type="button"
-          className={styles.navBtn}
-          onClick={goNext}
-          aria-label={index === entries.length - 1 ? 'Finish rehearse session' : 'Go to next card'}
-        >
-          {index === entries.length - 1 ? 'Finish' : 'Next →'}
-        </button>
-      </nav>
     </div>
   );
 }
