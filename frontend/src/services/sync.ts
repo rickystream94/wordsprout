@@ -31,6 +31,28 @@ export async function pullFromServer(): Promise<void> {
 
     if (!isStale && !isEmpty) return;
 
+    // Flush pending mutations BEFORE fetching, so the server snapshot we pull
+    // already reflects any local changes (e.g. a phrasebook rename with an emoji
+    // that would otherwise be clobbered by the stale pre-flush snapshot).
+    const pendingCount = await db.pendingSync
+      .where('status')
+      .anyOf(['pending', 'syncing'])
+      .count();
+
+    let stillPending = 0;
+    if (pendingCount > 0) {
+      await replayQueue();
+
+      // Re-check: if mutations are still pending (e.g. offline), fall back to
+      // additive bulkPut so local-only rows aren't wiped.
+      stillPending = await db.pendingSync
+        .where('status')
+        .anyOf(['pending', 'syncing'])
+        .count();
+    }
+
+    // Fetch fresh server data — guaranteed to include the effects of any
+    // mutations we just flushed above.
     const [phrasebooks, enrichments, allEntries] = await Promise.all([
       phrasebooksApi.list(),
       enrichmentsApi.list(),
@@ -48,33 +70,15 @@ export async function pullFromServer(): Promise<void> {
       })(),
     ]);
 
-    // Flush any pending local mutations to the server BEFORE replacing
-    // local tables, so offline-created items aren't lost.
-    const pendingCount = await db.pendingSync
-      .where('status')
-      .anyOf(['pending', 'syncing'])
-      .count();
-
-    if (pendingCount > 0) {
-      await replayQueue();
-
-      // Re-check: if mutations are still pending (e.g. offline), fall back to
-      // additive bulkPut so local-only rows aren't wiped.
-      const stillPending = await db.pendingSync
-        .where('status')
-        .anyOf(['pending', 'syncing'])
-        .count();
-
-      if (stillPending > 0) {
-        await Promise.all([
-          db.phrasebooks.bulkPut(phrasebooks),
-          db.entries.bulkPut(allEntries),
-          db.enrichments.bulkPut(enrichments),
-          db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
-        ]);
-        await rebuildIndex();
-        return;
-      }
+    if (stillPending > 0) {
+      await Promise.all([
+        db.phrasebooks.bulkPut(phrasebooks),
+        db.entries.bulkPut(allEntries),
+        db.enrichments.bulkPut(enrichments),
+        db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
+      ]);
+      await rebuildIndex();
+      return;
     }
 
     // No pending mutations — safe to replace all local data with the server's

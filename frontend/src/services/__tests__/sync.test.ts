@@ -118,6 +118,50 @@ describe('pullFromServer', () => {
     // Due to in-progress guard, phrasebooksApi.list should be called only once
     expect(mockPhrasebooksApi.list).toHaveBeenCalledTimes(1);
   });
+
+  it('fetches from server AFTER flushing pending mutations so renames are not clobbered', async () => {
+    // Arrange: one pending mutation waiting to be replayed
+    const callOrder: string[] = [];
+    const mutation = {
+      id: 99,
+      url: 'http://localhost:7071/api/phrasebooks/pb-1',
+      method: 'PUT' as const,
+      body: '{"name":"My book 🎉"}',
+      retryCount: 0,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+
+    // First count() call returns 1 (pending), second returns 0 (after replay)
+    let countCallNumber = 0;
+    mockPendingSync.where.mockReturnValue({
+      anyOf: vi.fn().mockReturnValue({
+        count: vi.fn(async () => {
+          countCallNumber += 1;
+          return countCallNumber === 1 ? 1 : 0;
+        }),
+        toArray: vi.fn(async () => [mutation]),
+      }),
+    });
+
+    // fetch succeeds (mutation is replayed)
+    (mockPendingSync as Record<string, unknown>).update = vi.fn(async () => undefined);
+    (mockPendingSync as Record<string, unknown>).delete = vi.fn(async () => undefined);
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      callOrder.push('fetch');
+      return { ok: true, json: async () => ({}) };
+    }));
+
+    mockPhrasebooksApi.list.mockImplementation(async () => {
+      callOrder.push('list');
+      return [];
+    });
+
+    await pullFromServer();
+
+    // The mutation (fetch) must be sent before the server list is called
+    expect(callOrder.indexOf('fetch')).toBeLessThan(callOrder.indexOf('list'));
+  });
 });
 
 describe('enqueueMutation', () => {

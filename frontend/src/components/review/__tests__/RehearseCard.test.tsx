@@ -6,7 +6,7 @@ import type { DBEntry, DBEnrichment } from '../../../services/db';
 vi.mock('../RehearseCard.module.css', () => ({
   default: {
     card: '', primary: '', sourceText: '', targetText: '', meta: '', pos: '', tag: '',
-    section: '', sectionHeading: '', list: '',
+    section: '', sectionHeading: '', list: '', nav: '', navBtn: '',
   },
 }));
 
@@ -40,55 +40,58 @@ const FULL_ENRICHMENT: DBEnrichment = {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+// Minimal nav props required by all RehearseCard renders
+const NAV = { onPrev: vi.fn(), onNext: vi.fn(), prevDisabled: false, isLast: false };
+
 describe('RehearseCard', () => {
   it('renders sourceText and targetText', () => {
-    render(<RehearseCard entry={BASE_ENTRY} enrichment={undefined} />);
+    render(<RehearseCard entry={BASE_ENTRY} enrichment={undefined} {...NAV} />);
     expect(screen.getByText('ciao')).toBeInTheDocument();
     expect(screen.getByText('hello')).toBeInTheDocument();
   });
 
   it('renders partOfSpeech badge when present', () => {
     const entry = { ...BASE_ENTRY, partOfSpeech: 'noun' as const };
-    render(<RehearseCard entry={entry} enrichment={undefined} />);
+    render(<RehearseCard entry={entry} enrichment={undefined} {...NAV} />);
     expect(screen.getByText('noun')).toBeInTheDocument();
   });
 
   it('does not render partOfSpeech badge when absent', () => {
-    render(<RehearseCard entry={{ ...BASE_ENTRY, partOfSpeech: undefined }} enrichment={undefined} />);
+    render(<RehearseCard entry={{ ...BASE_ENTRY, partOfSpeech: undefined }} enrichment={undefined} {...NAV} />);
     expect(screen.queryByText(/noun|verb|adjective/)).not.toBeInTheDocument();
   });
 
   it('renders tags when non-empty with # prefix', () => {
     const entry = { ...BASE_ENTRY, tags: ['greetings', 'informal'] };
-    render(<RehearseCard entry={entry} enrichment={undefined} />);
+    render(<RehearseCard entry={entry} enrichment={undefined} {...NAV} />);
     expect(screen.getByText('#greetings')).toBeInTheDocument();
     expect(screen.getByText('#informal')).toBeInTheDocument();
   });
 
   it('does not render tags section when tags is empty', () => {
-    render(<RehearseCard entry={{ ...BASE_ENTRY, tags: [] }} enrichment={undefined} />);
+    render(<RehearseCard entry={{ ...BASE_ENTRY, tags: [] }} enrichment={undefined} {...NAV} />);
     expect(screen.queryByText('greetings')).not.toBeInTheDocument();
   });
 
   it('renders notes section when present', () => {
     const entry = { ...BASE_ENTRY, notes: 'Common greeting' };
-    render(<RehearseCard entry={entry} enrichment={undefined} />);
+    render(<RehearseCard entry={entry} enrichment={undefined} {...NAV} />);
     expect(screen.getByText('Common greeting')).toBeInTheDocument();
     expect(screen.getByText('Notes')).toBeInTheDocument();
   });
 
   it('does not render notes section when absent', () => {
-    render(<RehearseCard entry={{ ...BASE_ENTRY, notes: undefined }} enrichment={undefined} />);
+    render(<RehearseCard entry={{ ...BASE_ENTRY, notes: undefined }} enrichment={undefined} {...NAV} />);
     expect(screen.queryByText('Notes')).not.toBeInTheDocument();
   });
 
   it('does not render notes section when notes is empty string', () => {
-    render(<RehearseCard entry={{ ...BASE_ENTRY, notes: '' }} enrichment={undefined} />);
+    render(<RehearseCard entry={{ ...BASE_ENTRY, notes: '' }} enrichment={undefined} {...NAV} />);
     expect(screen.queryByText('Notes')).not.toBeInTheDocument();
   });
 
   it('renders no enrichment sections when enrichment is undefined', () => {
-    render(<RehearseCard entry={BASE_ENTRY} enrichment={undefined} />);
+    render(<RehearseCard entry={BASE_ENTRY} enrichment={undefined} {...NAV} />);
     expect(screen.queryByText('Example sentences')).not.toBeInTheDocument();
     expect(screen.queryByText('Synonyms')).not.toBeInTheDocument();
     expect(screen.queryByText('Antonyms')).not.toBeInTheDocument();
@@ -98,7 +101,7 @@ describe('RehearseCard', () => {
   });
 
   it('renders all enrichment sections when all fields are populated', () => {
-    render(<RehearseCard entry={BASE_ENTRY} enrichment={FULL_ENRICHMENT} />);
+    render(<RehearseCard entry={BASE_ENTRY} enrichment={FULL_ENRICHMENT} {...NAV} />);
     expect(screen.getByText('Example sentences')).toBeInTheDocument();
     expect(screen.getByText('Synonyms')).toBeInTheDocument();
     expect(screen.getByText('Antonyms')).toBeInTheDocument();
@@ -123,13 +126,13 @@ describe('RehearseCard', () => {
       register: undefined,
       falseFriendWarning: undefined,
     };
-    render(<RehearseCard entry={BASE_ENTRY} enrichment={emptyEnrichment} />);
+    render(<RehearseCard entry={BASE_ENTRY} enrichment={emptyEnrichment} {...NAV} />);
     expect(screen.queryByText('Example sentences')).not.toBeInTheDocument();
     expect(screen.queryByText('Synonyms')).not.toBeInTheDocument();
   });
 
   it('contains no form inputs, submit buttons, or score-related elements', () => {
-    render(<RehearseCard entry={BASE_ENTRY} enrichment={FULL_ENRICHMENT} />);
+    render(<RehearseCard entry={BASE_ENTRY} enrichment={FULL_ENRICHMENT} {...NAV} />);
     expect(document.querySelectorAll('input')).toHaveLength(0);
     expect(document.querySelectorAll('button[type="submit"]')).toHaveLength(0);
     expect(screen.queryByText(/learningScore|score delta/i)).not.toBeInTheDocument();
