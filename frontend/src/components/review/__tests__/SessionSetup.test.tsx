@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 
 const { mockUseLiveQuery } = vi.hoisted(() => ({
-  mockUseLiveQuery: vi.fn((fn: () => unknown, _deps: unknown, defaultValue: unknown) => defaultValue),
+  mockUseLiveQuery: vi.fn(() => undefined as unknown),
 }));
 
 vi.mock('dexie-react-hooks', () => ({
@@ -23,11 +23,14 @@ vi.mock('../../../services/db', () => ({
 
 vi.mock('../SessionSetup.module.css', () => ({
   default: {
-    setup: '', heading: '', field: '', label: '', typeOptions: '', typeOption: '',
-    selected: '', hiddenRadio: '', typeDesc: '', sizeOptions: '', sizeBtn: '',
-    sizeSelected: '', sizeNote: '', startBtn: '', emptyNote: '', rehearseNotice: '',
-    filterSection: '', filterGroup: '', filterCheckboxes: '', filterNote: '',
-    filterError: '', filterChip: '',
+    setup: '', heading: '', field: '', label: '', optionalHint: '',
+    typeOptions: '', typeOption: '', selected: '', hiddenRadio: '', typeDesc: '',
+    sizeOptions: '', sizeBtn: '', sizeSelected: '', sizeNote: '', startBtn: '',
+    emptyNote: '', rehearseNotice: '', filterSection: '', filterRow: '',
+    filterNote: '', filterError: '',
+    dropdown: '', dropdownTrigger: '', dropdownActive: '', dropdownLabel: '',
+    dropdownCount: '', dropdownChevron: '', dropdownChevronOpen: '',
+    dropdownMenu: '', dropdownItem: '', dropdownItemChecked: '', dropdownCheckbox: '',
   },
 }));
 
@@ -130,18 +133,18 @@ describe('SessionSetup', () => {
     expect(tagFilter).toEqual([]);
   });
 
-  it('shows mode-specific labels in rehearse mode: "Random sample" and "Prioritise low score"', () => {
+  it('shows "Random" and "Targeted" labels in competitive mode', () => {
+    render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={vi.fn()} />);
+    expect(screen.getByText('Random')).toBeInTheDocument();
+    expect(screen.getByText('Targeted')).toBeInTheDocument();
+  });
+
+  it('shows same "Random" and "Targeted" labels in rehearse mode too', () => {
     render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={vi.fn()} />);
     const rehearseRadio = screen.getAllByRole('radio').find(
       (r) => (r as HTMLInputElement).value === 'rehearse',
     )!;
     fireEvent.click(rehearseRadio);
-    expect(screen.getByText('Random sample')).toBeInTheDocument();
-    expect(screen.getByText('Prioritise low score')).toBeInTheDocument();
-  });
-
-  it('shows default labels "Random" and "Targeted" in competitive mode', () => {
-    render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={vi.fn()} />);
     expect(screen.getByText('Random')).toBeInTheDocument();
     expect(screen.getByText('Targeted')).toBeInTheDocument();
   });
@@ -161,7 +164,7 @@ describe('SessionSetup filter interactions (rehearse mode)', () => {
   function setupLiveQueryMocks(availablePoS: string[], availableTags: string[], filteredCount: number) {
     let callIndex = 0;
     mockUseLiveQuery.mockImplementation(
-      (_fn: unknown, _deps: unknown, _default: unknown) => {
+      () => {
         const slot = callIndex++ % 3;
         if (slot === 0) return availablePoS;
         if (slot === 1) return availableTags;
@@ -181,47 +184,57 @@ describe('SessionSetup filter interactions (rehearse mode)', () => {
     fireEvent.click(rehearseRadio);
   }
 
-  it('filter section is not shown in competitive mode', () => {
+  function openDropdown(triggerName: RegExp) {
+    fireEvent.click(screen.getByRole('button', { name: triggerName }));
+  }
+
+  it('filter dropdowns are not shown in competitive mode', () => {
     setupLiveQueryMocks([], [], 20);
     render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={vi.fn()} />);
-    expect(screen.queryByRole('group', { name: /part of speech filter/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: /tag filter/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /part of speech/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^tags$/i })).not.toBeInTheDocument();
   });
 
-  it('PoS filter checkboxes appear in rehearse mode when entries have partOfSpeech values', () => {
+  it('PoS dropdown appears in rehearse mode when entries have partOfSpeech values', () => {
     setupLiveQueryMocks(['noun', 'verb'], [], 20);
     render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={vi.fn()} />);
     switchToRehearseMode();
-    expect(screen.getByRole('group', { name: /part of speech filter/i })).toBeInTheDocument();
-    // 'noun' should be enabled, others disabled
-    const nounCheckbox = screen.getByRole('checkbox', { name: /^noun$/i });
-    expect(nounCheckbox).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /part of speech/i })).toBeInTheDocument();
   });
 
-  it('tag checkboxes appear in rehearse mode when availableTags is non-empty', () => {
+  it('tag dropdown appears in rehearse mode when availableTags is non-empty', () => {
     setupLiveQueryMocks([], ['greetings', 'food'], 20);
     render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={vi.fn()} />);
     switchToRehearseMode();
-    expect(screen.getByRole('group', { name: /tag filter/i })).toBeInTheDocument();
-    expect(screen.getByLabelText('greetings')).toBeInTheDocument();
-    expect(screen.getByLabelText('food')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^tags$/i })).toBeInTheDocument();
   });
 
-  it('tag checkbox toggles are checked/unchecked on click', () => {
+  it('tag dropdown shows items with # prefix when opened', () => {
+    setupLiveQueryMocks([], ['greetings', 'food'], 20);
+    render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={vi.fn()} />);
+    switchToRehearseMode();
+    openDropdown(/^tags$/i);
+    expect(screen.getByText('#greetings')).toBeInTheDocument();
+    expect(screen.getByText('#food')).toBeInTheDocument();
+  });
+
+  it('selecting a tag via dropdown updates checkbox state', () => {
     setupLiveQueryMocks([], ['greetings'], 20);
     render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={vi.fn()} />);
     switchToRehearseMode();
-    const checkbox = screen.getByLabelText('greetings') as HTMLInputElement;
+    openDropdown(/^tags$/i);
+    const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
     fireEvent.click(checkbox);
-    expect((screen.getByLabelText('greetings') as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(true);
   });
 
-  it('PoS checkbox toggles are checked/unchecked on click', () => {
+  it('selecting a PoS via dropdown updates checkbox state', () => {
     setupLiveQueryMocks(['noun'], [], 20);
     render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={vi.fn()} />);
     switchToRehearseMode();
-    const checkbox = screen.getByRole('checkbox', { name: /^noun$/i }) as HTMLInputElement;
+    openDropdown(/part of speech/i);
+    const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
     fireEvent.click(checkbox);
     expect(checkbox.checked).toBe(true);
   });
@@ -232,25 +245,21 @@ describe('SessionSetup filter interactions (rehearse mode)', () => {
     render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={onStart} />);
     switchToRehearseMode();
 
-    // Change phrasebook
     const select = screen.getByTestId('phrasebook-select');
     fireEvent.change(select, { target: { value: 'pb-2' } });
 
-    // Start session — posFilter and tagFilter should be [] after reset
     fireEvent.click(screen.getByRole('button', { name: /start session/i }));
     const [, , , , posFilter, tagFilter] = onStart.mock.calls[0] as OnStartArgs;
     expect(posFilter).toEqual([]);
     expect(tagFilter).toEqual([]);
   });
 
-  it('Start button disabled when filteredCount is 0 and filters are active', () => {
+  it('Start button disabled and error shown when filteredCount is 0 with active filter', () => {
     setupLiveQueryMocks(['noun'], [], 0);
     render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={vi.fn()} />);
     switchToRehearseMode();
-    // Activate a filter (click noun)
-    const checkbox = screen.getByRole('checkbox', { name: /^noun$/i });
-    fireEvent.click(checkbox);
-    // filteredCount is 0, so "no entries match" message should appear and button disabled
+    openDropdown(/part of speech/i);
+    fireEvent.click(screen.getByRole('checkbox'));
     expect(screen.getByRole('button', { name: /start session/i })).toBeDisabled();
     expect(screen.getByText(/no entries match/i)).toBeInTheDocument();
   });
@@ -259,8 +268,8 @@ describe('SessionSetup filter interactions (rehearse mode)', () => {
     setupLiveQueryMocks(['noun'], [], 2);
     render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={vi.fn()} />);
     switchToRehearseMode();
-    const checkbox = screen.getByRole('checkbox', { name: /^noun$/i });
-    fireEvent.click(checkbox);
+    openDropdown(/part of speech/i);
+    fireEvent.click(screen.getByRole('checkbox'));
     expect(screen.getByText(/only 2 matching/i)).toBeInTheDocument();
   });
 
@@ -271,6 +280,19 @@ describe('SessionSetup filter interactions (rehearse mode)', () => {
       (r) => (r as HTMLInputElement).value === 'random',
     ) as HTMLInputElement;
     expect(randomRadio?.checked).toBe(true);
+  });
+
+  it('size is capped at filteredCount when filters active but not at total entry count', () => {
+    // filteredCount=30 is > default size=10, so effectiveSize must be 10 (user's choice), not 30
+    setupLiveQueryMocks(['noun'], [], 30);
+    const onStart = vi.fn();
+    render(<SessionSetup phrasebooks={PHRASEBOOKS} onStart={onStart} />);
+    switchToRehearseMode();
+    openDropdown(/part of speech/i);
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /start session/i }));
+    const [, , size] = onStart.mock.calls[0] as OnStartArgs;
+    expect(size).toBe(10);
   });
 });
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type DBPhrasebook } from '../../services/db';
 import type { PartOfSpeech } from '../../types/models';
@@ -8,12 +8,88 @@ import styles from './SessionSetup.module.css';
 export type SessionType = 'random' | 'targeted';
 export type ReviewMode = 'competitive' | 'rehearse';
 
-// All possible PartOfSpeech values for the filter checkboxes
-const ALL_POS_VALUES: PartOfSpeech[] = [
-  'noun', 'verb', 'adjective', 'adverb', 'pronoun', 'preposition',
-  'conjunction', 'article', 'interjection', 'numeral', 'idiom',
-  'phrasal_verb', 'expression', 'other',
-];
+// ── Shared multi-select dropdown (mirrors FilterPanel pattern) ────────────────
+
+interface MultiSelectOption {
+  value: string;
+  label: string;
+}
+
+interface MultiSelectDropdownProps {
+  placeholder: string;
+  options: MultiSelectOption[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+}
+
+function MultiSelectDropdown({ placeholder, options, selected, onChange }: MultiSelectDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  function toggle(value: string) {
+    onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
+  }
+
+  const triggerLabel =
+    selected.length === 0
+      ? placeholder
+      : selected.length === 1
+        ? options.find((o) => o.value === selected[0])?.label ?? placeholder
+        : `${selected.length} selected`;
+
+  return (
+    <div className={styles.dropdown} ref={ref}>
+      <button
+        type="button"
+        className={`${styles.dropdownTrigger} ${selected.length > 0 ? styles.dropdownActive : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className={styles.dropdownLabel}>{triggerLabel}</span>
+        {selected.length > 0 && (
+          <span className={styles.dropdownCount}>{selected.length}</span>
+        )}
+        <svg
+          className={`${styles.dropdownChevron} ${open ? styles.dropdownChevronOpen : ''}`}
+          width="12" height="8" viewBox="0 0 12 8" fill="none" aria-hidden="true"
+        >
+          <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className={styles.dropdownMenu} role="listbox" aria-multiselectable="true">
+          {options.map((opt) => {
+            const checked = selected.includes(opt.value);
+            return (
+              <label
+                key={opt.value}
+                className={`${styles.dropdownItem} ${checked ? styles.dropdownItemChecked : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  className={styles.dropdownCheckbox}
+                  checked={checked}
+                  onChange={() => toggle(opt.value)}
+                />
+                <span>{opt.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface SessionSetupProps {
   phrasebooks: DBPhrasebook[];
@@ -94,34 +170,13 @@ export default function SessionSetup({ phrasebooks, onStart }: SessionSetupProps
   ) ?? totalEntries;
 
   const filtersActive = posFilter.length > 0 || tagFilter.length > 0;
-  const effectiveSize = Math.min(filtersActive ? filteredCount : actualSize, filtersActive ? filteredCount : totalEntries);
+  const effectiveSize = filtersActive ? Math.min(size, filteredCount) : actualSize;
 
   function handlePhrasebookChange(id: string) {
     setSelectedPhrasebookId(id);
     setPosFilter([]);
     setTagFilter([]);
   }
-
-  function togglePosFilter(pos: PartOfSpeech) {
-    setPosFilter((prev) =>
-      prev.includes(pos) ? prev.filter((p) => p !== pos) : [...prev, pos],
-    );
-  }
-
-  function toggleTagFilter(tag: string) {
-    setTagFilter((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
-    );
-  }
-
-  const randomLabel = reviewMode === 'rehearse' ? 'Random sample' : 'Random';
-  const targetedLabel = reviewMode === 'rehearse' ? 'Prioritise low score' : 'Targeted';
-  const randomDesc = reviewMode === 'rehearse'
-    ? 'Pick a random selection of entries'
-    : 'Sample evenly from all entries';
-  const targetedDesc = reviewMode === 'rehearse'
-    ? 'Focus on entries with the lowest learning score'
-    : 'Focus on entries with low score';
 
   const startDisabled = totalEntries === 0 || !effectivePhrasebookId || (filtersActive && filteredCount === 0);
 
@@ -187,8 +242,8 @@ export default function SessionSetup({ phrasebooks, onStart }: SessionSetupProps
               onChange={() => setSessionType('random')}
               className={styles.hiddenRadio}
             />
-            <strong>{randomLabel}</strong>
-            <span className={styles.typeDesc}>{randomDesc}</span>
+            <strong>Random</strong>
+            <span className={styles.typeDesc}>Sample evenly from all entries</span>
           </label>
           <label className={`${styles.typeOption} ${sessionType === 'targeted' ? styles.selected : ''}`}>
             <input
@@ -199,8 +254,8 @@ export default function SessionSetup({ phrasebooks, onStart }: SessionSetupProps
               onChange={() => setSessionType('targeted')}
               className={styles.hiddenRadio}
             />
-            <strong>{targetedLabel}</strong>
-            <span className={styles.typeDesc}>{targetedDesc}</span>
+            <strong>Targeted</strong>
+            <span className={styles.typeDesc}>Focus on entries with the lowest learning score</span>
           </label>
         </div>
       </div>
@@ -225,49 +280,32 @@ export default function SessionSetup({ phrasebooks, onStart }: SessionSetupProps
         )}
       </div>
 
-      {reviewMode === 'rehearse' && (
+      {reviewMode === 'rehearse' && (availablePoS.length > 0 || availableTags.length > 0) && (
         <div className={styles.filterSection}>
-          {availablePoS.length > 0 && (
-            <div className={styles.filterGroup}>
-              <span className={styles.label}>Filter by part of speech</span>
-              <div className={styles.filterCheckboxes} role="group" aria-label="Part of speech filter">
-                {ALL_POS_VALUES.map((pos) => (
-                  <label
-                    key={pos}
-                    className={styles.filterChip}
-                    style={{ opacity: availablePoS.includes(pos) ? 1 : 0.4 }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={posFilter.includes(pos)}
-                      onChange={() => togglePosFilter(pos)}
-                      disabled={!availablePoS.includes(pos)}
-                    />
-                    {pos}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {availableTags.length > 0 && (
-            <div className={styles.filterGroup}>
-              <span className={styles.label}>Filter by tag</span>
-              <div className={styles.filterCheckboxes} role="group" aria-label="Tag filter">
-                {availableTags.map((tag) => (
-                  <label key={tag} className={styles.filterChip}>
-                    <input
-                      type="checkbox"
-                      checked={tagFilter.includes(tag)}
-                      onChange={() => toggleTagFilter(tag)}
-                    />
-                    {tag}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
+          <span className={styles.label}>
+            Filters <span className={styles.optionalHint}>(optional)</span>
+          </span>
+          <div className={styles.filterRow}>
+            {availablePoS.length > 0 && (
+              <MultiSelectDropdown
+                placeholder="Part of speech"
+                options={availablePoS.map((pos) => ({
+                  value: pos,
+                  label: pos.replace('_', ' '),
+                }))}
+                selected={posFilter}
+                onChange={(values) => setPosFilter(values as PartOfSpeech[])}
+              />
+            )}
+            {availableTags.length > 0 && (
+              <MultiSelectDropdown
+                placeholder="Tags"
+                options={availableTags.map((tag) => ({ value: tag, label: `#${tag}` }))}
+                selected={tagFilter}
+                onChange={setTagFilter}
+              />
+            )}
+          </div>
           {filtersActive && filteredCount === 0 && (
             <p className={styles.filterError}>No entries match these filters — adjust filters to continue.</p>
           )}

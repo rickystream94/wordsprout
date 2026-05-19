@@ -58,11 +58,11 @@ describe('RehearseCard', () => {
     expect(screen.queryByText(/noun|verb|adjective/)).not.toBeInTheDocument();
   });
 
-  it('renders tags when non-empty', () => {
+  it('renders tags when non-empty with # prefix', () => {
     const entry = { ...BASE_ENTRY, tags: ['greetings', 'informal'] };
     render(<RehearseCard entry={entry} enrichment={undefined} />);
-    expect(screen.getByText('greetings')).toBeInTheDocument();
-    expect(screen.getByText('informal')).toBeInTheDocument();
+    expect(screen.getByText('#greetings')).toBeInTheDocument();
+    expect(screen.getByText('#informal')).toBeInTheDocument();
   });
 
   it('does not render tags section when tags is empty', () => {
