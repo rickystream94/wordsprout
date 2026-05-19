@@ -415,10 +415,12 @@ describe('getDecayStatus', () => {
     }
   });
 
-  it('returns none when past grace but pointsLost is 0 (score not yet written back)', () => {
-    // Entry is past grace but learningScore still equals decayBaseScore
+  it('returns grace with daysLeft 0 when past grace but pointsLost is 0 (score not yet written back)', () => {
+    // Entry is past grace but learningScore still equals decayBaseScore —
+    // applyDecayRound hasn’t fired yet (DECAY_RATE_DAYS > 1).
+    // Expect a “gracer expired, decay pending” signal rather than hidden badge.
     const daysElapsed = graceForScore(80) + 5;
     const status = getDecayStatus(80, 80, daysAgo(daysElapsed), today);
-    expect(status).toEqual({ kind: 'none' });
+    expect(status).toEqual({ kind: 'grace', daysLeft: 0 });
   });
 });

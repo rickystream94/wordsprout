@@ -146,6 +146,7 @@ async function importData(
     partOfSpeech: en.partOfSpeech,
     learningScore: typeof en.learningScore === 'number' ? en.learningScore : 0,
     lastReviewedDate: en.lastReviewedDate ?? null,
+    decayBaseScore: typeof en.decayBaseScore === 'number' ? en.decayBaseScore : null,
     enrichmentId: en.enrichmentId,
     createdAt: en.createdAt ?? now,
     updatedAt: en.updatedAt ?? now,

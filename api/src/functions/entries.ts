@@ -14,8 +14,21 @@ function sanitiseArray(values: string[]): string[] {
 }
 
 /**
- * Normalize vocabulary entry text: lowercase, trim, collapse spaces,
- * strip leading/trailing non-word punctuation.
+ * Allowlist for sourceText and targetText fields.
+ * Permits Unicode letters (all scripts), digits, combining marks (diacritics),
+ * whitespace, apostrophes, hyphens, en/em-dashes, and common punctuation.
+ * Characters like parentheses, +, @, etc. are rejected — users should use
+ * the notes field for annotations.
+ */
+const ENTRY_TEXT_PATTERN = /^[\p{L}\p{N}\p{M}\s'\u2019\-.,!?:;\u2013\u2014\u2026\/]+$/u;
+
+function validateEntryTextField(text: string): boolean {
+  const trimmed = text.trim();
+  return !trimmed || ENTRY_TEXT_PATTERN.test(trimmed);
+}
+
+/**
+ * Normalize vocabulary entry text: lowercase, trim, collapse spaces.
  * Preserves Unicode letters, numbers, apostrophes, hyphens and diacritics.
  * Applied to sourceText and targetText only — not notes.
  */
@@ -23,7 +36,6 @@ function normalizeEntryText(text: string): string {
   return text
     .trim()
     .replace(/\s+/g, ' ')
-    .replace(/^[^\p{L}\p{N}'\-]+|[^\p{L}\p{N}'\-]+$/gu, '')
     .toLowerCase();
 }
 
@@ -33,11 +45,22 @@ async function createEntry(req: HttpRequest, _ctx: InvocationContext, token: Dec
 
   const body = (await req.json()) as Partial<VocabularyEntry>;
   const phrasebookId = sanitise(body.phrasebookId ?? '');
-  const sourceText = normalizeEntryText(sanitise(body.sourceText ?? ''));
+  const rawSourceText = sanitise(body.sourceText ?? '');
 
-  if (!phrasebookId || !sourceText) {
+  if (!phrasebookId || !rawSourceText.trim()) {
     return apiError(400, 'phrasebookId and sourceText are required');
   }
+
+  if (!validateEntryTextField(rawSourceText)) {
+    return apiError(400, 'sourceText contains invalid characters. Only letters, numbers, spaces and common punctuation are allowed.');
+  }
+
+  const rawTargetInput = body.targetText ? sanitise(body.targetText) : undefined;
+  if (rawTargetInput && !validateEntryTextField(rawTargetInput)) {
+    return apiError(400, 'targetText contains invalid characters. Only letters, numbers, spaces and common punctuation are allowed.');
+  }
+
+  const sourceText = normalizeEntryText(rawSourceText);
 
   // Verify phrasebook ownership
   const phrasebook = await cosmosClient.pointRead<Phrasebook>(phrasebookId, token.sub);
@@ -53,7 +76,7 @@ async function createEntry(req: HttpRequest, _ctx: InvocationContext, token: Dec
     type: 'entry',
     phrasebookId,
   });
-  const rawTargetText = body.targetText ? normalizeEntryText(sanitise(body.targetText)) : undefined;
+  const rawTargetText = rawTargetInput ? normalizeEntryText(rawTargetInput) : undefined;
   const dupSrc = existing.find((e) => normalizeEntryText(e.sourceText) === sourceText);
   if (dupSrc) {
     const label = dupSrc.targetText ? `"${dupSrc.sourceText}" → "${dupSrc.targetText}"` : `"${dupSrc.sourceText}"`;
@@ -93,6 +116,7 @@ async function createEntry(req: HttpRequest, _ctx: InvocationContext, token: Dec
     partOfSpeech: body.partOfSpeech,
     learningScore: 0,
     lastReviewedDate: null,
+    decayBaseScore: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -175,6 +199,20 @@ async function updateEntry(req: HttpRequest, _ctx: InvocationContext, token: Dec
 
   const body = (await req.json()) as Partial<VocabularyEntry>;
 
+  // Validate sourceText / targetText against the allowlist if provided
+  if (body.sourceText !== undefined) {
+    const rawSrc = sanitise(body.sourceText);
+    if (!validateEntryTextField(rawSrc)) {
+      return apiError(400, 'sourceText contains invalid characters. Only letters, numbers, spaces and common punctuation are allowed.');
+    }
+  }
+  if (body.targetText !== undefined && body.targetText !== null) {
+    const rawTgt = sanitise(body.targetText);
+    if (!validateEntryTextField(rawTgt)) {
+      return apiError(400, 'targetText contains invalid characters. Only letters, numbers, spaces and common punctuation are allowed.');
+    }
+  }
+
   // Validate learningScore if provided
   if (body.learningScore !== undefined) {
     const newScore = Number(body.learningScore);
@@ -204,13 +242,14 @@ async function updateEntry(req: HttpRequest, _ctx: InvocationContext, token: Dec
 
   const updated: VocabularyEntry = {
     ...existing,
-    sourceText: body.sourceText !== undefined ? sanitise(body.sourceText) : existing.sourceText,
-    targetText: body.targetText !== undefined ? sanitise(body.targetText ?? '') || undefined : existing.targetText,
+    sourceText: body.sourceText !== undefined ? normalizeEntryText(sanitise(body.sourceText)) : existing.sourceText,
+    targetText: body.targetText !== undefined ? (normalizeEntryText(sanitise(body.targetText ?? '')) || undefined) : existing.targetText,
     notes: body.notes !== undefined ? sanitise(body.notes ?? '') || undefined : existing.notes,
     tags: body.tags !== undefined ? sanitiseArray(body.tags) : existing.tags,
     partOfSpeech: body.partOfSpeech !== undefined ? body.partOfSpeech : existing.partOfSpeech,
     learningScore: body.learningScore !== undefined ? Number(body.learningScore) : existing.learningScore,
     lastReviewedDate: body.lastReviewedDate !== undefined ? body.lastReviewedDate : existing.lastReviewedDate,
+    decayBaseScore: body.decayBaseScore !== undefined ? body.decayBaseScore : (existing.decayBaseScore ?? null),
     updatedAt: new Date().toISOString(),
   };
 

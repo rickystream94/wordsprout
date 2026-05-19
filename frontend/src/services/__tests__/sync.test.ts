@@ -35,7 +35,13 @@ vi.mock('../db', () => ({
 }));
 
 vi.mock('../api', () => ({
-  ApiRequestError: class extends Error {},
+  ApiRequestError: class ApiRequestError extends Error {
+    statusCode: number;
+    constructor(statusCode: number, message: string) {
+      super(message);
+      this.statusCode = statusCode;
+    }
+  },
   getAccessToken: vi.fn(async () => 'mock-token'),
   phrasebooksApi: mockPhrasebooksApi,
   entriesApi: mockEntriesApi,
@@ -160,5 +166,65 @@ describe('isSyncing / getNextSyncAt', () => {
 
   it('getNextSyncAt returns a number', () => {
     expect(typeof getNextSyncAt()).toBe('number');
+  });
+});
+
+describe('replayQueue — permanent-400 discards', () => {
+  const mockFetch = vi.fn();
+
+  // Reuse the hoisted pendingSync mock, extend it with update/delete for replayQueue
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', mockFetch);
+    (mockPendingSync as Record<string, unknown>).update = vi.fn(async () => undefined);
+    (mockPendingSync as Record<string, unknown>).delete = vi.fn(async () => undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Wire pendingSync to return one mutation, and fetch to return a 400 with a specific message. */
+  async function runWithError(mutationId: number, responseMessage: string) {
+    const mutation = {
+      id: mutationId,
+      url: 'http://localhost:7071/api/entries/entry-1',
+      method: 'PUT' as const,
+      body: '{}',
+      retryCount: 0,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+
+    mockPendingSync.where.mockReturnValue({
+      anyOf: vi.fn().mockReturnValue({
+        toArray: vi.fn(async () => [mutation]),
+        count: vi.fn(async () => 1),
+      }),
+    });
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ message: responseMessage }),
+    });
+
+    const { replayQueue } = await import('../sync');
+    await replayQueue();
+  }
+
+  it('discards a mutation when server responds with delta-guard error', async () => {
+    await runWithError(1, 'learningScore delta must be between -5 and +10');
+    expect((mockPendingSync as Record<string, unknown>).delete).toHaveBeenCalledWith(1);
+  });
+
+  it('discards a mutation when server responds with sourceText allowlist error', async () => {
+    await runWithError(2, 'sourceText contains invalid characters. Only letters, numbers, spaces and common punctuation are allowed.');
+    expect((mockPendingSync as Record<string, unknown>).delete).toHaveBeenCalledWith(2);
+  });
+
+  it('discards a mutation when server responds with targetText allowlist error', async () => {
+    await runWithError(3, 'targetText contains invalid characters. Only letters, numbers, spaces and common punctuation are allowed.');
+    expect((mockPendingSync as Record<string, unknown>).delete).toHaveBeenCalledWith(3);
   });
 });

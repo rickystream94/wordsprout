@@ -18,6 +18,12 @@ interface EntryListProps {
   onDelete?: (entry: DBEntry) => void;
   /** Optional id→name map; when provided each card shows its phrasebook name */
   phrasebooks?: Record<string, string>;
+  /**
+   * When true, renders a plain list without window virtualisation.
+   * Use this for small, filtered result sets (e.g. Search page) where the
+   * virtualiser’s fixed estimateSize causes cards with notes to overlap.
+   */
+  disableVirtualization?: boolean;
 }
 
 const DATE_FMT = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
@@ -31,7 +37,7 @@ function formatDateTime(iso: string): string {
   try { return DATETIME_FMT.format(new Date(iso)); } catch { return ''; }
 }
 
-export default function EntryList({ entries, onEdit, onDelete, phrasebooks }: EntryListProps) {
+export default function EntryList({ entries, onEdit, onDelete, phrasebooks, disableVirtualization }: EntryListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const isOnline = navigator.onLine;
@@ -71,6 +77,32 @@ export default function EntryList({ entries, onEdit, onDelete, phrasebooks }: En
       <div className={styles.empty}>
         <span aria-hidden="true" className={styles.emptyIcon}>✏️</span>
         <p>No entries yet. Add your first word or phrase above.</p>
+      </div>
+    );
+  }
+
+  // Non-virtualised path: simple stacked list, no absolute positioning.
+  // Used by pages with small/filtered result sets where the virtualiser’s
+  // fixed estimateSize would cause tall cards (with notes) to overlap.
+  if (disableVirtualization) {
+    return (
+      <div>
+        <ul className={styles.plainList} role="list">
+          {entries.map((entry) => (
+            <li key={entry.id} className={styles.plainItem}>
+              <EntryCard
+                entry={entry}
+                isExpanded={expandedId === entry.id}
+                isOnline={isOnline}
+                isPending={pendingIds.has(entry.id)}
+                phrasebookName={phrasebooks?.[entry.phrasebookId]}
+                onToggle={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }

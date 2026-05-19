@@ -55,7 +55,7 @@ function sanitise(text: string): string {
 
 /**
  * Normalize vocabulary text for storage and duplicate detection:
- * lowercase, trim, collapse spaces, strip leading/trailing non-word punctuation.
+ * lowercase, trim, collapse spaces.
  * Preserves Unicode letters, numbers, apostrophes, hyphens and diacritics.
  * Does NOT touch notes — those remain free text.
  */
@@ -63,9 +63,26 @@ function normalizeEntryText(text: string): string {
   return text
     .trim()
     .replace(/\s+/g, ' ')
-    // Strip leading/trailing chars that are not Unicode letters, digits, apostrophe or hyphen
-    .replace(/^[^\p{L}\p{N}'\-]+|[^\p{L}\p{N}'\-]+$/gu, '')
     .toLowerCase();
+}
+
+/**
+ * Allowlist for word/phrase and translation fields.
+ * Permits Unicode letters (all scripts), digits, combining marks (diacritics),
+ * whitespace, apostrophes, hyphens, en/em-dashes, and common punctuation.
+ * Characters like parentheses, +, @, etc. are rejected — users should use
+ * the Notes field for annotations.
+ */
+const ENTRY_TEXT_PATTERN = /^[\p{L}\p{N}\p{M}\s'\u2019\-.,!?:;\u2013\u2014\u2026\/]+$/u;
+
+const ENTRY_TEXT_ERROR =
+  'Only letters, numbers, spaces and common punctuation are allowed. Use the Notes field for annotations.';
+
+function validateEntryTextField(text: string): string | null {
+  const trimmed = sanitise(text).trim();
+  if (!trimmed) return null; // empty is checked separately by required validation
+  if (!ENTRY_TEXT_PATTERN.test(trimmed)) return ENTRY_TEXT_ERROR;
+  return null;
 }
 
 export default function EntryForm({ onDone, initialValues, initialEnrichment, existingEntries, sourceLanguageName, targetLanguageName }: EntryFormProps) {
@@ -78,6 +95,7 @@ export default function EntryForm({ onDone, initialValues, initialEnrichment, ex
   );
   const [tags, setTags] = useState<string[]>(initialValues?.tags ?? []);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [warnings, setWarnings] = useState<string[]>([]);
   const [pendingSubmit, setPendingSubmit] = useState(false);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
@@ -96,11 +114,47 @@ export default function EntryForm({ onDone, initialValues, initialEnrichment, ex
     [],
   );
 
+  function validateField(field: 'sourceText' | 'targetText', value: string): void {
+    setErrors((prev) => {
+      const errs = { ...prev };
+      if (field === 'sourceText') {
+        if (!value.trim()) {
+          errs['sourceText'] = sourceLanguageName
+            ? `${sourceLanguageName} word or phrase is required`
+            : 'Word or phrase is required';
+        } else {
+          const err = validateEntryTextField(value);
+          if (err) errs['sourceText'] = err;
+          else delete errs['sourceText'];
+        }
+      } else {
+        if (value.trim()) {
+          const err = validateEntryTextField(value);
+          if (err) errs['targetText'] = err;
+          else delete errs['targetText'];
+        } else {
+          delete errs['targetText'];
+        }
+      }
+      return errs;
+    });
+  }
+
   function validate(): boolean {
     const errs: Record<string, string> = {};
-    if (!sourceText.trim()) errs['sourceText'] = sourceLanguageName
-      ? `${sourceLanguageName} word or phrase is required`
-      : 'Word or phrase is required';
+    if (!sourceText.trim()) {
+      errs['sourceText'] = sourceLanguageName
+        ? `${sourceLanguageName} word or phrase is required`
+        : 'Word or phrase is required';
+    } else {
+      const srcErr = validateEntryTextField(sourceText);
+      if (srcErr) errs['sourceText'] = srcErr;
+    }
+
+    if (targetText.trim()) {
+      const tgtErr = validateEntryTextField(targetText);
+      if (tgtErr) errs['targetText'] = tgtErr;
+    }
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -253,7 +307,14 @@ export default function EntryForm({ onDone, initialValues, initialEnrichment, ex
           className={`${styles.input} ${errors['sourceText'] ? styles.inputError : ''}`}
           type="text"
           value={sourceText}
-          onChange={(e) => setSourceText(e.target.value)}
+          onChange={(e) => {
+            setSourceText(e.target.value);
+            if (touched['sourceText']) validateField('sourceText', e.target.value);
+          }}
+          onBlur={(e) => {
+            setTouched((prev) => ({ ...prev, sourceText: true }));
+            validateField('sourceText', e.target.value);
+          }}
           placeholder="e.g. serendipity"
           maxLength={500}
           autoFocus
@@ -271,7 +332,14 @@ export default function EntryForm({ onDone, initialValues, initialEnrichment, ex
           className={`${styles.input} ${errors['targetText'] ? styles.inputError : ''}`}
           type="text"
           value={targetText}
-          onChange={(e) => setTargetText(e.target.value)}
+          onChange={(e) => {
+            setTargetText(e.target.value);
+            if (touched['targetText']) validateField('targetText', e.target.value);
+          }}
+          onBlur={(e) => {
+            setTouched((prev) => ({ ...prev, targetText: true }));
+            validateField('targetText', e.target.value);
+          }}
           placeholder="e.g. serendipità"
           maxLength={500}
         />

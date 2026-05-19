@@ -77,19 +77,30 @@ export default function FlashcardSession({ entries, onDone, targetLanguageName }
       const newScore = applyDelta(current.learningScore, delta);
       const today = todayKey();
 
-      // Correct answers and typos (which still gain points) both reset the
-      // grace timer and anchor the new base score.
-      // Only wrong answers leave lastReviewedDate and decayBaseScore unchanged.
-      const graceFields = result !== 'wrong'
-        ? { lastReviewedDate: today, decayBaseScore: newScore }
-        : {};
-
       void (async () => {
-        await updateEntry(current.id, { learningScore: newScore, ...graceFields });
+        // Re-read the live entry to guard against a stale session snapshot.
+        // If the entry was already reviewed today (e.g. on another device or
+        // an earlier session this calendar day), skip the write entirely to
+        // prevent a “Entry already reviewed today” server rejection.
+        const live = await db.entries.get(current.id);
+        if (live?.lastReviewedDate === today) return;
+
+        // Re-apply the same delta against the live score so the server's
+        // delta guard (-5 / +10) is not violated when the session snapshot
+        // has drifted from the current server score.
+        const liveNewScore = applyDelta(live?.learningScore ?? current.learningScore, delta);
+        // Correct answers and typos reset the grace timer and anchor the new
+        // base score; wrong answers leave those fields unchanged.
+        const liveGraceFields = result !== 'wrong'
+          ? { lastReviewedDate: today, decayBaseScore: liveNewScore }
+          : {};
+
+        await updateEntry(current.id, { learningScore: liveNewScore, ...liveGraceFields });
         await enqueueMutation(`${API_BASE}/entries/${current.id}`, 'PUT', {
           ...current,
-          learningScore: newScore,
-          ...graceFields,
+          ...(live ?? {}),
+          learningScore: liveNewScore,
+          ...liveGraceFields,
         });
       })();
 
@@ -120,10 +131,17 @@ export default function FlashcardSession({ entries, onDone, targetLanguageName }
 
       // Reveal (peek) never resets the grace timer — score drops but decay pressure continues.
       void (async () => {
-        await updateEntry(current.id, { learningScore: newScore });
+        // Guard against stale snapshot: skip write if already reviewed today in live DB.
+        const live = await db.entries.get(current.id);
+        if (live?.lastReviewedDate === todayKey()) return;
+
+        // Re-apply the delta against the live score to avoid server delta-check failures.
+        const liveNewScore = applyDelta(live?.learningScore ?? current.learningScore, delta);
+        await updateEntry(current.id, { learningScore: liveNewScore });
         await enqueueMutation(`${API_BASE}/entries/${current.id}`, 'PUT', {
           ...current,
-          learningScore: newScore,
+          ...(live ?? {}),
+          learningScore: liveNewScore,
         });
       })();
 

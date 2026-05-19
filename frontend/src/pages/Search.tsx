@@ -254,6 +254,7 @@ export default function Search() {
             phrasebooks={phrasebookMap}
             onEdit={(entry, enrichment) => { setEditingEntry(entry); setEditingEnrichment(enrichment); }}
             onDelete={handleDeleteEntry}
+            disableVirtualization
           />
         </>
       )}

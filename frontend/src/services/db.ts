@@ -387,10 +387,21 @@ function shuffle<T>(arr: T[]): void {
  * Given a pool of candidate entries, returns up to `size` entries ordered so
  * that entries NOT yet reviewed on `today` come first (fresh), and entries
  * already reviewed today are appended only when needed to reach `size`.
- * Both groups are shuffled independently.
+ *
+ * Fresh entries are sorted deterministically:
+ * 1. Never-reviewed (lastReviewedDate === null) always first.
+ * 2. Oldest lastReviewedDate ascending (ISO YYYY-MM-DD string comparison is safe).
+ * 3. For 'targeted' sessions: lowest learningScore ascending as a tiebreaker.
+ *
+ * Stale entries (reviewed today) are shuffled — they are backfill only.
  * Exported for unit-testing.
  */
-export function prioritiseForSession(pool: DBEntry[], size: number, today: string): DBEntry[] {
+export function prioritiseForSession(
+  pool: DBEntry[],
+  size: number,
+  today: string,
+  type: 'random' | 'targeted' = 'random',
+): DBEntry[] {
   const fresh: DBEntry[] = [];
   const stale: DBEntry[] = [];
   for (const e of pool) {
@@ -400,7 +411,28 @@ export function prioritiseForSession(pool: DBEntry[], size: number, today: strin
       fresh.push(e);
     }
   }
-  shuffle(fresh);
+
+  // Deterministic priority sort for the fresh bucket.
+  fresh.sort((a, b) => {
+    // 1. Never-reviewed entries always surface first.
+    const aNull = a.lastReviewedDate === null;
+    const bNull = b.lastReviewedDate === null;
+    if (aNull !== bNull) return aNull ? -1 : 1;
+
+    // 2. Both null or both have dates — sort by oldest-reviewed first.
+    if (!aNull && !bNull) {
+      const dateCmp = a.lastReviewedDate!.localeCompare(b.lastReviewedDate!);
+      if (dateCmp !== 0) return dateCmp;
+    }
+
+    // 3. Targeted sessions: lowest learningScore as a tiebreaker.
+    if (type === 'targeted') {
+      return a.learningScore - b.learningScore;
+    }
+
+    return 0;
+  });
+
   shuffle(stale);
   const needed = Math.max(0, size - fresh.length);
   return [...fresh.slice(0, size), ...stale.slice(0, needed)];
@@ -430,7 +462,7 @@ export async function getEntriesForSession(
     pool = pool0;
   }
 
-  return prioritiseForSession(pool, size, todayKey());
+  return prioritiseForSession(pool, size, todayKey(), type);
 }
 
 // ─── Rehearse session helpers ─────────────────────────────────────────────────

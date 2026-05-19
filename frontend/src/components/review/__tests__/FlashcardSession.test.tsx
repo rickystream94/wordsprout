@@ -11,7 +11,11 @@ const { mockUpdateEntry, mockEnqueueMutation, mockUseLiveQuery } = vi.hoisted(()
 }));
 
 vi.mock('../../../services/db', () => ({
-  db: { enrichments: { where: vi.fn(() => ({ anyOf: vi.fn(() => ({ toArray: vi.fn(async () => []) })) })) } },
+  db: {
+    enrichments: { where: vi.fn(() => ({ anyOf: vi.fn(() => ({ toArray: vi.fn(async () => []) })) })) },
+    // Default: entry not reviewed today — live-read guard allows writes to proceed.
+    entries: { get: vi.fn(async () => ({ lastReviewedDate: null })) },
+  },
   updateEntry: mockUpdateEntry,
 }));
 
@@ -32,6 +36,7 @@ vi.mock('../FlashcardSession.module.css', () => ({
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
 import FlashcardSession from '../FlashcardSession';
+import { db } from '../../../services/db';
 import type { DBEntry } from '../../../services/db';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -177,6 +182,56 @@ describe('FlashcardSession — decayBaseScore writes', () => {
 
       expect(mockUpdateEntry).not.toHaveBeenCalled();
       expect(mockEnqueueMutation).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('live DB guard — reviewed during session', () => {
+    it('skips write when live DB shows entry reviewed today (appeared fresh at load)', async () => {
+      // Entry was fresh at session load but live DB has today’s date (reviewed on another device)
+      vi.mocked(db.entries.get).mockResolvedValueOnce({
+        ...MOCK_ENTRY,
+        lastReviewedDate: new Date().toLocaleDateString('sv'),
+      } as unknown as Awaited<ReturnType<typeof db.entries.get>>);
+
+      await renderAndSubmit('hello');
+
+      expect(mockUpdateEntry).not.toHaveBeenCalled();
+      expect(mockEnqueueMutation).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('score drift — live learningScore differs from session snapshot', () => {
+    it('applies delta against live score, not stale snapshot', async () => {
+      const driftedScore = 90; // server score drifted up from snapshot value of 50
+      vi.mocked(db.entries.get).mockResolvedValueOnce({
+        ...MOCK_ENTRY,
+        learningScore: driftedScore,
+      } as unknown as Awaited<ReturnType<typeof db.entries.get>>);
+
+      await renderAndSubmit('hello'); // correct → +10
+
+      expect(mockUpdateEntry).toHaveBeenCalledOnce();
+      const [, changes] = mockUpdateEntry.mock.calls[0] as [string, Record<string, unknown>];
+      // applyDelta(90, +10) = 100 (capped at MAX_SCORE)
+      expect(changes.learningScore).toBe(100);
+    });
+
+    it('mutation body learningScore produces a delta within server bounds', async () => {
+      const driftedScore = 90;
+      vi.mocked(db.entries.get).mockResolvedValueOnce({
+        ...MOCK_ENTRY,
+        learningScore: driftedScore,
+      } as unknown as Awaited<ReturnType<typeof db.entries.get>>);
+
+      await renderAndSubmit('hello');
+
+      expect(mockEnqueueMutation).toHaveBeenCalledOnce();
+      const [, , body] = mockEnqueueMutation.mock.calls[0] as [string, string, Record<string, unknown>];
+      // Server computes: delta = body.learningScore − existing.learningScore
+      // Using live score as base means this delta is always within [-5, +10]
+      const impliedDelta = (body.learningScore as number) - driftedScore;
+      expect(impliedDelta).toBeGreaterThanOrEqual(-5);
+      expect(impliedDelta).toBeLessThanOrEqual(10);
     });
   });
 });

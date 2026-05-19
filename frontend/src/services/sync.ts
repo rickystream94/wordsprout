@@ -248,6 +248,45 @@ async function _doReplayQueue(): Promise<void> {
         continue;
       }
 
+      // 400 "Entry already reviewed today" — the server already has a review for this
+      // entry on the current UTC day. This mutation can never succeed (the daily-review
+      // guard is permanent for the day). Discard silently rather than burning retries
+      // and showing a sync-error indicator for something that is not a real failure.
+      if (
+        err instanceof ApiRequestError &&
+        err.statusCode === 400 &&
+        err.message === 'Entry already reviewed today'
+      ) {
+        await db.pendingSync.delete(mutation.id);
+        continue;
+      }
+
+      // 400 "learningScore delta must be between -5 and +10" — the mutation was
+      // enqueued with a score computed from a stale session snapshot.  The live
+      // server score has since drifted far enough that the delta exceeds the guard.
+      // The local DB already reflects the intended change; retrying can never
+      // succeed.  Discard silently.
+      if (
+        err instanceof ApiRequestError &&
+        err.statusCode === 400 &&
+        err.message === 'learningScore delta must be between -5 and +10'
+      ) {
+        await db.pendingSync.delete(mutation.id);
+        continue;
+      }
+
+      // 400 invalid sourceText / targetText — the entry was seeded or created
+      // before the allowlist was introduced.  Retrying will always fail.  Discard.
+      if (
+        err instanceof ApiRequestError &&
+        err.statusCode === 400 &&
+        (err.message.startsWith('sourceText contains invalid characters') ||
+          err.message.startsWith('targetText contains invalid characters'))
+      ) {
+        await db.pendingSync.delete(mutation.id);
+        continue;
+      }
+
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 
       // Network error (offline / no connectivity) — TypeError from fetch, not an HTTP response.
