@@ -35,9 +35,9 @@
 }
 
 .progress {
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
-  color: var(--text-secondary);
+  color: var(--text-muted);
+  font-weight: var(--font-medium);
 }
 
 .rehearseBadge {
