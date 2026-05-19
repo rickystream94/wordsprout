@@ -6,7 +6,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 const { mockUseLiveQuery, mockUseSwipe } = vi.hoisted(() => ({
   mockUseLiveQuery: vi.fn(() => []),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mockUseSwipe: vi.fn((_opts?: any) => ({ current: null as null })),
+  mockUseSwipe: vi.fn<any>(() => ({ current: null as null })),
 }));
 
 vi.mock('dexie-react-hooks', () => ({
@@ -138,8 +138,8 @@ describe('RehearseSession', () => {
 
   it('useSwipe onSwipeLeft callback advances to next card', () => {
     let capturedOnSwipeLeft: (() => void) | undefined;
-    mockUseSwipe.mockImplementation((opts: { onSwipeLeft?: () => void }) => {
-      capturedOnSwipeLeft = opts.onSwipeLeft;
+    mockUseSwipe.mockImplementation((opts) => {
+      capturedOnSwipeLeft = (opts as { onSwipeLeft?: () => void }).onSwipeLeft;
       return { current: null };
     });
 
@@ -152,8 +152,8 @@ describe('RehearseSession', () => {
   it('useSwipe onSwipeLeft on last card calls onDone', () => {
     const onDone = vi.fn();
     let capturedOnSwipeLeft: (() => void) | undefined;
-    mockUseSwipe.mockImplementation((opts: { onSwipeLeft?: () => void }) => {
-      capturedOnSwipeLeft = opts.onSwipeLeft;
+    mockUseSwipe.mockImplementation((opts) => {
+      capturedOnSwipeLeft = (opts as { onSwipeLeft?: () => void }).onSwipeLeft;
       return { current: null };
     });
 
@@ -167,8 +167,8 @@ describe('RehearseSession', () => {
 
   it('useSwipe onSwipeRight on first card is a no-op (index stays 0)', () => {
     let capturedOnSwipeRight: (() => void) | undefined;
-    mockUseSwipe.mockImplementation((opts: { onSwipeRight?: () => void }) => {
-      capturedOnSwipeRight = opts.onSwipeRight;
+    mockUseSwipe.mockImplementation((opts) => {
+      capturedOnSwipeRight = (opts as { onSwipeRight?: () => void }).onSwipeRight;
       return { current: null };
     });
 
@@ -180,8 +180,8 @@ describe('RehearseSession', () => {
 
   it('useSwipe onSwipeRight retreats index from a non-zero position', () => {
     let capturedOnSwipeRight: (() => void) | undefined;
-    mockUseSwipe.mockImplementation((opts: { onSwipeRight?: () => void }) => {
-      capturedOnSwipeRight = opts.onSwipeRight;
+    mockUseSwipe.mockImplementation((opts) => {
+      capturedOnSwipeRight = (opts as { onSwipeRight?: () => void }).onSwipeRight;
       return { current: null };
     });
 
