@@ -1,12 +1,14 @@
 # WordSprout Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-05-17
+Auto-generated from all feature plans. Last updated: 2026-05-18
 
 ## Active Technologies
 - [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION] (008-learning-score-decay)
 - [if applicable, e.g., PostgreSQL, CoreData, files or N/A] (008-learning-score-decay)
 - TypeScript 5.x + Dexie.js 4.x (IndexedDB), React 18, `dexie-react-hooks` (008-learning-score-decay)
 - IndexedDB (Dexie) as primary client-side store; Azure Cosmos DB Serverless as sync target (008-learning-score-decay)
+- TypeScript 5.x + React 18, Dexie.js 4.x (`dexie-react-hooks`), react-router-dom, CSS Modules (feature/009-rehearse-review-mode)
+- IndexedDB via Dexie.js (read-only during rehearse sessions) (feature/009-rehearse-review-mode)
 
 | Layer | Technologies |
 |---|---|
@@ -53,9 +55,9 @@ cd frontend && npx tsc --noEmit
 TypeScript 5.x: strict mode, no implicit any. React: functional components with hooks only; no class components. Styling: CSS Modules (`.module.css`) co-located with components. Imports: absolute paths via `tsconfig` path aliases where configured.
 
 ## Recent Changes
+- feature/009-rehearse-review-mode: Added TypeScript 5.x + React 18, Dexie.js 4.x (`dexie-react-hooks`), react-router-dom, CSS Modules
 - 008-learning-score-decay: Added TypeScript 5.x + Dexie.js 4.x (IndexedDB), React 18, `dexie-react-hooks`
 - 008-learning-score-decay: Added [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
-- feature/007-unit-testing-coverage: Added Vitest test infrastructure for API and frontend with coverage thresholds
 
 
 <!-- MANUAL ADDITIONS START -->

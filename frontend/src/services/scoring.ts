@@ -274,9 +274,11 @@ export function getDecayStatus(
   }
 
   const pointsLost = Math.max(0, decayBaseScore - currentScore);
-  // No points lost yet (score hasn't been written back after grace expired) —
-  // treat the same as "not decaying" to avoid showing "↓ 0pts".
-  if (pointsLost === 0) return { kind: 'none' };
+  // No points lost yet (score hasn't been written back after grace expired, e.g.
+  // applyDecayRound hasn't fired yet today because DECAY_RATE_DAYS > 1).
+  // Show an "overdue" grace badge (daysLeft: 0) so the user always sees a badge
+  // once they've been reviewed, rather than a silent gap of up to DECAY_RATE_DAYS days.
+  if (pointsLost === 0) return { kind: 'grace', daysLeft: 0 };
 
   const lostPct = decayBaseScore > 0 ? (pointsLost / decayBaseScore) * 100 : 0;
   const urgency: DecayUrgency = lostPct >= 35 ? 'high' : lostPct >= 15 ? 'medium' : 'low';

@@ -31,6 +31,28 @@ export async function pullFromServer(): Promise<void> {
 
     if (!isStale && !isEmpty) return;
 
+    // Flush pending mutations BEFORE fetching, so the server snapshot we pull
+    // already reflects any local changes (e.g. a phrasebook rename with an emoji
+    // that would otherwise be clobbered by the stale pre-flush snapshot).
+    const pendingCount = await db.pendingSync
+      .where('status')
+      .anyOf(['pending', 'syncing'])
+      .count();
+
+    let stillPending = 0;
+    if (pendingCount > 0) {
+      await replayQueue();
+
+      // Re-check: if mutations are still pending (e.g. offline), fall back to
+      // additive bulkPut so local-only rows aren't wiped.
+      stillPending = await db.pendingSync
+        .where('status')
+        .anyOf(['pending', 'syncing'])
+        .count();
+    }
+
+    // Fetch fresh server data — guaranteed to include the effects of any
+    // mutations we just flushed above.
     const [phrasebooks, enrichments, allEntries] = await Promise.all([
       phrasebooksApi.list(),
       enrichmentsApi.list(),
@@ -48,33 +70,15 @@ export async function pullFromServer(): Promise<void> {
       })(),
     ]);
 
-    // Flush any pending local mutations to the server BEFORE replacing
-    // local tables, so offline-created items aren't lost.
-    const pendingCount = await db.pendingSync
-      .where('status')
-      .anyOf(['pending', 'syncing'])
-      .count();
-
-    if (pendingCount > 0) {
-      await replayQueue();
-
-      // Re-check: if mutations are still pending (e.g. offline), fall back to
-      // additive bulkPut so local-only rows aren't wiped.
-      const stillPending = await db.pendingSync
-        .where('status')
-        .anyOf(['pending', 'syncing'])
-        .count();
-
-      if (stillPending > 0) {
-        await Promise.all([
-          db.phrasebooks.bulkPut(phrasebooks),
-          db.entries.bulkPut(allEntries),
-          db.enrichments.bulkPut(enrichments),
-          db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
-        ]);
-        await rebuildIndex();
-        return;
-      }
+    if (stillPending > 0) {
+      await Promise.all([
+        db.phrasebooks.bulkPut(phrasebooks),
+        db.entries.bulkPut(allEntries),
+        db.enrichments.bulkPut(enrichments),
+        db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
+      ]);
+      await rebuildIndex();
+      return;
     }
 
     // No pending mutations — safe to replace all local data with the server's
@@ -244,6 +248,45 @@ async function _doReplayQueue(): Promise<void> {
       // 409 = conflict — a resource with this content already exists on the server.
       // Retrying will never resolve the conflict; discard silently.
       if (err instanceof ApiRequestError && err.statusCode === 409) {
+        await db.pendingSync.delete(mutation.id);
+        continue;
+      }
+
+      // 400 "Entry already reviewed today" — the server already has a review for this
+      // entry on the current UTC day. This mutation can never succeed (the daily-review
+      // guard is permanent for the day). Discard silently rather than burning retries
+      // and showing a sync-error indicator for something that is not a real failure.
+      if (
+        err instanceof ApiRequestError &&
+        err.statusCode === 400 &&
+        err.message === 'Entry already reviewed today'
+      ) {
+        await db.pendingSync.delete(mutation.id);
+        continue;
+      }
+
+      // 400 "learningScore delta must be between -5 and +10" — the mutation was
+      // enqueued with a score computed from a stale session snapshot.  The live
+      // server score has since drifted far enough that the delta exceeds the guard.
+      // The local DB already reflects the intended change; retrying can never
+      // succeed.  Discard silently.
+      if (
+        err instanceof ApiRequestError &&
+        err.statusCode === 400 &&
+        err.message === 'learningScore delta must be between -5 and +10'
+      ) {
+        await db.pendingSync.delete(mutation.id);
+        continue;
+      }
+
+      // 400 invalid sourceText / targetText — the entry was seeded or created
+      // before the allowlist was introduced.  Retrying will always fail.  Discard.
+      if (
+        err instanceof ApiRequestError &&
+        err.statusCode === 400 &&
+        (err.message.startsWith('sourceText contains invalid characters') ||
+          err.message.startsWith('targetText contains invalid characters'))
+      ) {
         await db.pendingSync.delete(mutation.id);
         continue;
       }

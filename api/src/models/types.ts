@@ -67,8 +67,9 @@ export interface VocabularyEntry extends CosmosDocument {
   notes?: string;
   tags: string[];
   partOfSpeech?: PartOfSpeech;
-  learningScore: number;          // integer 0–100
+  learningScore: number;           // integer 0–100
   lastReviewedDate: string | null; // 'YYYY-MM-DD' local date, null = never reviewed
+  decayBaseScore: number | null;   // score at last review session; null = never reviewed
   enrichmentId?: string;
 }
 
@@ -187,6 +188,7 @@ export interface ExportEntry {
   partOfSpeech?:     PartOfSpeech;
   learningScore?:    number;
   lastReviewedDate?: string | null;
+  decayBaseScore?:   number | null;
   enrichmentId?:     string;
 }
 

@@ -1,0 +1,93 @@
+.session {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 0;
+  position: relative;
+  outline: none;
+}
+
+.header {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.exitBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.exitBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-subtle);
+}
+
+.progress {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-weight: var(--font-medium);
+}
+
+.rehearseBadge {
+  background: color-mix(in srgb, var(--brand-500) 10%, transparent);
+  border-radius: var(--radius-full);
+  color: var(--brand-700);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  padding: 3px var(--space-3);
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .rehearseBadge {
+  color: var(--brand-300);
+  background: color-mix(in srgb, var(--brand-500) 18%, transparent);
+}
+
+/* Swipe hint chevrons — touch-only, CSS animation fade-out */
+.swipeHintLeft,
+.swipeHintRight {
+  display: none;
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 3rem;
+  color: var(--text-muted);
+  pointer-events: none;
+  user-select: none;
+}
+
+.swipeHintLeft {
+  left: var(--space-2);
+}
+
+.swipeHintRight {
+  right: var(--space-2);
+}
+
+@keyframes fadeOut {
+  0% { opacity: 0.6; }
+  70% { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+
+@media (hover: none) {
+  .swipeHintLeft,
+  .swipeHintRight {
+    display: block;
+    animation: fadeOut 2s ease-out forwards;
+  }
+}
+
+

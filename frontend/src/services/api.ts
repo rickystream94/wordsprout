@@ -42,6 +42,12 @@ export async function exchangeOidcForSession(oidcToken: string): Promise<Session
   return exchangeInFlight;
 }
 
+// Sentinel: refresh endpoint returned a network error (offline / timeout), not an
+// auth failure. We preserve the session so the user can continue offline.
+class RefreshNetworkError extends Error {
+  constructor() { super('Network error during token refresh'); }
+}
+
 // Deduplication: only one refresh request in-flight at a time
 let refreshInFlight: Promise<SessionResponse | null> | null = null;
 
@@ -54,10 +60,12 @@ async function refreshSessionTokens(refreshToken: string): Promise<SessionRespon
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
       });
-      if (!res.ok) return null;
+      if (!res.ok) return null; // auth failure (401/403 etc.) — let caller clear session
       return (await res.json()) as SessionResponse;
     } catch {
-      return null;
+      // Network error (offline, timeout, DNS failure) — re-throw so getAccessToken
+      // knows NOT to clear the session (the token may still be valid).
+      throw new RefreshNetworkError();
     } finally {
       refreshInFlight = null;
     }
@@ -113,13 +121,24 @@ export async function getAccessToken(): Promise<string | null> {
   // 2. Access token expired/expiring — try refreshing with stored refresh token
   const refreshToken = getStoredRefreshToken();
   if (refreshToken) {
-    const refreshed = await refreshSessionTokens(refreshToken);
-    if (refreshed) {
-      storeSession(refreshed.accessToken, refreshed.refreshToken);
-      return refreshed.accessToken;
+    try {
+      const refreshed = await refreshSessionTokens(refreshToken);
+      if (refreshed) {
+        storeSession(refreshed.accessToken, refreshed.refreshToken);
+        return refreshed.accessToken;
+      }
+      // refreshSessionTokens returned null — auth failure (token revoked/expired).
+      clearSession();
+    } catch (err) {
+      if (err instanceof RefreshNetworkError) {
+        // We're offline or the refresh endpoint is unreachable.
+        // Do NOT clear the session — the refresh token is still valid.
+        // Return null so the caller can decide how to proceed.
+        return null;
+      }
+      // Unexpected error — treat conservatively (don't clear session).
+      return null;
     }
-    // Refresh failed (token revoked/expired) — clear stale session
-    clearSession();
   }
 
   // 3. No session — fall back to OIDC providers, then exchange for a new session
@@ -157,6 +176,9 @@ export class ApiRequestError extends Error {
 
 // ─── Core fetch wrapper ───────────────────────────────────────────────────────
 
+/** How long (ms) to wait for a response before aborting with a network error. */
+const FETCH_TIMEOUT_MS = 10_000;
+
 async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
@@ -172,7 +194,28 @@ async function apiFetch<T>(
     if (token) headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    // AbortError (timeout) or TypeError (offline) — both are network errors.
+    // Re-throw as a plain Error so callers that check for ApiRequestError treat
+    // this as a non-auth failure (e.g. AuthGuard’s offline bypass).
+    const message =
+      err instanceof Error && err.name === 'AbortError'
+        ? 'Request timed out'
+        : 'Network error';
+    throw new Error(message);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     let errorBody: ApiError | undefined;

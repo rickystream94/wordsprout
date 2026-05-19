@@ -7,6 +7,17 @@
   position: relative;
 }
 
+/* Non-virtualised list: normal flow, no absolute positioning */
+.plainList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.plainItem {
+  padding-bottom: var(--space-3);
+}
+
 .virtualItem {
   position: absolute;
   top: 0;
