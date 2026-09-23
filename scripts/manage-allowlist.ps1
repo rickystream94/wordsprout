@@ -87,7 +87,9 @@ $ContainerName  = $Config.cosmos.container
 
 $accountJson = az account show --output json 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Error 'Not logged in to Azure. Run: az login'
+    $azExitCode = $LASTEXITCODE
+    $azDetails  = ($accountJson | Out-String).Trim()
+    Write-Error "Azure CLI account lookup failed (exit code $azExitCode).`nCommand: az account show --output json`nAzure CLI output:`n$azDetails`nRun 'az login' if the output indicates an expired or missing login."
     exit 1
 }
 $account = $accountJson | ConvertFrom-Json
@@ -102,7 +104,9 @@ Write-Host "Target: $AccountName ($Environment)" -ForegroundColor Cyan
 
 $tokenJson = az account get-access-token --resource https://cosmos.azure.com --output json 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to acquire Cosmos DB access token. Ensure you are logged in: az login"
+    $azExitCode = $LASTEXITCODE
+    $azDetails  = ($tokenJson | Out-String).Trim()
+    Write-Error "Failed to acquire a Cosmos DB access token (exit code $azExitCode).`nCommand: az account get-access-token --resource https://cosmos.azure.com --output json`nAzure CLI output:`n$azDetails`nConfirm the active tenant and subscription with 'az account show'."
     exit 1
 }
 $CosmosToken    = ($tokenJson | ConvertFrom-Json).accessToken
