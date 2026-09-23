@@ -5,6 +5,8 @@ import { useBackButtonExit } from '../../hooks/useBackButtonExit';
 import { InstallPromptProvider } from '../../hooks/InstallPromptContext';
 import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 import { QuotaProvider } from '../../hooks/useQuota';
+import { IS_DEV } from '../../config/env';
+import DevelopmentNotice from '../common/DevelopmentNotice';
 import ExitToast from '../common/ExitToast';
 import InstallBanner from '../common/InstallBanner';
 import OfflineIndicator from '../common/OfflineIndicator';
@@ -73,6 +75,7 @@ export default function AppShell() {
           <UserMenu />
         </div>
       </header>
+      {IS_DEV && <DevelopmentNotice />}
       <main className={styles.content}>
         <Outlet />
       </main>

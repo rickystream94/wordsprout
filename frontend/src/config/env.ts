@@ -19,7 +19,6 @@ export const API_BASE = IS_LOCAL
 /** MSAL Entra ID config. */
 export const AUTH_CONFIG = {
   clientId: import.meta.env.VITE_ENTRA_CLIENT_ID ?? '',
-  tenantId: import.meta.env.VITE_ENTRA_TENANT_ID ?? '',
   redirectUri: import.meta.env.VITE_REDIRECT_URI ?? window.location.origin,
 };
 

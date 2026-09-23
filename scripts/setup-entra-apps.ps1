@@ -93,10 +93,12 @@ function Register-EntraApp {
         Write-Success "App registration created: $($app.appId)"
     }
 
-    # Configure SPA redirect URIs via Graph API (az ad app create doesn't support SPA URIs)
-    Write-Host "  Setting SPA redirect URIs: $($RedirectUris -join ', ')" -ForegroundColor DarkGray
+    # Configure the audience for both new and existing registrations, and set
+    # SPA redirect URIs (az ad app create doesn't support SPA URIs).
+    Write-Host "  Setting account audience and SPA redirect URIs: $($RedirectUris -join ', ')" -ForegroundColor DarkGray
 
     $spaPayload = @{
+        signInAudience = 'AzureADandPersonalMicrosoftAccount'
         spa = @{
             redirectUris = $RedirectUris
         }
@@ -113,7 +115,7 @@ function Register-EntraApp {
         Remove-Item $tmp -ErrorAction SilentlyContinue
     }
 
-    Write-Success "SPA redirect URIs configured"
+    Write-Success "Account audience and SPA redirect URIs configured"
 
     # Grant User.Read delegated permission on Microsoft Graph so the frontend
     # can fetch the signed-in user's profile photo via the Graph API.
