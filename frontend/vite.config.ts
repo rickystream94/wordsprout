@@ -1,8 +1,41 @@
-import { defineConfig } from 'vite';
+import { readFileSync } from 'node:fs';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig({
+type DeploymentMode = 'dev' | 'prod';
+
+interface InfraConfig {
+  environments?: Partial<Record<DeploymentMode, {
+    entraClientId?: string;
+    googleClientId?: string;
+  }>>;
+}
+
+function getDeploymentDefines(mode: string): Record<string, string> | undefined {
+  if (mode !== 'dev' && mode !== 'prod') return undefined;
+
+  const config = JSON.parse(
+    readFileSync(new URL('../infra/config.json', import.meta.url), 'utf8'),
+  ) as InfraConfig;
+  const deployment = config.environments?.[mode];
+  const environment = loadEnv(mode, process.cwd(), '');
+  const entraClientId = environment.VITE_ENTRA_CLIENT_ID || deployment?.entraClientId;
+  const googleClientId = environment.VITE_GOOGLE_CLIENT_ID || deployment?.googleClientId;
+
+  if (!entraClientId || !googleClientId) {
+    throw new Error(`Missing identity client IDs for the '${mode}' environment in infra/config.json`);
+  }
+
+  return {
+    'import.meta.env.VITE_APP_ENV': JSON.stringify(mode),
+    'import.meta.env.VITE_ENTRA_CLIENT_ID': JSON.stringify(entraClientId),
+    'import.meta.env.VITE_GOOGLE_CLIENT_ID': JSON.stringify(googleClientId),
+  };
+}
+
+export default defineConfig(({ mode }) => ({
+  define: getDeploymentDefines(mode),
   plugins: [
     react(),
     VitePWA({
@@ -61,5 +94,4 @@ export default defineConfig({
       '@': '/src',
     },
   },
-});
-
+}));

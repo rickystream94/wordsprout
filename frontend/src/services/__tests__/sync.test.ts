@@ -55,10 +55,40 @@ vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }));
 import {
   pullFromServer,
   enqueueMutation,
+  canonicalizeMutationUrl,
+  resolveMutationUrl,
   isSyncing,
   getNextSyncAt,
   PULL_TTL_MS,
 } from '../sync';
+
+describe('mutation URLs', () => {
+  it('canonicalizes a stale local API URL to an origin-independent path', () => {
+    expect(
+      canonicalizeMutationUrl(
+        'http://localhost:7071/api/entries/016033aa-9680-4000-8000-000000000000',
+      ),
+    ).toBe('/api/entries/016033aa-9680-4000-8000-000000000000');
+  });
+
+  it('resolves a canonical API path against the local API base', () => {
+    expect(
+      resolveMutationUrl(
+        '/api/entries/016033aa-9680-4000-8000-000000000000',
+        'http://localhost:7071/api',
+      ),
+    ).toBe('http://localhost:7071/api/entries/016033aa-9680-4000-8000-000000000000');
+  });
+
+  it('keeps a canonical API path relative in deployed environments', () => {
+    expect(
+      resolveMutationUrl(
+        'http://localhost:7071/api/entries/016033aa-9680-4000-8000-000000000000',
+        '/api',
+      ),
+    ).toBe('/api/entries/016033aa-9680-4000-8000-000000000000');
+  });
+});
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -186,6 +216,13 @@ describe('enqueueMutation', () => {
     expect(doc.status).toBe('pending');
   });
 
+  it('stores absolute API URLs as origin-independent paths', async () => {
+    await enqueueMutation('http://localhost:7071/api/entries/entry-1', 'PUT', {});
+
+    const [doc] = mockPendingSync.add.mock.calls[0] as unknown as [Record<string, unknown>];
+    expect(doc.url).toBe('/api/entries/entry-1');
+  });
+
   it('serializes the body to JSON string', async () => {
     const body = { key: 'value' };
     await enqueueMutation('/api/test', 'PUT', body);
@@ -270,5 +307,58 @@ describe('replayQueue — permanent-400 discards', () => {
   it('discards a mutation when server responds with targetText allowlist error', async () => {
     await runWithError(3, 'targetText contains invalid characters. Only letters, numbers, spaces and common punctuation are allowed.');
     expect((mockPendingSync as Record<string, unknown>).delete).toHaveBeenCalledWith(3);
+  });
+});
+
+describe('replayQueue — isolated network failures', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('navigator', { onLine: true });
+    (mockPendingSync as Record<string, unknown>).update = vi.fn(async () => undefined);
+    (mockPendingSync as Record<string, unknown>).delete = vi.fn(async () => undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('continues with later mutations when one request fails while online', async () => {
+    const mutations = [
+      {
+        id: 1,
+        url: 'http://localhost:7071/api/entries/entry-1',
+        method: 'PUT' as const,
+        body: '{}',
+        retryCount: 0,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 2,
+        url: '/api/entries/entry-2',
+        method: 'PUT' as const,
+        body: '{}',
+        retryCount: 0,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    mockPendingSync.where.mockReturnValue({
+      anyOf: vi.fn().mockReturnValue({
+        toArray: vi.fn(async () => mutations),
+      }),
+    });
+    const mockFetch = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const { replayQueue } = await import('../sync');
+    await replayQueue();
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect((mockPendingSync as Record<string, ReturnType<typeof vi.fn>>).delete)
+      .toHaveBeenCalledWith(2);
   });
 });

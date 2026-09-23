@@ -19,7 +19,20 @@ function SwipeTarget(props: SwipeTargetProps): React.ReactElement {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function createTouch(clientX: number): Touch {
-  return { clientX, identifier: 0, target: document.body, pageX: clientX, pageY: 0, radiusX: 0, radiusY: 0, rotationAngle: 0, force: 0 } as Touch;
+  return {
+    clientX,
+    clientY: 0,
+    screenX: clientX,
+    screenY: 0,
+    identifier: 0,
+    target: document.body,
+    pageX: clientX,
+    pageY: 0,
+    radiusX: 0,
+    radiusY: 0,
+    rotationAngle: 0,
+    force: 0,
+  } as Touch;
 }
 
 function fireSwipe(element: Element, startX: number, endX: number): void {

@@ -211,7 +211,7 @@ describe('FlashcardSession — decayBaseScore writes', () => {
       await renderAndSubmit('hello'); // correct → +10
 
       expect(mockUpdateEntry).toHaveBeenCalledOnce();
-      const [, changes] = mockUpdateEntry.mock.calls[0] as [string, Record<string, unknown>];
+      const [, changes] = mockUpdateEntry.mock.calls[0] as unknown as [string, Record<string, unknown>];
       // applyDelta(90, +10) = 100 (capped at MAX_SCORE)
       expect(changes.learningScore).toBe(100);
     });
@@ -226,7 +226,7 @@ describe('FlashcardSession — decayBaseScore writes', () => {
       await renderAndSubmit('hello');
 
       expect(mockEnqueueMutation).toHaveBeenCalledOnce();
-      const [, , body] = mockEnqueueMutation.mock.calls[0] as [string, string, Record<string, unknown>];
+      const [, , body] = mockEnqueueMutation.mock.calls[0] as unknown as [string, string, Record<string, unknown>];
       // Server computes: delta = body.learningScore − existing.learningScore
       // Using live score as base means this delta is always within [-5, +10]
       const impliedDelta = (body.learningScore as number) - driftedScore;

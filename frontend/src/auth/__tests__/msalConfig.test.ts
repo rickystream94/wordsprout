@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  publicClientApplication: vi.fn(() => ({
-    initialize: vi.fn(),
-    handleRedirectPromise: vi.fn(),
-  })),
+  publicClientApplication: vi.fn(function PublicClientApplication() {
+    return {
+      initialize: vi.fn(),
+      handleRedirectPromise: vi.fn(),
+    };
+  }),
 }));
 
 vi.mock('@azure/msal-browser', () => ({

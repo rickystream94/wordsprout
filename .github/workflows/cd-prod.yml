@@ -136,10 +136,6 @@ jobs:
       - name: Build frontend (prod mode)
         run: npm run build -- --mode prod
         working-directory: frontend
-        env:
-          VITE_APP_ENV: prod
-          VITE_ENTRA_CLIENT_ID: ${{ steps.cfg.outputs.entra_client_id }}
-          VITE_GOOGLE_CLIENT_ID: ${{ steps.cfg.outputs.google_client_id }}
 
       - name: Fetch SWA deployment token at runtime
         id: swa-token

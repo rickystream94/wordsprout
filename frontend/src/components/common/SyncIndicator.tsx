@@ -103,7 +103,7 @@ export default function SyncIndicator() {
               <li key={m.id} className={styles.failItem}>
                 <div className={styles.failItemRow}>
                   <span className={styles.method}>{m.method}</span>
-                  <span className={styles.url}>{m.url}</span>
+                  <span className={styles.url} title={m.url}>{m.url}</span>
                   <button
                     type="button"
                     className={styles.discardBtn}
@@ -154,7 +154,7 @@ export default function SyncIndicator() {
               <li key={m.id} className={styles.failItem}>
                 <div className={styles.failItemRow}>
                   <span className={styles.pendingMethod}>{m.method}</span>
-                  <span className={styles.url}>{m.url}</span>
+                  <span className={styles.url} title={m.url}>{m.url}</span>
                 </div>
                 {m.errorMessage && (
                   <p className={styles.failItemError}>{m.errorMessage}. Will retry automatically.</p>

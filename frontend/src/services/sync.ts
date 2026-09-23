@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { MutationMethod } from '../types/models';
+import { API_BASE } from '../config/env';
 import { db, type DBEntry } from './db';
 import { ApiRequestError, getAccessToken, phrasebooksApi, entriesApi, enrichmentsApi } from './api';
 import { rebuildIndex } from './search';
@@ -123,6 +124,35 @@ export function getNextSyncAt(): number {
   return _nextSyncAt;
 }
 
+const API_PATH = '/api';
+
+/**
+ * Stores API mutations as origin-independent paths so queued work remains valid
+ * when the app moves between local development and a deployed environment.
+ */
+export function canonicalizeMutationUrl(url: string): string {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.pathname === API_PATH || parsed.pathname.startsWith(`${API_PATH}/`)) {
+      return `${parsed.pathname}${parsed.search}`;
+    }
+  } catch {
+    // Preserve malformed values so replay reports the actual request failure.
+  }
+  return url;
+}
+
+export function resolveMutationUrl(url: string, apiBase = API_BASE): string {
+  const canonicalUrl = canonicalizeMutationUrl(url);
+  if (
+    (canonicalUrl === API_PATH || canonicalUrl.startsWith(`${API_PATH}/`)) &&
+    /^https?:\/\//i.test(apiBase)
+  ) {
+    return `${apiBase}${canonicalUrl.slice(API_PATH.length)}`;
+  }
+  return canonicalUrl;
+}
+
 // ─── Enqueue a mutation to the pending-sync queue ─────────────────────────────
 
 export async function enqueueMutation(
@@ -131,7 +161,7 @@ export async function enqueueMutation(
   body?: unknown,
 ): Promise<void> {
   await db.pendingSync.add({
-    url,
+    url: canonicalizeMutationUrl(url),
     method,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     retryCount: 0,
@@ -169,8 +199,12 @@ async function _doReplayQueue(): Promise<void> {
   for (const mutation of pending) {
     if (mutation.id === undefined) continue;
 
+    const canonicalUrl = canonicalizeMutationUrl(mutation.url);
+    const requestUrl = resolveMutationUrl(canonicalUrl);
+
     // Mark as syncing
     await db.pendingSync.update(mutation.id, {
+      url: canonicalUrl,
       status: 'syncing',
       lastAttemptAt: new Date().toISOString(),
     });
@@ -188,7 +222,7 @@ async function _doReplayQueue(): Promise<void> {
         (init.headers as Record<string, string>)['Authorization'] = `Bearer ${authToken}`;
       }
 
-      const response = await fetch(mutation.url, init);
+      const response = await fetch(requestUrl, init);
 
       if (!response.ok) {
         // Try to surface the API's own error message rather than the bare HTTP status.
@@ -215,7 +249,7 @@ async function _doReplayQueue(): Promise<void> {
           // Retry the mutation once with the fresh token
           try {
             (init.headers as Record<string, string>)['Authorization'] = `Bearer ${freshToken}`;
-            const retryResponse = await fetch(mutation.url, init);
+            const retryResponse = await fetch(requestUrl, init);
             if (retryResponse.ok) {
               await db.pendingSync.delete(mutation.id);
               continue;
@@ -302,8 +336,10 @@ async function _doReplayQueue(): Promise<void> {
           status: 'pending',
           errorMessage,
         });
-        // No point trying further mutations if we're offline
-        return;
+        // A single unreachable or malformed URL must not block unrelated queued
+        // work while the browser otherwise reports that it is online.
+        if (!navigator.onLine) return;
+        continue;
       }
 
       // Server error (4xx/5xx) — count against retries

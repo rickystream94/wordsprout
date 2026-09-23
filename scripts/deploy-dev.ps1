@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Provisions WordSprout DEV Azure infrastructure (idempotently) and deploys the
@@ -72,6 +72,10 @@ if (-not $Location)      { $Location      = $Config.region }
 
 if (-not $EntraClientId) {
     Write-Error "EntraClientId is required. Run scripts/setup-entra-apps.ps1 first, or pass -EntraClientId."
+    exit 1
+}
+if (-not $DevEnv.googleClientId) {
+    Write-Error 'Google client ID is missing from environments.dev.googleClientId in infra/config.json.'
     exit 1
 }
 
@@ -217,16 +221,30 @@ if (-not $SkipApp) {
         --output tsv
 
     $distPath = Join-Path $RepoRoot 'frontend' 'dist'
-    # SWA CLI 2.x: use --output-location (not positional path) and --deployment-environment
-    # Pass token via env var to avoid PowerShell special-char issues
-    $env:SWA_CLI_DEPLOYMENT_TOKEN = $swaToken
-    npx --yes @azure/static-web-apps-cli@2 deploy `
-        --output-location $distPath `
-        --deployment-token $swaToken `
-        --env production `
-        --no-use-keychain
+    # SWA CLI 2.x: use --output-location (not positional path) and --deployment-environment.
+    # The Microsoft npm feed proxy resolves some registry packages to tarball URLs, so npm 12
+    # needs remote fetching enabled for this pinned CLI invocation.
+    $npxCommand = (Get-Command npx.cmd -ErrorAction Stop).Source
+    $swaProcess = Start-Process `
+        -FilePath $npxCommand `
+        -ArgumentList @(
+            '--yes',
+            '--allow-remote=all',
+            '@azure/static-web-apps-cli@2.0.10',
+            'deploy',
+            '--output-location',
+            "`"$distPath`"",
+            '--env',
+            'production',
+            '--no-use-keychain'
+        ) `
+        -Environment @{ SWA_CLI_DEPLOYMENT_TOKEN = $swaToken } `
+        -NoNewWindow `
+        -Wait `
+        -PassThru
+    $swaExitCode = $swaProcess.ExitCode
 
-    if ($LASTEXITCODE -ne 0) {
+    if ($swaExitCode -ne 0) {
         Write-Fail 'SWA frontend deployment failed. Review the error above.'
         exit 1
     }
@@ -261,7 +279,8 @@ if (-not $SkipApp) {
 
     Push-Location (Join-Path $RepoRoot 'api')
     try {
-        func azure functionapp publish $FuncAppName --node
+        # Remote build keeps the upload small and restores Linux-compatible dependencies in Azure.
+        func azure functionapp publish $FuncAppName --node --build remote
         if ($LASTEXITCODE -ne 0) { throw "func publish failed for $FuncAppName" }
     } finally {
         Pop-Location
