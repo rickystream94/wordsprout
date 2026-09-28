@@ -123,6 +123,19 @@ describe('pullFromServer', () => {
     expect(mockPhrasebooksApi.list).not.toHaveBeenCalled();
   });
 
+  it('forces a network call during startup even when the last pull is fresh', async () => {
+    mockPhrasebooks.count.mockResolvedValue(5);
+    mockEnrichments.count.mockResolvedValue(3);
+    mockMeta.get.mockResolvedValue({
+      key: 'lastPull',
+      value: String(Date.now() - (PULL_TTL_MS / 2)),
+    });
+
+    await pullFromServer({ force: true });
+
+    expect(mockPhrasebooksApi.list).toHaveBeenCalledOnce();
+  });
+
   it('fetches data when pull is stale even with non-empty db', async () => {
     mockPhrasebooks.count.mockResolvedValue(5);
     mockEnrichments.count.mockResolvedValue(3);
@@ -147,6 +160,14 @@ describe('pullFromServer', () => {
 
     // Due to in-progress guard, phrasebooksApi.list should be called only once
     expect(mockPhrasebooksApi.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns the in-flight pull promise to concurrent callers', () => {
+    const first = pullFromServer();
+    const second = pullFromServer();
+
+    expect(second).toBe(first);
+    return first;
   });
 
   it('fetches from server AFTER flushing pending mutations so renames are not clobbered', async () => {

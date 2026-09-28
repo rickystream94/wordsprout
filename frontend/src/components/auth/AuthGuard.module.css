@@ -25,7 +25,7 @@
   position: absolute;
   inset: 14px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--surface-accent);
   animation: pulse 1.4s ease-in-out infinite;
 }
 
@@ -36,17 +36,81 @@
   inset: 0;
   border-radius: 50%;
   border: 3px solid transparent;
-  border-top-color: var(--accent);
-  border-right-color: var(--accent);
+  border-top-color: var(--surface-accent);
+  border-right-color: var(--surface-accent);
   animation: spin 0.9s linear infinite;
 }
 
 .loadingText {
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 1rem;
   font-weight: 500;
   letter-spacing: 0.02em;
   animation: fadeInOut 2s ease-in-out infinite;
+}
+
+.progressTrack {
+  width: min(280px, calc(100vw - 3rem));
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+}
+
+.progressFill {
+  width: 45%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--surface-accent);
+  animation: syncProgress 1.25s ease-in-out infinite;
+}
+
+.failureTitle {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-xl);
+  letter-spacing: 0;
+}
+
+.failureText {
+  max-width: 32rem;
+  margin: 0;
+  padding: 0 var(--space-4);
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.failureActions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.primaryButton,
+.secondaryButton {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--surface-accent);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton {
+  background: var(--surface-accent);
+  color: var(--text-on-accent);
+}
+
+.secondaryButton {
+  background: transparent;
+  color: var(--accent-700);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 @keyframes spin {
@@ -72,5 +136,22 @@
   }
   50% {
     opacity: 1;
+  }
+}
+
+@keyframes syncProgress {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(245%);
+  }
+}
+
+@media (max-width: 480px) {
+  .failureActions {
+    width: min(100%, 20rem);
+    flex-direction: column-reverse;
+    padding: 0 var(--space-4);
   }
 }

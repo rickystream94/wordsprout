@@ -57,7 +57,21 @@
 
 @media (max-width: 640px) {
   .notice {
+    position: sticky;
+    top: calc(52px + env(safe-area-inset-top, 0px));
+    z-index: calc(var(--z-raised) - 1);
     align-items: flex-start;
     padding: var(--space-3) var(--space-4);
+  }
+
+  .message {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .dismiss {
+    width: 44px;
+    height: 44px;
+    margin: calc(var(--space-1) * -1) calc(var(--space-2) * -1) calc(var(--space-1) * -1) 0;
   }
 }

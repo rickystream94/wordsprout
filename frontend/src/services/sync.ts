@@ -13,50 +13,56 @@ export const PULL_TTL_MS = 5 * 60 * 1000; // 5 minutes
 // Safe to call frequently — skips the network round-trip if run within PULL_TTL_MS
 // unless IndexedDB is empty, in which case it always runs.
 
-let _pullInProgress = false;
+let _pullInFlight: Promise<void> | null = null;
 
-export async function pullFromServer(): Promise<void> {
-  if (_pullInProgress) return;
-  _pullInProgress = true;
-  try {
-    const [lastPullMeta, phrasebookCount, enrichmentCount] = await Promise.all([
-      db.meta.get('lastPull'),
-      db.phrasebooks.count(),
-      db.enrichments.count(),
-    ]);
+export function pullFromServer(options: { force?: boolean } = {}): Promise<void> {
+  if (_pullInFlight) return _pullInFlight;
 
-    const lastPullMs = lastPullMeta ? Number(lastPullMeta.value) : 0;
-    const isStale = Date.now() - lastPullMs > PULL_TTL_MS;
-    // Force a pull when any table is empty (handles first login AND newly-synced tables)
-    const isEmpty = phrasebookCount === 0 || enrichmentCount === 0;
+  _pullInFlight = _doPullFromServer(options.force ?? false).finally(() => {
+    _pullInFlight = null;
+  });
+  return _pullInFlight;
+}
 
-    if (!isStale && !isEmpty) return;
+async function _doPullFromServer(force: boolean): Promise<void> {
+  const [lastPullMeta, phrasebookCount, enrichmentCount] = await Promise.all([
+    db.meta.get('lastPull'),
+    db.phrasebooks.count(),
+    db.enrichments.count(),
+  ]);
+
+  const lastPullMs = lastPullMeta ? Number(lastPullMeta.value) : 0;
+  const isStale = Date.now() - lastPullMs > PULL_TTL_MS;
+  // Force a pull when any table is empty (handles first login AND newly-synced tables)
+  const isEmpty = phrasebookCount === 0 || enrichmentCount === 0;
+
+  if (!force && !isStale && !isEmpty) return;
 
     // Flush pending mutations BEFORE fetching, so the server snapshot we pull
     // already reflects any local changes (e.g. a phrasebook rename with an emoji
     // that would otherwise be clobbered by the stale pre-flush snapshot).
-    const pendingCount = await db.pendingSync
-      .where('status')
-      .anyOf(['pending', 'syncing'])
-      .count();
+  const pendingCount = await db.pendingSync
+    .where('status')
+    .anyOf(['pending', 'syncing'])
+    .count();
 
-    let stillPending = 0;
-    if (pendingCount > 0) {
-      await replayQueue();
+  let stillPending = 0;
+  if (pendingCount > 0) {
+    await replayQueue();
 
       // Re-check: if mutations are still pending (e.g. offline), fall back to
       // additive bulkPut so local-only rows aren't wiped.
-      stillPending = await db.pendingSync
-        .where('status')
-        .anyOf(['pending', 'syncing'])
-        .count();
-    }
+    stillPending = await db.pendingSync
+      .where('status')
+      .anyOf(['pending', 'syncing'])
+      .count();
+  }
 
     // Fetch fresh server data — guaranteed to include the effects of any
     // mutations we just flushed above.
-    const [phrasebooks, enrichments, allEntries] = await Promise.all([
-      phrasebooksApi.list(),
-      enrichmentsApi.list(),
+  const [phrasebooks, enrichments, allEntries] = await Promise.all([
+    phrasebooksApi.list(),
+    enrichmentsApi.list(),
       // Page through entries until the server returns no continuation token.
       // Each page is 200 items (the default page size in entriesApi.list).
       (async () => {
@@ -69,41 +75,38 @@ export async function pullFromServer(): Promise<void> {
         } while (token);
         return collected;
       })(),
-    ]);
+  ]);
 
-    if (stillPending > 0) {
-      await Promise.all([
-        db.phrasebooks.bulkPut(phrasebooks),
-        db.entries.bulkPut(allEntries),
-        db.enrichments.bulkPut(enrichments),
-        db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
-      ]);
-      await rebuildIndex();
-      return;
-    }
+  if (stillPending > 0) {
+    await Promise.all([
+      db.phrasebooks.bulkPut(phrasebooks),
+      db.entries.bulkPut(allEntries),
+      db.enrichments.bulkPut(enrichments),
+      db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
+    ]);
+    await rebuildIndex();
+    return;
+  }
 
     // No pending mutations — safe to replace all local data with the server's
     // authoritative set.  A clear+bulkPut inside a transaction avoids stale
     // rows from previous seeds or deleted server-side documents lingering.
-    await db.transaction('rw', db.phrasebooks, db.entries, db.enrichments, db.meta, async () => {
-      await Promise.all([
-        db.phrasebooks.clear(),
-        db.entries.clear(),
-        db.enrichments.clear(),
-      ]);
-      await Promise.all([
-        db.phrasebooks.bulkPut(phrasebooks),
-        db.entries.bulkPut(allEntries),
-        db.enrichments.bulkPut(enrichments),
-        db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
-      ]);
-    });
+  await db.transaction('rw', db.phrasebooks, db.entries, db.enrichments, db.meta, async () => {
+    await Promise.all([
+      db.phrasebooks.clear(),
+      db.entries.clear(),
+      db.enrichments.clear(),
+    ]);
+    await Promise.all([
+      db.phrasebooks.bulkPut(phrasebooks),
+      db.entries.bulkPut(allEntries),
+      db.enrichments.bulkPut(enrichments),
+      db.meta.put({ key: 'lastPull', value: String(Date.now()) }),
+    ]);
+  });
 
     // Rebuild the in-memory search index with the newly pulled entries
-    await rebuildIndex();
-  } finally {
-    _pullInProgress = false;
-  }
+  await rebuildIndex();
 }
 
 const MAX_RETRIES = 3;
@@ -112,6 +115,7 @@ export const SYNC_INTERVAL_MS = 30_000;
 // ─── Sync scheduling state ────────────────────────────────────────────────────
 
 let _syncInProgress = false;
+let _syncInFlight: Promise<void> | null = null;
 let _nextSyncAt: number = Date.now() + SYNC_INTERVAL_MS;
 
 /** True while replayQueue is actively processing mutations. */
@@ -176,16 +180,17 @@ export async function enqueueMutation(
 
 // ─── Replay all pending mutations ─────────────────────────────────────────────
 
-export async function replayQueue(): Promise<void> {
-  if (_syncInProgress) return;
+export function replayQueue(): Promise<void> {
+  if (_syncInFlight) return _syncInFlight;
+
   _syncInProgress = true;
   _nextSyncAt = NaN; // actively syncing — no "next" time yet
-  try {
-    await _doReplayQueue();
-  } finally {
+  _syncInFlight = _doReplayQueue().finally(() => {
     _syncInProgress = false;
+    _syncInFlight = null;
     _nextSyncAt = Date.now() + SYNC_INTERVAL_MS;
-  }
+  });
+  return _syncInFlight;
 }
 
 async function _doReplayQueue(): Promise<void> {
