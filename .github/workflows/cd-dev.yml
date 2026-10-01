@@ -14,9 +14,6 @@ permissions:
   contents: read
   id-token: write
 
-env:
-  AZURE_CORE_OUTPUT: none
-
 jobs:
   deploy:
     name: Test and deploy DEV
@@ -90,8 +87,12 @@ jobs:
           hostname=$(az staticwebapp show \
             --name "${{ steps.cfg.outputs.swa_name }}" \
             --resource-group "${{ steps.cfg.outputs.resource_group }}" \
-            --query 'properties.defaultHostname' \
+            --query 'defaultHostname' \
             --output tsv)
+          if [ -z "$token" ] || [ -z "$hostname" ]; then
+            echo "Azure did not return the DEV SWA token or hostname." >&2
+            exit 1
+          fi
           echo "::add-mask::$token"
           echo "swa_token=$token" >> "$GITHUB_OUTPUT"
           echo "swa_hostname=$hostname" >> "$GITHUB_OUTPUT"
@@ -116,6 +117,6 @@ jobs:
         shell: bash
         run: |
           base_url="https://${{ steps.azure.outputs.swa_hostname }}"
-          curl --fail --silent --show-error --retry 5 --retry-all-errors "$base_url/" > /dev/null
-          curl --fail --silent --show-error --retry 5 --retry-all-errors "$base_url/api/languages" > /dev/null
+          curl --fail --silent --show-error --retry 10 --retry-delay 5 --retry-all-errors --max-time 30 "$base_url/" > /dev/null
+          curl --fail --silent --show-error --retry 10 --retry-delay 5 --retry-all-errors --max-time 30 "$base_url/api/languages" > /dev/null
           echo "DEV deployment healthy: $base_url"

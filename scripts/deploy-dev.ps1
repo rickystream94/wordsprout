@@ -302,7 +302,7 @@ if (-not $SkipInfra -and $swaHostname) {
     $hostname = az staticwebapp show `
         --name $SwaName `
         --resource-group $ResourceGroup `
-        --query 'properties.defaultHostname' `
+        --query 'defaultHostname' `
         --output tsv 2>$null
     if ($hostname) {
         Write-Host " DEV URL: https://$hostname" -ForegroundColor Yellow
