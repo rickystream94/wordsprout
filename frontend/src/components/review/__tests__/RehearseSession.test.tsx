@@ -10,7 +10,10 @@ interface SwipeOptions {
 
 const { mockUseLiveQuery, mockUseSwipe } = vi.hoisted(() => ({
   mockUseLiveQuery: vi.fn(() => []),
-  mockUseSwipe: vi.fn((_options: SwipeOptions) => ({ current: null })),
+  mockUseSwipe: vi.fn((options: SwipeOptions) => {
+    void options;
+    return { current: null };
+  }),
 }));
 
 vi.mock('dexie-react-hooks', () => ({

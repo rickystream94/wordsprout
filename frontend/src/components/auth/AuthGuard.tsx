@@ -3,7 +3,12 @@ import { Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
 import { quotaApi } from '../../services/api';
 import { ApiRequestError } from '../../services/api';
-import { runOfflineDecay, runStartupSync } from '../../services/startupSync';
+import {
+  hasInitialStartupSyncCompleted,
+  markInitialStartupSyncCompleted,
+  runInitialStartupSync,
+  runOfflineDecay,
+} from '../../services/startupSync';
 import styles from './AuthGuard.module.css';
 
 const loadingMessages = [
@@ -82,7 +87,9 @@ export default function AuthGuard() {
   const { isAuthenticated, sessionRestoring, userId } = useAuth();
   const navigate = useNavigate();
   const [startupState, setStartupState] = useState<StartupState>(
-    navigator.onLine ? 'checking' : 'allowed',
+    navigator.onLine && (!userId || !hasInitialStartupSyncCompleted(userId))
+      ? 'checking'
+      : 'allowed',
   );
   const [attempt, setAttempt] = useState(0);
   const [continuingOffline, setContinuingOffline] = useState(false);
@@ -90,7 +97,10 @@ export default function AuthGuard() {
   useEffect(() => {
     if (!isAuthenticated || sessionRestoring || !userId) return;
 
+    if (hasInitialStartupSyncCompleted(userId)) return;
+
     if (!navigator.onLine) {
+      markInitialStartupSyncCompleted(userId);
       runOfflineDecay(userId).catch(console.error);
       return;
     }
@@ -105,7 +115,7 @@ export default function AuthGuard() {
         if (cancelled) return;
 
         setStartupState('syncing');
-        await runStartupSync(currentUserId);
+        await runInitialStartupSync(currentUserId);
         if (!cancelled) setStartupState('allowed');
       } catch (err: unknown) {
         if (cancelled) return;
@@ -130,6 +140,7 @@ export default function AuthGuard() {
     setContinuingOffline(true);
     try {
       await runOfflineDecay(userId);
+      markInitialStartupSyncCompleted(userId);
       setStartupState('allowed');
     } catch {
       setContinuingOffline(false);

@@ -3,15 +3,24 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { authState, quotaGet, runStartupSync, runOfflineDecay } = vi.hoisted(() => ({
+const {
+  authState,
+  syncState,
+  quotaGet,
+  runInitialStartupSync,
+  runOfflineDecay,
+  markInitialStartupSyncCompleted,
+} = vi.hoisted(() => ({
   authState: {
     isAuthenticated: true,
     sessionRestoring: false,
     userId: 'user-1' as string | null,
   },
+  syncState: { completed: false },
   quotaGet: vi.fn(async (): Promise<void> => undefined),
-  runStartupSync: vi.fn(async (): Promise<void> => undefined),
+  runInitialStartupSync: vi.fn(async (): Promise<void> => undefined),
   runOfflineDecay: vi.fn(async (): Promise<void> => undefined),
+  markInitialStartupSyncCompleted: vi.fn(),
 }));
 
 vi.mock('../../../auth/useAuth', () => ({ useAuth: () => authState }));
@@ -26,7 +35,12 @@ vi.mock('../../../services/api', () => ({
   },
   quotaApi: { get: quotaGet },
 }));
-vi.mock('../../../services/startupSync', () => ({ runStartupSync, runOfflineDecay }));
+vi.mock('../../../services/startupSync', () => ({
+  hasInitialStartupSyncCompleted: () => syncState.completed,
+  markInitialStartupSyncCompleted,
+  runInitialStartupSync,
+  runOfflineDecay,
+}));
 
 import AuthGuard from '../AuthGuard';
 
@@ -64,9 +78,15 @@ describe('AuthGuard startup gate', () => {
     authState.isAuthenticated = true;
     authState.sessionRestoring = false;
     authState.userId = 'user-1';
+    syncState.completed = false;
     quotaGet.mockResolvedValue(undefined);
-    runStartupSync.mockResolvedValue(undefined);
+    runInitialStartupSync.mockImplementation(async () => {
+      syncState.completed = true;
+    });
     runOfflineDecay.mockResolvedValue(undefined);
+    markInitialStartupSyncCompleted.mockImplementation(() => {
+      syncState.completed = true;
+    });
   });
 
   it('enters immediately offline and starts local decay without a quota request', async () => {
@@ -77,7 +97,8 @@ describe('AuthGuard startup gate', () => {
     expect(screen.getByText('Protected app')).toBeInTheDocument();
     await waitFor(() => expect(runOfflineDecay).toHaveBeenCalledWith('user-1'));
     expect(quotaGet).not.toHaveBeenCalled();
-    expect(runStartupSync).not.toHaveBeenCalled();
+    expect(runInitialStartupSync).not.toHaveBeenCalled();
+    expect(markInitialStartupSyncCompleted).toHaveBeenCalledWith('user-1');
   });
 
   it('shows progress and withholds the app until online reconciliation finishes', async () => {
@@ -85,7 +106,10 @@ describe('AuthGuard startup gate', () => {
     const quota = deferred<void>();
     const sync = deferred<void>();
     quotaGet.mockReturnValue(quota.promise);
-    runStartupSync.mockReturnValue(sync.promise);
+    runInitialStartupSync.mockImplementation(async () => {
+      await sync.promise;
+      syncState.completed = true;
+    });
 
     renderGuard();
     expect(screen.queryByText('Protected app')).not.toBeInTheDocument();
@@ -113,5 +137,21 @@ describe('AuthGuard startup gate', () => {
 
     await act(async () => localDecay.resolve());
     expect(await screen.findByText('Protected app')).toBeInTheDocument();
+    expect(markInitialStartupSyncCompleted).toHaveBeenCalledWith('user-1');
+  });
+
+  it('does not rerun startup checks when the guard remounts after success', async () => {
+    setOnline(true);
+    const firstRender = renderGuard();
+    expect(await screen.findByText('Protected app')).toBeInTheDocument();
+    expect(quotaGet).toHaveBeenCalledOnce();
+    expect(runInitialStartupSync).toHaveBeenCalledOnce();
+
+    firstRender.unmount();
+    renderGuard();
+
+    expect(screen.getByText('Protected app')).toBeInTheDocument();
+    expect(quotaGet).toHaveBeenCalledOnce();
+    expect(runInitialStartupSync).toHaveBeenCalledOnce();
   });
 });

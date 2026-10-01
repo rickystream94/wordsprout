@@ -75,12 +75,12 @@ export default function SyncIndicator() {
         {hasFailed ? (
           <>
             <span className={styles.dot} aria-hidden="true">✕</span>
-            Sync failed ({failedCount ?? 0})
+            <span className={styles.pillLabel}>Sync failed ({failedCount ?? 0})</span>
           </>
         ) : (
           <>
             <span className={`${styles.dot} ${styles.spinning}`} aria-hidden="true">⟳</span>
-            {pendingCount} pending
+            <span className={styles.pillLabel}>{pendingCount} pending</span>
           </>
         )}
       </button>

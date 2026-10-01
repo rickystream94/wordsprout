@@ -1,0 +1,121 @@
+name: CD — Deploy to DEV
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: dev-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AZURE_CORE_OUTPUT: none
+
+jobs:
+  deploy:
+    name: Test and deploy DEV
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Read DEV config
+        id: cfg
+        shell: bash
+        run: |
+          cfg=$(cat infra/config.json)
+          echo "subscription_id=$(echo "$cfg" | jq -r '.subscriptionId')" >> "$GITHUB_OUTPUT"
+          echo "tenant_id=$(echo "$cfg" | jq -r '.tenantId')" >> "$GITHUB_OUTPUT"
+          echo "oidc_client_id=$(echo "$cfg" | jq -r '.oidcClientId')" >> "$GITHUB_OUTPUT"
+          echo "resource_group=$(echo "$cfg" | jq -r '.environments.dev.resourceGroup')" >> "$GITHUB_OUTPUT"
+          echo "swa_name=$(echo "$cfg" | jq -r '.environments.dev.swaName')" >> "$GITHUB_OUTPUT"
+          echo "func_app_name=$(echo "$cfg" | jq -r '.environments.dev.funcAppName')" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24.x'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            api/package-lock.json
+
+      - name: Login to Azure (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ steps.cfg.outputs.oidc_client_id }}
+          tenant-id: ${{ steps.cfg.outputs.tenant_id }}
+          subscription-id: ${{ steps.cfg.outputs.subscription_id }}
+
+      - name: Install frontend dependencies
+        run: npm ci --legacy-peer-deps
+        working-directory: frontend
+
+      - name: Frontend — Tests
+        run: npm run test:coverage
+        working-directory: frontend
+
+      - name: Build frontend (DEV mode)
+        run: npm run build -- --mode dev
+        working-directory: frontend
+
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: api
+
+      - name: API — Tests
+        run: npm run test:coverage
+        working-directory: api
+
+      - name: Build API
+        run: npm run build
+        working-directory: api
+
+      - name: Resolve DEV deployment details
+        id: azure
+        shell: bash
+        run: |
+          token=$(az staticwebapp secrets list \
+            --name "${{ steps.cfg.outputs.swa_name }}" \
+            --resource-group "${{ steps.cfg.outputs.resource_group }}" \
+            --query 'properties.apiKey' \
+            --output tsv)
+          hostname=$(az staticwebapp show \
+            --name "${{ steps.cfg.outputs.swa_name }}" \
+            --resource-group "${{ steps.cfg.outputs.resource_group }}" \
+            --query 'properties.defaultHostname' \
+            --output tsv)
+          echo "::add-mask::$token"
+          echo "swa_token=$token" >> "$GITHUB_OUTPUT"
+          echo "swa_hostname=$hostname" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy frontend to DEV SWA
+        env:
+          SWA_CLI_DEPLOYMENT_TOKEN: ${{ steps.azure.outputs.swa_token }}
+        run: |
+          npx --yes --allow-remote=all @azure/static-web-apps-cli@2.0.10 deploy \
+            --output-location frontend/dist \
+            --env production \
+            --no-use-keychain
+
+      - name: Install Azure Functions Core Tools
+        run: npm install --global azure-functions-core-tools@4 --unsafe-perm true
+
+      - name: Deploy API to DEV Function App
+        working-directory: api
+        run: func azure functionapp publish "${{ steps.cfg.outputs.func_app_name }}" --node --build remote
+
+      - name: Smoke test DEV
+        shell: bash
+        run: |
+          base_url="https://${{ steps.azure.outputs.swa_hostname }}"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors "$base_url/" > /dev/null
+          curl --fail --silent --show-error --retry 5 --retry-all-errors "$base_url/api/languages" > /dev/null
+          echo "DEV deployment healthy: $base_url"

@@ -1,9 +1,7 @@
 name: CD — Deploy to PROD
 
 on:
-  push:
-    branches:
-      - master
+  workflow_dispatch:
 
 concurrency:
   group: prod-deploy
@@ -21,10 +19,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24.x'
           cache: 'npm'
@@ -43,7 +41,7 @@ jobs:
         working-directory: api
 
       - name: Upload API artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: api-dist
           path: api/dist
@@ -59,12 +57,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-api
     permissions:
-      id-token: write   # Required for OIDC token exchange
+      id-token: write # Required for OIDC token exchange
       contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Read config.json
         id: cfg
@@ -82,13 +80,13 @@ jobs:
           echo "google_client_id=$(echo "$cfg"  | jq -r '.environments.prod.googleClientId')" >> "$GITHUB_OUTPUT"
 
       - name: Download API artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: api-dist
           path: api/dist
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24.x'
           cache: 'npm'
@@ -98,7 +96,7 @@ jobs:
         run: npm install -g azure-functions-core-tools@4 --unsafe-perm true
 
       - name: Login to Azure (OIDC)
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ steps.cfg.outputs.oidc_client_id }}
           tenant-id: ${{ steps.cfg.outputs.tenant_id }}
@@ -149,10 +147,13 @@ jobs:
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
       - name: Deploy frontend to SWA
+        env:
+          SWA_CLI_DEPLOYMENT_TOKEN: ${{ steps.swa-token.outputs.token }}
         run: |
-          npx --yes @azure/static-web-apps-cli deploy frontend/dist \
-            --deployment-token "${{ steps.swa-token.outputs.token }}" \
-            --env default
+          npx --yes --allow-remote=all @azure/static-web-apps-cli@2.0.10 deploy \
+            --output-location frontend/dist \
+            --env production \
+            --no-use-keychain
 
       - name: Deploy API to Function App
         run: |

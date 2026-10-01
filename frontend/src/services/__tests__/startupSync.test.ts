@@ -10,7 +10,12 @@ vi.mock('../sync', () => ({ replayQueue, pullFromServer }));
 vi.mock('../decay', () => ({ applyDecayRound }));
 vi.mock('../../config/env', () => ({ API_BASE: '/api' }));
 
-import { runOfflineDecay, runStartupSync } from '../startupSync';
+import {
+  hasInitialStartupSyncCompleted,
+  runInitialStartupSync,
+  runOfflineDecay,
+  runStartupSync,
+} from '../startupSync';
 
 describe('runStartupSync', () => {
   beforeEach(() => {
@@ -66,5 +71,31 @@ describe('runOfflineDecay', () => {
     expect(applyDecayRound).toHaveBeenCalledWith('user-1', '/api');
     expect(replayQueue).not.toHaveBeenCalled();
     expect(pullFromServer).not.toHaveBeenCalled();
+  });
+});
+
+describe('runInitialStartupSync', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('runs blocking reconciliation only once per user after it succeeds', async () => {
+    expect(hasInitialStartupSyncCompleted('initial-user')).toBe(false);
+
+    await runInitialStartupSync('initial-user');
+    await runInitialStartupSync('initial-user');
+
+    expect(hasInitialStartupSyncCompleted('initial-user')).toBe(true);
+    expect(pullFromServer).toHaveBeenCalledOnce();
+    expect(applyDecayRound).toHaveBeenCalledOnce();
+    expect(replayQueue).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not mark a failed initial reconciliation as complete', async () => {
+    pullFromServer.mockRejectedValueOnce(new Error('Network error'));
+
+    await expect(runInitialStartupSync('retry-user')).rejects.toThrow('Network error');
+
+    expect(hasInitialStartupSyncCompleted('retry-user')).toBe(false);
   });
 });

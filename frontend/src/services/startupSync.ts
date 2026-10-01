@@ -11,6 +11,7 @@ interface StartupSyncOptions {
 let startupInFlight: Promise<void> | null = null;
 let currentStage: StartupSyncStage | null = null;
 const stageListeners = new Set<(stage: StartupSyncStage) => void>();
+const initiallySyncedUsers = new Set<string>();
 
 function reportStage(stage: StartupSyncStage): void {
   currentStage = stage;
@@ -53,6 +54,23 @@ export async function runStartupSync(
   } finally {
     if (listener) stageListeners.delete(listener);
   }
+}
+
+export function hasInitialStartupSyncCompleted(userId: string): boolean {
+  return initiallySyncedUsers.has(userId);
+}
+
+export function markInitialStartupSyncCompleted(userId: string): void {
+  initiallySyncedUsers.add(userId);
+}
+
+export async function runInitialStartupSync(
+  userId: string,
+  options: StartupSyncOptions = {},
+): Promise<void> {
+  if (hasInitialStartupSyncCompleted(userId)) return;
+  await runStartupSync(userId, options);
+  markInitialStartupSyncCompleted(userId);
 }
 
 export function runOfflineDecay(userId: string): Promise<void> {

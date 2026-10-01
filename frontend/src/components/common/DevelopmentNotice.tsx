@@ -1,15 +1,10 @@
 import { useState } from 'react';
 import styles from './DevelopmentNotice.module.css';
 
-const DISMISSED_KEY = 'ws_development_notice_dismissed';
-
 export default function DevelopmentNotice() {
-  const [dismissed, setDismissed] = useState(
-    () => localStorage.getItem(DISMISSED_KEY) === 'true',
-  );
+  const [dismissed, setDismissed] = useState(false);
 
   function dismiss() {
-    localStorage.setItem(DISMISSED_KEY, 'true');
     setDismissed(true);
   }
 

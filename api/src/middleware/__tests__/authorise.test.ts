@@ -70,6 +70,15 @@ const ENTRA_DECODED = {
   exp: 9999999999,
 };
 
+interface MockSigningKey {
+  getPublicKey: () => string;
+}
+
+type SigningKeyCallback = (error: Error | null, key: MockSigningKey | null) => void;
+type JwtKeyCallback = (error: Error | null, key: unknown) => void;
+type GetJwtKey = (header: { kid: string }, callback: JwtKeyCallback) => void;
+type JwtVerifyCallback = (error: Error | null, decoded: unknown) => void;
+
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('authorise', () => {
@@ -125,35 +134,19 @@ describe('authorise', () => {
         header: { kid: 'test-kid', alg: 'RS256' },
       });
 
-      // Simulate async jwt.verify with callback
       mockJwt.verify.mockImplementation(
         (
           _token: string,
-          secretCallback: (header: object, cb: Function) => void,
-          _options: object,
-          callback: (err: Error | null, decoded: unknown) => void,
-        ) => {
-          secretCallback({ kid: 'test-kid' }, (_err: unknown, _key: unknown) => {
-            callback(null, ENTRA_DECODED);
-          });
-          mockJwksClient.getSigningKey.mockImplementation(
-            (_kid: string, cb: Function) => cb(null, { getPublicKey: () => 'mock-key' }),
-          );
-        },
-      );
-      // Trigger via the mock
-      mockJwt.verify.mockImplementation(
-        (
-          _token: string,
-          getKey: (header: { kid: string }, cb: Function) => void,
+          getKey: GetJwtKey,
           _opts: object,
-          cb: (err: Error | null, decoded: unknown) => void,
+          cb: JwtVerifyCallback,
         ) => {
           mockJwksClient.getSigningKey.mockImplementation(
-            (_kid: string, keyCb: Function) => keyCb(null, { getPublicKey: () => 'mock-key' }),
+            (_kid: string, keyCb: SigningKeyCallback) =>
+              keyCb(null, { getPublicKey: () => 'mock-key' }),
           );
-          getKey({ kid: 'test-kid' }, (err: unknown, key: unknown) => {
-            if (err) cb(err as Error, null);
+          getKey({ kid: 'test-kid' }, (err: Error | null, _key: unknown) => {
+            if (err) cb(err, null);
             else cb(null, ENTRA_DECODED);
           });
         },
@@ -170,12 +163,13 @@ describe('authorise', () => {
         header: { kid: 'bad-kid', alg: 'RS256' },
       });
       mockJwt.verify.mockImplementation(
-        (_token: string, getKey: Function, _opts: object, cb: Function) => {
-          getKey({ kid: 'bad-kid' }, (err: unknown, _key: unknown) => {
+        (_token: string, getKey: GetJwtKey, _opts: object, cb: JwtVerifyCallback) => {
+          getKey({ kid: 'bad-kid' }, (err: Error | null, _key: unknown) => {
             cb(err, null);
           });
           mockJwksClient.getSigningKey.mockImplementation(
-            (_kid: string, keyCb: Function) => keyCb(new Error('signing key not found'), null),
+            (_kid: string, keyCb: SigningKeyCallback) =>
+              keyCb(new Error('signing key not found'), null),
           );
         },
       );
@@ -201,11 +195,12 @@ describe('authorise', () => {
         header: { kid: 'google-kid', alg: 'RS256' },
       });
       mockJwt.verify.mockImplementation(
-        (_token: string, getKey: Function, _opts: object, cb: Function) => {
+        (_token: string, getKey: GetJwtKey, _opts: object, cb: JwtVerifyCallback) => {
           mockJwksClient.getSigningKey.mockImplementation(
-            (_kid: string, keyCb: Function) => keyCb(null, { getPublicKey: () => 'mock-google-key' }),
+            (_kid: string, keyCb: SigningKeyCallback) =>
+              keyCb(null, { getPublicKey: () => 'mock-google-key' }),
           );
-          getKey({ kid: 'google-kid' }, (err: unknown, key: unknown) => {
+          getKey({ kid: 'google-kid' }, (err: Error | null, _key: unknown) => {
             if (err) cb(err, null);
             else cb(null, GOOGLE_DECODED);
           });
