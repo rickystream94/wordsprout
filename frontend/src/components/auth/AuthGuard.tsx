@@ -8,6 +8,7 @@ import {
   markInitialStartupSyncCompleted,
   runInitialStartupSync,
   runOfflineDecay,
+  type StartupSyncProgress,
 } from '../../services/startupSync';
 import styles from './AuthGuard.module.css';
 
@@ -19,8 +20,7 @@ const loadingMessages = [
   'Unfurling sentences…',
 ];
 
-const loadingMessage =
-  loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+const loadingMessage = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
 
 function LoadingSpinner() {
   return (
@@ -34,15 +34,41 @@ function LoadingSpinner() {
   );
 }
 
-function SyncProgress() {
+const INITIAL_SYNC_PROGRESS: StartupSyncProgress = {
+  stage: 'uploading',
+  completedSteps: 0,
+  totalSteps: 4,
+  percent: 0,
+};
+
+const progressLabels: Record<StartupSyncProgress['stage'], string> = {
+  uploading: 'Uploading saved changes',
+  downloading: 'Downloading your vocabulary',
+  decaying: 'Updating learning scores',
+  finalizing: 'Saving final changes',
+};
+
+function SyncProgress({ progress }: { progress: StartupSyncProgress }) {
+  const progressLabel = progressLabels[progress.stage];
   return (
     <div className={styles.loadingContainer}>
       <img src="/icons/wordsprout-logo.png" alt="WordSprout" className={styles.logo} />
-      <div className={styles.progressTrack} role="progressbar" aria-label="Startup synchronization">
-        <div className={styles.progressFill} />
+      <div
+        className={styles.progressTrack}
+        role="progressbar"
+        aria-label="Startup synchronization"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress.percent}
+        aria-valuetext={`${progressLabel}: ${progress.completedSteps} of ${progress.totalSteps} steps complete`}
+      >
+        <div className={styles.progressFill} style={{ width: `${progress.percent}%` }} />
       </div>
       <span className={styles.loadingText} aria-live="polite" aria-busy="true">
         Syncing your vocabulary. Hang tight…
+      </span>
+      <span className={styles.progressText} aria-live="polite">
+        {progressLabel} · {progress.percent}%
       </span>
     </div>
   );
@@ -63,10 +89,20 @@ function SyncFailure({ continuingOffline, onRetry, onContinueOffline }: SyncFail
         Check your connection and try again, or continue with the vocabulary saved on this device.
       </p>
       <div className={styles.failureActions}>
-        <button type="button" className={styles.secondaryButton} onClick={onContinueOffline} disabled={continuingOffline}>
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          onClick={onContinueOffline}
+          disabled={continuingOffline}
+        >
           {continuingOffline ? 'Preparing offline…' : 'Continue offline'}
         </button>
-        <button type="button" className={styles.primaryButton} onClick={onRetry} disabled={continuingOffline}>
+        <button
+          type="button"
+          className={styles.primaryButton}
+          onClick={onRetry}
+          disabled={continuingOffline}
+        >
           Retry
         </button>
       </div>
@@ -93,6 +129,7 @@ export default function AuthGuard() {
   );
   const [attempt, setAttempt] = useState(0);
   const [continuingOffline, setContinuingOffline] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(INITIAL_SYNC_PROGRESS);
 
   useEffect(() => {
     if (!isAuthenticated || sessionRestoring || !userId) return;
@@ -115,7 +152,11 @@ export default function AuthGuard() {
         if (cancelled) return;
 
         setStartupState('syncing');
-        await runInitialStartupSync(currentUserId);
+        await runInitialStartupSync(currentUserId, {
+          onProgressChange: (progress) => {
+            if (!cancelled) setSyncProgress(progress);
+          },
+        });
         if (!cancelled) setStartupState('allowed');
       } catch (err: unknown) {
         if (cancelled) return;
@@ -152,16 +193,18 @@ export default function AuthGuard() {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   if (startupState === 'checking') return <LoadingSpinner />;
-  if (startupState === 'syncing') return <SyncProgress />;
+  if (startupState === 'syncing') return <SyncProgress progress={syncProgress} />;
   if (startupState === 'failed') {
     return (
       <SyncFailure
         continuingOffline={continuingOffline}
         onRetry={() => {
           setContinuingOffline(false);
-          setAttempt(value => value + 1);
+          setAttempt((value) => value + 1);
         }}
-        onContinueOffline={() => { void continueOffline(); }}
+        onContinueOffline={() => {
+          void continueOffline();
+        }}
       />
     );
   }

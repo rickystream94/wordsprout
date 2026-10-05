@@ -38,43 +38,37 @@ async function _doPullFromServer(force: boolean): Promise<void> {
 
   if (!force && !isStale && !isEmpty) return;
 
-    // Flush pending mutations BEFORE fetching, so the server snapshot we pull
-    // already reflects any local changes (e.g. a phrasebook rename with an emoji
-    // that would otherwise be clobbered by the stale pre-flush snapshot).
-  const pendingCount = await db.pendingSync
-    .where('status')
-    .anyOf(['pending', 'syncing'])
-    .count();
+  // Flush pending mutations BEFORE fetching, so the server snapshot we pull
+  // already reflects any local changes (e.g. a phrasebook rename with an emoji
+  // that would otherwise be clobbered by the stale pre-flush snapshot).
+  const pendingCount = await db.pendingSync.where('status').anyOf(['pending', 'syncing']).count();
 
   let stillPending = 0;
   if (pendingCount > 0) {
     await replayQueue();
 
-      // Re-check: if mutations are still pending (e.g. offline), fall back to
-      // additive bulkPut so local-only rows aren't wiped.
-    stillPending = await db.pendingSync
-      .where('status')
-      .anyOf(['pending', 'syncing'])
-      .count();
+    // Re-check: if mutations are still pending (e.g. offline), fall back to
+    // additive bulkPut so local-only rows aren't wiped.
+    stillPending = await db.pendingSync.where('status').anyOf(['pending', 'syncing']).count();
   }
 
-    // Fetch fresh server data — guaranteed to include the effects of any
-    // mutations we just flushed above.
+  // Fetch fresh server data — guaranteed to include the effects of any
+  // mutations we just flushed above.
   const [phrasebooks, enrichments, allEntries] = await Promise.all([
     phrasebooksApi.list(),
     enrichmentsApi.list(),
-      // Page through entries until the server returns no continuation token.
-      // Each page is 200 items (the default page size in entriesApi.list).
-      (async () => {
-        const collected: DBEntry[] = [];
-        let token: string | undefined;
-        do {
-          const page = await entriesApi.list({ continuationToken: token });
-          collected.push(...page.items);
-          token = page.nextContinuationToken;
-        } while (token);
-        return collected;
-      })(),
+    // Page through entries until the server returns no continuation token.
+    // Each page is 200 items (the default page size in entriesApi.list).
+    (async () => {
+      const collected: DBEntry[] = [];
+      let token: string | undefined;
+      do {
+        const page = await entriesApi.list({ continuationToken: token });
+        collected.push(...page.items);
+        token = page.nextContinuationToken;
+      } while (token);
+      return collected;
+    })(),
   ]);
 
   if (stillPending > 0) {
@@ -88,15 +82,11 @@ async function _doPullFromServer(force: boolean): Promise<void> {
     return;
   }
 
-    // No pending mutations — safe to replace all local data with the server's
-    // authoritative set.  A clear+bulkPut inside a transaction avoids stale
-    // rows from previous seeds or deleted server-side documents lingering.
+  // No pending mutations — safe to replace all local data with the server's
+  // authoritative set.  A clear+bulkPut inside a transaction avoids stale
+  // rows from previous seeds or deleted server-side documents lingering.
   await db.transaction('rw', db.phrasebooks, db.entries, db.enrichments, db.meta, async () => {
-    await Promise.all([
-      db.phrasebooks.clear(),
-      db.entries.clear(),
-      db.enrichments.clear(),
-    ]);
+    await Promise.all([db.phrasebooks.clear(), db.entries.clear(), db.enrichments.clear()]);
     await Promise.all([
       db.phrasebooks.bulkPut(phrasebooks),
       db.entries.bulkPut(allEntries),
@@ -105,7 +95,7 @@ async function _doPullFromServer(force: boolean): Promise<void> {
     ]);
   });
 
-    // Rebuild the in-memory search index with the newly pulled entries
+  // Rebuild the in-memory search index with the newly pulled entries
   await rebuildIndex();
 }
 
@@ -193,174 +183,195 @@ export function replayQueue(): Promise<void> {
   return _syncInFlight;
 }
 
+/**
+ * Replays until no pending/syncing mutations remain. Multiple passes cover a
+ * mutation enqueued just as an existing replay finishes its final snapshot.
+ */
+export async function drainSyncQueue(): Promise<void> {
+  for (let pass = 0; pass < MAX_RETRIES; pass += 1) {
+    await replayQueue();
+    const pendingCount = await getPendingCount();
+    if (pendingCount === 0) return;
+  }
+
+  const pendingCount = await getPendingCount();
+  if (pendingCount === 0) return;
+  throw new Error(`Synchronization left ${pendingCount} pending mutations`);
+}
+
 async function _doReplayQueue(): Promise<void> {
-  const pending = await db.pendingSync
-    .where('status')
-    .anyOf(['pending', 'syncing'])
-    .toArray();
+  const handledIds = new Set<number>();
 
-  if (pending.length === 0) return;
+  while (true) {
+    const pending = await db.pendingSync.where('status').anyOf(['pending', 'syncing']).toArray();
+    const unhandled = pending.filter(
+      (mutation) => mutation.id !== undefined && !handledIds.has(mutation.id),
+    );
 
-  for (const mutation of pending) {
-    if (mutation.id === undefined) continue;
+    if (unhandled.length === 0) return;
 
-    const canonicalUrl = canonicalizeMutationUrl(mutation.url);
-    const requestUrl = resolveMutationUrl(canonicalUrl);
+    for (const mutation of unhandled) {
+      if (mutation.id === undefined) continue;
+      handledIds.add(mutation.id);
 
-    // Mark as syncing
-    await db.pendingSync.update(mutation.id, {
-      url: canonicalUrl,
-      status: 'syncing',
-      lastAttemptAt: new Date().toISOString(),
-    });
+      const canonicalUrl = canonicalizeMutationUrl(mutation.url);
+      const requestUrl = resolveMutationUrl(canonicalUrl);
 
-    const init: RequestInit = {
-      method: mutation.method,
-      headers: { 'Content-Type': 'application/json' },
-    };
-    if (mutation.body) init.body = mutation.body;
+      // Mark as syncing
+      await db.pendingSync.update(mutation.id, {
+        url: canonicalUrl,
+        status: 'syncing',
+        lastAttemptAt: new Date().toISOString(),
+      });
 
-    try {
-      // Acquire a fresh token the same way api.ts does
-      const authToken = await getAccessToken();
-      if (authToken) {
-        (init.headers as Record<string, string>)['Authorization'] = `Bearer ${authToken}`;
-      }
+      const init: RequestInit = {
+        method: mutation.method,
+        headers: { 'Content-Type': 'application/json' },
+      };
+      if (mutation.body) init.body = mutation.body;
 
-      const response = await fetch(requestUrl, init);
-
-      if (!response.ok) {
-        // Try to surface the API's own error message rather than the bare HTTP status.
-        let apiMessage = `HTTP ${response.status}`;
-        try {
-          const errBody = (await response.json()) as { message?: string };
-          if (typeof errBody.message === 'string' && errBody.message) {
-            apiMessage = errBody.message;
-          }
-        } catch {
-          // ignore JSON parse failure — fall back to HTTP status string
+      try {
+        // Acquire a fresh token the same way api.ts does
+        const authToken = await getAccessToken();
+        if (authToken) {
+          (init.headers as Record<string, string>)['Authorization'] = `Bearer ${authToken}`;
         }
-        throw new ApiRequestError(response.status, apiMessage);
-      }
 
-      // Success — remove from queue
-      await db.pendingSync.delete(mutation.id);
-    } catch (err: unknown) {
-      // 401 = token expired or invalid — attempt a silent refresh before giving up.
-      // getAccessToken() will try: stored access token → refresh → OIDC fallback.
-      if (err instanceof ApiRequestError && err.statusCode === 401) {
-        const freshToken = await getAccessToken();
-        if (freshToken) {
-          // Retry the mutation once with the fresh token
+        const response = await fetch(requestUrl, init);
+
+        if (!response.ok) {
+          // Try to surface the API's own error message rather than the bare HTTP status.
+          let apiMessage = `HTTP ${response.status}`;
           try {
-            (init.headers as Record<string, string>)['Authorization'] = `Bearer ${freshToken}`;
-            const retryResponse = await fetch(requestUrl, init);
-            if (retryResponse.ok) {
-              await db.pendingSync.delete(mutation.id);
-              continue;
+            const errBody = (await response.json()) as { message?: string };
+            if (typeof errBody.message === 'string' && errBody.message) {
+              apiMessage = errBody.message;
             }
           } catch {
-            // Retry failed — fall through to session-expired
+            // ignore JSON parse failure — fall back to HTTP status string
           }
+          throw new ApiRequestError(response.status, apiMessage);
         }
-        // Could not refresh — keep pending and signal session expired
-        await db.pendingSync.update(mutation.id, { status: 'pending' });
-        window.dispatchEvent(new CustomEvent('wordsprout:session-expired'));
-        return;
-      }
 
-      // 403 = permanent access failure — stale local writes will never reach the server.
-      // Clear the entire queue and fire an event so the app can redirect to /access-blocked.
-      if (err instanceof ApiRequestError && err.statusCode === 403) {
-        await db.pendingSync.clear();
-        window.dispatchEvent(new CustomEvent('wordsprout:access-revoked'));
-        return;
-      }
-
-      // 404 = the referenced resource no longer exists — this mutation can never succeed.
-      // Discard it silently rather than burning retries.
-      if (err instanceof ApiRequestError && err.statusCode === 404) {
+        // Success — remove from queue
         await db.pendingSync.delete(mutation.id);
-        continue;
-      }
+      } catch (err: unknown) {
+        // 401 = token expired or invalid — attempt a silent refresh before giving up.
+        // getAccessToken() will try: stored access token → refresh → OIDC fallback.
+        if (err instanceof ApiRequestError && err.statusCode === 401) {
+          const freshToken = await getAccessToken();
+          if (freshToken) {
+            // Retry the mutation once with the fresh token
+            try {
+              (init.headers as Record<string, string>)['Authorization'] = `Bearer ${freshToken}`;
+              const retryResponse = await fetch(requestUrl, init);
+              if (retryResponse.ok) {
+                await db.pendingSync.delete(mutation.id);
+                continue;
+              }
+            } catch {
+              // Retry failed — fall through to session-expired
+            }
+          }
+          // Could not refresh — keep pending and signal session expired
+          await db.pendingSync.update(mutation.id, { status: 'pending' });
+          window.dispatchEvent(new CustomEvent('wordsprout:session-expired'));
+          return;
+        }
 
-      // 409 = conflict — a resource with this content already exists on the server.
-      // Retrying will never resolve the conflict; discard silently.
-      if (err instanceof ApiRequestError && err.statusCode === 409) {
-        await db.pendingSync.delete(mutation.id);
-        continue;
-      }
+        // 403 = permanent access failure — stale local writes will never reach the server.
+        // Clear the entire queue and fire an event so the app can redirect to /access-blocked.
+        if (err instanceof ApiRequestError && err.statusCode === 403) {
+          await db.pendingSync.clear();
+          window.dispatchEvent(new CustomEvent('wordsprout:access-revoked'));
+          return;
+        }
 
-      // 400 "Entry already reviewed today" — the server already has a review for this
-      // entry on the current UTC day. This mutation can never succeed (the daily-review
-      // guard is permanent for the day). Discard silently rather than burning retries
-      // and showing a sync-error indicator for something that is not a real failure.
-      if (
-        err instanceof ApiRequestError &&
-        err.statusCode === 400 &&
-        err.message === 'Entry already reviewed today'
-      ) {
-        await db.pendingSync.delete(mutation.id);
-        continue;
-      }
+        // 404 = the referenced resource no longer exists — this mutation can never succeed.
+        // Discard it silently rather than burning retries.
+        if (err instanceof ApiRequestError && err.statusCode === 404) {
+          await db.pendingSync.delete(mutation.id);
+          continue;
+        }
 
-      // 400 "learningScore delta must be between -5 and +10" — the mutation was
-      // enqueued with a score computed from a stale session snapshot.  The live
-      // server score has since drifted far enough that the delta exceeds the guard.
-      // The local DB already reflects the intended change; retrying can never
-      // succeed.  Discard silently.
-      if (
-        err instanceof ApiRequestError &&
-        err.statusCode === 400 &&
-        err.message === 'learningScore delta must be between -5 and +10'
-      ) {
-        await db.pendingSync.delete(mutation.id);
-        continue;
-      }
+        // 409 = conflict — a resource with this content already exists on the server.
+        // Retrying will never resolve the conflict; discard silently.
+        if (err instanceof ApiRequestError && err.statusCode === 409) {
+          await db.pendingSync.delete(mutation.id);
+          continue;
+        }
 
-      // 400 invalid sourceText / targetText — the entry was seeded or created
-      // before the allowlist was introduced.  Retrying will always fail.  Discard.
-      if (
-        err instanceof ApiRequestError &&
-        err.statusCode === 400 &&
-        (err.message.startsWith('sourceText contains invalid characters') ||
-          err.message.startsWith('targetText contains invalid characters'))
-      ) {
-        await db.pendingSync.delete(mutation.id);
-        continue;
-      }
+        // 400 "Entry already reviewed today" — the server already has a review for this
+        // entry on the current UTC day. This mutation can never succeed (the daily-review
+        // guard is permanent for the day). Discard silently rather than burning retries
+        // and showing a sync-error indicator for something that is not a real failure.
+        if (
+          err instanceof ApiRequestError &&
+          err.statusCode === 400 &&
+          err.message === 'Entry already reviewed today'
+        ) {
+          await db.pendingSync.delete(mutation.id);
+          continue;
+        }
 
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        // 400 "learningScore delta must be between -5 and +10" — the mutation was
+        // enqueued with a score computed from a stale session snapshot.  The live
+        // server score has since drifted far enough that the delta exceeds the guard.
+        // The local DB already reflects the intended change; retrying can never
+        // succeed.  Discard silently.
+        if (
+          err instanceof ApiRequestError &&
+          err.statusCode === 400 &&
+          err.message === 'learningScore delta must be between -5 and +10'
+        ) {
+          await db.pendingSync.delete(mutation.id);
+          continue;
+        }
 
-      // Network error (offline / no connectivity) — TypeError from fetch, not an HTTP response.
-      // Do NOT increment retryCount: the mutation stays 'pending' and will be retried
-      // the next time replayQueue() runs (on 'online' or visibilitychange).
-      const isNetworkError = !(err instanceof ApiRequestError);
-      if (isNetworkError) {
-        await db.pendingSync.update(mutation.id, {
-          status: 'pending',
-          errorMessage,
-        });
-        // A single unreachable or malformed URL must not block unrelated queued
-        // work while the browser otherwise reports that it is online.
-        if (!navigator.onLine) return;
-        continue;
-      }
+        // 400 invalid sourceText / targetText — the entry was seeded or created
+        // before the allowlist was introduced.  Retrying will always fail.  Discard.
+        if (
+          err instanceof ApiRequestError &&
+          err.statusCode === 400 &&
+          (err.message.startsWith('sourceText contains invalid characters') ||
+            err.message.startsWith('targetText contains invalid characters'))
+        ) {
+          await db.pendingSync.delete(mutation.id);
+          continue;
+        }
 
-      // Server error (4xx/5xx) — count against retries
-      const newRetryCount = mutation.retryCount + 1;
-      if (newRetryCount >= MAX_RETRIES) {
-        await db.pendingSync.update(mutation.id, {
-          status: 'failed',
-          retryCount: newRetryCount,
-          errorMessage,
-        });
-      } else {
-        await db.pendingSync.update(mutation.id, {
-          status: 'pending',
-          retryCount: newRetryCount,
-          errorMessage,
-        });
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+
+        // Network error (offline / no connectivity) — TypeError from fetch, not an HTTP response.
+        // Do NOT increment retryCount: the mutation stays 'pending' and will be retried
+        // the next time replayQueue() runs (on 'online' or visibilitychange).
+        const isNetworkError = !(err instanceof ApiRequestError);
+        if (isNetworkError) {
+          await db.pendingSync.update(mutation.id, {
+            status: 'pending',
+            errorMessage,
+          });
+          // A single unreachable or malformed URL must not block unrelated queued
+          // work while the browser otherwise reports that it is online.
+          if (!navigator.onLine) return;
+          continue;
+        }
+
+        // Server error (4xx/5xx) — count against retries
+        const newRetryCount = mutation.retryCount + 1;
+        if (newRetryCount >= MAX_RETRIES) {
+          await db.pendingSync.update(mutation.id, {
+            status: 'failed',
+            retryCount: newRetryCount,
+            errorMessage,
+          });
+        } else {
+          await db.pendingSync.update(mutation.id, {
+            status: 'pending',
+            retryCount: newRetryCount,
+            errorMessage,
+          });
+        }
       }
     }
   }
@@ -419,7 +430,9 @@ function extractIds(url: string, method: string, body?: string): string[] {
     try {
       const parsed = JSON.parse(body) as Record<string, unknown>;
       if (typeof parsed['id'] === 'string') ids.add(parsed['id'].toLowerCase());
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   return [...ids];
 }

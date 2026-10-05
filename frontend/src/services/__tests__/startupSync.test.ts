@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { replayQueue, pullFromServer, applyDecayRound } = vi.hoisted(() => ({
-  replayQueue: vi.fn(async (): Promise<void> => undefined),
+const { drainSyncQueue, pullFromServer, applyDecayRound } = vi.hoisted(() => ({
+  drainSyncQueue: vi.fn(async (): Promise<void> => undefined),
   pullFromServer: vi.fn(async (): Promise<void> => undefined),
   applyDecayRound: vi.fn(async (): Promise<void> => undefined),
 }));
 
-vi.mock('../sync', () => ({ replayQueue, pullFromServer }));
+vi.mock('../sync', () => ({ drainSyncQueue, pullFromServer }));
 vi.mock('../decay', () => ({ applyDecayRound }));
 vi.mock('../../config/env', () => ({ API_BASE: '/api' }));
 
@@ -24,9 +24,15 @@ describe('runStartupSync', () => {
 
   it('reconciles pending work, server state, decay, and decay mutations in order', async () => {
     const order: string[] = [];
-    replayQueue.mockImplementation(async () => { order.push('replay'); });
-    pullFromServer.mockImplementation(async () => { order.push('pull'); });
-    applyDecayRound.mockImplementation(async () => { order.push('decay'); });
+    drainSyncQueue.mockImplementation(async () => {
+      order.push('replay');
+    });
+    pullFromServer.mockImplementation(async () => {
+      order.push('pull');
+    });
+    applyDecayRound.mockImplementation(async () => {
+      order.push('decay');
+    });
 
     await runStartupSync('user-1');
 
@@ -38,16 +44,29 @@ describe('runStartupSync', () => {
   it('reports each stage before beginning its operation', async () => {
     const stages: string[] = [];
 
-    await runStartupSync('user-1', { onStageChange: stage => stages.push(stage) });
+    await runStartupSync('user-1', { onStageChange: (stage) => stages.push(stage) });
 
     expect(stages).toEqual(['uploading', 'downloading', 'decaying', 'finalizing']);
   });
 
+  it('reports determinate progress only after each blocking phase completes', async () => {
+    const percentages: number[] = [];
+
+    await runStartupSync('progress-user', {
+      onProgressChange: (progress) => percentages.push(progress.percent),
+    });
+
+    expect(percentages).toEqual([0, 25, 50, 75, 100]);
+  });
+
   it('shares one reconciliation across concurrent startup callers', async () => {
     let releaseFirstReplay: (() => void) | undefined;
-    replayQueue.mockImplementationOnce(() => new Promise<void>(resolve => {
-      releaseFirstReplay = resolve;
-    }));
+    drainSyncQueue.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFirstReplay = resolve;
+        }),
+    );
 
     const first = runStartupSync('user-1');
     const second = runStartupSync('user-1');
@@ -56,7 +75,15 @@ describe('runStartupSync', () => {
 
     expect(pullFromServer).toHaveBeenCalledOnce();
     expect(applyDecayRound).toHaveBeenCalledOnce();
-    expect(replayQueue).toHaveBeenCalledTimes(2);
+    expect(drainSyncQueue).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not complete startup when queue draining fails', async () => {
+    drainSyncQueue.mockRejectedValueOnce(new Error('Synchronization left 2 pending mutations'));
+
+    await expect(runStartupSync('pending-user')).rejects.toThrow(
+      'Synchronization left 2 pending mutations',
+    );
   });
 });
 
@@ -69,7 +96,7 @@ describe('runOfflineDecay', () => {
     await runOfflineDecay('user-1');
 
     expect(applyDecayRound).toHaveBeenCalledWith('user-1', '/api');
-    expect(replayQueue).not.toHaveBeenCalled();
+    expect(drainSyncQueue).not.toHaveBeenCalled();
     expect(pullFromServer).not.toHaveBeenCalled();
   });
 });
@@ -88,7 +115,7 @@ describe('runInitialStartupSync', () => {
     expect(hasInitialStartupSyncCompleted('initial-user')).toBe(true);
     expect(pullFromServer).toHaveBeenCalledOnce();
     expect(applyDecayRound).toHaveBeenCalledOnce();
-    expect(replayQueue).toHaveBeenCalledTimes(2);
+    expect(drainSyncQueue).toHaveBeenCalledTimes(2);
   });
 
   it('does not mark a failed initial reconciliation as complete', async () => {

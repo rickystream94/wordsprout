@@ -58,11 +58,16 @@
 }
 
 .progressFill {
-  width: 45%;
   height: 100%;
   border-radius: inherit;
   background: var(--surface-accent);
-  animation: syncProgress 1.25s ease-in-out infinite;
+  transition: width 0.25s ease-out;
+}
+
+.progressText {
+  margin-top: calc(var(--space-3) * -1);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
 }
 
 .failureTitle {
@@ -120,7 +125,8 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(0.8);
     opacity: 0.6;
   }
@@ -131,20 +137,12 @@
 }
 
 @keyframes fadeInOut {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.6;
   }
   50% {
     opacity: 1;
-  }
-}
-
-@keyframes syncProgress {
-  from {
-    transform: translateX(-110%);
-  }
-  to {
-    transform: translateX(245%);
   }
 }
 

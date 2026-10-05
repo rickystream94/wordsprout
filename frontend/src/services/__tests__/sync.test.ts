@@ -3,14 +3,34 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 
 const {
-  mockMeta, mockPhrasebooks, mockEntries, mockEnrichments, mockPendingSync, mockTransaction,
-  mockPhrasebooksApi, mockEntriesApi, mockEnrichmentsApi, mockRebuildIndex,
+  mockMeta,
+  mockPhrasebooks,
+  mockEntries,
+  mockEnrichments,
+  mockPendingSync,
+  mockTransaction,
+  mockPhrasebooksApi,
+  mockEntriesApi,
+  mockEnrichmentsApi,
+  mockRebuildIndex,
 } = vi.hoisted(() => {
   return {
     mockMeta: { get: vi.fn(async () => null as unknown), put: vi.fn(async () => undefined) },
-    mockPhrasebooks: { count: vi.fn(async () => 0), clear: vi.fn(async () => undefined), bulkPut: vi.fn(async () => undefined) },
-    mockEntries: { count: vi.fn(async () => 0), clear: vi.fn(async () => undefined), bulkPut: vi.fn(async () => undefined) },
-    mockEnrichments: { count: vi.fn(async () => 0), clear: vi.fn(async () => undefined), bulkPut: vi.fn(async () => undefined) },
+    mockPhrasebooks: {
+      count: vi.fn(async () => 0),
+      clear: vi.fn(async () => undefined),
+      bulkPut: vi.fn(async () => undefined),
+    },
+    mockEntries: {
+      count: vi.fn(async () => 0),
+      clear: vi.fn(async () => undefined),
+      bulkPut: vi.fn(async () => undefined),
+    },
+    mockEnrichments: {
+      count: vi.fn(async () => 0),
+      clear: vi.fn(async () => undefined),
+      bulkPut: vi.fn(async () => undefined),
+    },
     mockPendingSync: { where: vi.fn(), add: vi.fn(async () => undefined) },
     mockTransaction: vi.fn(async (...args: unknown[]) => {
       const fn = args[args.length - 1] as () => Promise<void>;
@@ -55,6 +75,7 @@ vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }));
 import {
   pullFromServer,
   enqueueMutation,
+  drainSyncQueue,
   canonicalizeMutationUrl,
   resolveMutationUrl,
   isSyncing,
@@ -115,7 +136,7 @@ describe('pullFromServer', () => {
     // Both counts > 0 and fresh pull
     mockPhrasebooks.count.mockResolvedValue(5);
     mockEnrichments.count.mockResolvedValue(3);
-    const freshPullTime = Date.now() - (PULL_TTL_MS / 2); // half the TTL, still fresh
+    const freshPullTime = Date.now() - PULL_TTL_MS / 2; // half the TTL, still fresh
     mockMeta.get.mockResolvedValue({ key: 'lastPull', value: String(freshPullTime) });
 
     await pullFromServer();
@@ -128,7 +149,7 @@ describe('pullFromServer', () => {
     mockEnrichments.count.mockResolvedValue(3);
     mockMeta.get.mockResolvedValue({
       key: 'lastPull',
-      value: String(Date.now() - (PULL_TTL_MS / 2)),
+      value: String(Date.now() - PULL_TTL_MS / 2),
     });
 
     await pullFromServer({ force: true });
@@ -198,10 +219,13 @@ describe('pullFromServer', () => {
     // fetch succeeds (mutation is replayed)
     (mockPendingSync as Record<string, unknown>).update = vi.fn(async () => undefined);
     (mockPendingSync as Record<string, unknown>).delete = vi.fn(async () => undefined);
-    vi.stubGlobal('fetch', vi.fn(async () => {
-      callOrder.push('fetch');
-      return { ok: true, json: async () => ({}) };
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        callOrder.push('fetch');
+        return { ok: true, json: async () => ({}) };
+      }),
+    );
 
     mockPhrasebooksApi.list.mockImplementation(async () => {
       callOrder.push('list');
@@ -271,6 +295,51 @@ describe('isSyncing / getNextSyncAt', () => {
   });
 });
 
+describe('drainSyncQueue', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (mockPendingSync as Record<string, unknown>).update = vi.fn(async () => undefined);
+    (mockPendingSync as Record<string, unknown>).delete = vi.fn(async () => undefined);
+  });
+
+  it('starts another replay pass when work arrives after a replay snapshot', async () => {
+    const mutation = {
+      id: 3,
+      url: '/api/entries/entry-3',
+      method: 'PUT' as const,
+      body: '{}',
+      retryCount: 0,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+    let snapshot = 0;
+    let count = 0;
+    mockPendingSync.where.mockReturnValue({
+      anyOf: vi.fn().mockReturnValue({
+        toArray: vi.fn(async () => {
+          snapshot += 1;
+          return snapshot === 1 ? [] : [mutation];
+        }),
+        count: vi.fn(async () => {
+          count += 1;
+          return count === 1 ? 1 : 0;
+        }),
+      }),
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true })),
+    );
+
+    await drainSyncQueue();
+
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(
+      (mockPendingSync as Record<string, ReturnType<typeof vi.fn>>).delete,
+    ).toHaveBeenCalledWith(3);
+  });
+});
+
 describe('replayQueue — permanent-400 discards', () => {
   const mockFetch = vi.fn();
 
@@ -321,12 +390,18 @@ describe('replayQueue — permanent-400 discards', () => {
   });
 
   it('discards a mutation when server responds with sourceText allowlist error', async () => {
-    await runWithError(2, 'sourceText contains invalid characters. Only letters, numbers, spaces and common punctuation are allowed.');
+    await runWithError(
+      2,
+      'sourceText contains invalid characters. Only letters, numbers, spaces and common punctuation are allowed.',
+    );
     expect((mockPendingSync as Record<string, unknown>).delete).toHaveBeenCalledWith(2);
   });
 
   it('discards a mutation when server responds with targetText allowlist error', async () => {
-    await runWithError(3, 'targetText contains invalid characters. Only letters, numbers, spaces and common punctuation are allowed.');
+    await runWithError(
+      3,
+      'targetText contains invalid characters. Only letters, numbers, spaces and common punctuation are allowed.',
+    );
     expect((mockPendingSync as Record<string, unknown>).delete).toHaveBeenCalledWith(3);
   });
 });
@@ -379,7 +454,45 @@ describe('replayQueue — isolated network failures', () => {
     await replayQueue();
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect((mockPendingSync as Record<string, ReturnType<typeof vi.fn>>).delete)
-      .toHaveBeenCalledWith(2);
+    expect(
+      (mockPendingSync as Record<string, ReturnType<typeof vi.fn>>).delete,
+    ).toHaveBeenCalledWith(2);
+  });
+
+  it('drains mutations added after the first replay snapshot', async () => {
+    const first = {
+      id: 1,
+      url: '/api/entries/entry-1',
+      method: 'PUT' as const,
+      body: '{}',
+      retryCount: 0,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+    const later = { ...first, id: 2, url: '/api/entries/entry-2' };
+    let snapshot = 0;
+    mockPendingSync.where.mockReturnValue({
+      anyOf: vi.fn().mockReturnValue({
+        toArray: vi.fn(async () => {
+          snapshot += 1;
+          return snapshot === 1 ? [first] : [first, later];
+        }),
+      }),
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true })),
+    );
+
+    const { replayQueue } = await import('../sync');
+    await replayQueue();
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(
+      (mockPendingSync as Record<string, ReturnType<typeof vi.fn>>).delete,
+    ).toHaveBeenCalledWith(1);
+    expect(
+      (mockPendingSync as Record<string, ReturnType<typeof vi.fn>>).delete,
+    ).toHaveBeenCalledWith(2);
   });
 });

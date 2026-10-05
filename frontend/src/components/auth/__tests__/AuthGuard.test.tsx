@@ -3,6 +3,15 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+interface MockStartupSyncOptions {
+  onProgressChange?: (progress: {
+    stage: 'uploading' | 'downloading' | 'decaying' | 'finalizing';
+    completedSteps: number;
+    totalSteps: number;
+    percent: number;
+  }) => void;
+}
+
 const {
   authState,
   syncState,
@@ -18,7 +27,12 @@ const {
   },
   syncState: { completed: false },
   quotaGet: vi.fn(async (): Promise<void> => undefined),
-  runInitialStartupSync: vi.fn(async (): Promise<void> => undefined),
+  runInitialStartupSync: vi.fn(
+    async (userId: string, options?: MockStartupSyncOptions): Promise<void> => {
+      void userId;
+      void options;
+    },
+  ),
   runOfflineDecay: vi.fn(async (): Promise<void> => undefined),
   markInitialStartupSyncCompleted: vi.fn(),
 }));
@@ -106,7 +120,13 @@ describe('AuthGuard startup gate', () => {
     const quota = deferred<void>();
     const sync = deferred<void>();
     quotaGet.mockReturnValue(quota.promise);
-    runInitialStartupSync.mockImplementation(async () => {
+    runInitialStartupSync.mockImplementation(async (_userId, options) => {
+      options?.onProgressChange?.({
+        stage: 'decaying',
+        completedSteps: 2,
+        totalSteps: 4,
+        percent: 50,
+      });
       await sync.promise;
       syncState.completed = true;
     });
@@ -116,6 +136,8 @@ describe('AuthGuard startup gate', () => {
 
     await act(async () => quota.resolve());
     expect(await screen.findByText('Syncing your vocabulary. Hang tight…')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
+    expect(screen.getByText('Updating learning scores · 50%')).toBeInTheDocument();
     expect(screen.queryByText('Protected app')).not.toBeInTheDocument();
 
     await act(async () => sync.resolve());

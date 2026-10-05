@@ -1,14 +1,25 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState, useEffect } from 'react';
 import { db } from '../../services/db';
-import { getFailedMutations, getPendingMutations, retryFailed, discardMutation, replayQueue, isSyncing, getNextSyncAt } from '../../services/sync';
+import {
+  getFailedMutations,
+  getPendingMutations,
+  retryFailed,
+  discardMutation,
+  replayQueue,
+  isSyncing,
+  getNextSyncAt,
+} from '../../services/sync';
 import styles from './SyncIndicator.module.css';
 
 function useSecondsToSync(): { syncing: boolean; secsRemaining: number | null } {
   const [snapshot, setSnapshot] = useState<{ syncing: boolean; secsRemaining: number | null }>(
     () => {
       if (isSyncing()) return { syncing: true, secsRemaining: null };
-      return { syncing: false, secsRemaining: Math.max(0, Math.ceil((getNextSyncAt() - Date.now()) / 1000)) };
+      return {
+        syncing: false,
+        secsRemaining: Math.max(0, Math.ceil((getNextSyncAt() - Date.now()) / 1000)),
+      };
     },
   );
   useEffect(() => {
@@ -16,7 +27,10 @@ function useSecondsToSync(): { syncing: boolean; secsRemaining: number | null } 
       if (isSyncing()) {
         setSnapshot({ syncing: true, secsRemaining: null });
       } else {
-        setSnapshot({ syncing: false, secsRemaining: Math.max(0, Math.ceil((getNextSyncAt() - Date.now()) / 1000)) });
+        setSnapshot({
+          syncing: false,
+          secsRemaining: Math.max(0, Math.ceil((getNextSyncAt() - Date.now()) / 1000)),
+        });
       }
     }, 1000);
     return () => clearInterval(id);
@@ -70,17 +84,24 @@ export default function SyncIndicator() {
         type="button"
         className={`${styles.pill} ${hasFailed ? styles.failed : ''}`}
         onClick={() => setShowDetails(!showDetails)}
-        aria-label={hasFailed ? 'Sync failed — tap for details' : `${pendingCount} changes pending sync`}
+        aria-label={
+          hasFailed ? 'Sync failed — tap for details' : `${pendingCount} changes pending sync`
+        }
       >
         {hasFailed ? (
           <>
-            <span className={styles.dot} aria-hidden="true">✕</span>
+            <span className={styles.dot} aria-hidden="true">
+              ✕
+            </span>
             <span className={styles.pillLabel}>Sync failed ({failedCount ?? 0})</span>
           </>
         ) : (
           <>
-            <span className={`${styles.dot} ${styles.spinning}`} aria-hidden="true">⟳</span>
-            <span className={styles.pillLabel}>{pendingCount} pending</span>
+            <span className={`${styles.dot} ${styles.spinning}`} aria-hidden="true">
+              ⟳
+            </span>
+            <span className={styles.pendingCount}>{pendingCount}</span>
+            <span className={styles.pillLabel}>pending</span>
           </>
         )}
       </button>
@@ -103,7 +124,9 @@ export default function SyncIndicator() {
               <li key={m.id} className={styles.failItem}>
                 <div className={styles.failItemRow}>
                   <span className={styles.method}>{m.method}</span>
-                  <span className={styles.url} title={m.url}>{m.url}</span>
+                  <span className={styles.url} title={m.url}>
+                    {m.url}
+                  </span>
                   <button
                     type="button"
                     className={styles.discardBtn}
@@ -114,9 +137,7 @@ export default function SyncIndicator() {
                     ✕
                   </button>
                 </div>
-                {m.errorMessage && (
-                  <p className={styles.failItemError}>{m.errorMessage}</p>
-                )}
+                {m.errorMessage && <p className={styles.failItemError}>{m.errorMessage}</p>}
               </li>
             ))}
           </ul>
@@ -132,7 +153,9 @@ export default function SyncIndicator() {
       {isOpen && !hasFailed && hasPending && (
         <div className={styles.details} role="dialog" aria-label="Pending sync operations">
           <div className={styles.detailsHeader}>
-            <strong>{pendingCount} {pendingCount === 1 ? 'change' : 'changes'} pending</strong>
+            <strong>
+              {pendingCount} {pendingCount === 1 ? 'change' : 'changes'} pending
+            </strong>
             <button
               type="button"
               className={styles.closeBtn}
@@ -144,7 +167,12 @@ export default function SyncIndicator() {
           </div>
           <p className={styles.syncStatus}>
             {syncing ? (
-              <><span className={`${styles.dot} ${styles.spinning}`} aria-hidden="true">⟳</span> Syncing now…</>
+              <>
+                <span className={`${styles.dot} ${styles.spinning}`} aria-hidden="true">
+                  ⟳
+                </span>{' '}
+                Syncing now…
+              </>
             ) : (
               <>Next sync in {secsRemaining}s</>
             )}
@@ -154,10 +182,14 @@ export default function SyncIndicator() {
               <li key={m.id} className={styles.failItem}>
                 <div className={styles.failItemRow}>
                   <span className={styles.pendingMethod}>{m.method}</span>
-                  <span className={styles.url} title={m.url}>{m.url}</span>
+                  <span className={styles.url} title={m.url}>
+                    {m.url}
+                  </span>
                 </div>
                 {m.errorMessage && (
-                  <p className={styles.failItemError}>{m.errorMessage}. Will retry automatically.</p>
+                  <p className={styles.failItemError}>
+                    {m.errorMessage}. Will retry automatically.
+                  </p>
                 )}
               </li>
             ))}
