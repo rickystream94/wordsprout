@@ -12,7 +12,14 @@ import {
   getGoogleSub,
 } from './googleAuth';
 import { fetchMsProfilePhoto, clearMsPhotoCache } from './msGraphAuth';
-import { clearSession, getSessionClaims, getStoredRefreshToken, hasValidSession, storeSession } from './sessionTokens';
+import {
+  clearSession,
+  getSessionClaims,
+  getStoredRefreshToken,
+  hasRecoverableSession,
+  hasValidSession,
+  storeSession,
+} from './sessionTokens';
 import { exchangeOidcForSession, getAccessToken } from '../services/api';
 import { API_BASE, GOOGLE_CLIENT_ID } from '../config/env';
 
@@ -69,14 +76,16 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
   );
 
   // Backend session state — true when we have a valid access token
-  const [sessionActive, setSessionActive] = useState(() => hasValidSession());
+  const [sessionActive, setSessionActive] = useState(
+    () => hasValidSession() || (!navigator.onLine && hasRecoverableSession()),
+  );
 
   // Microsoft profile photo — fetched from Graph API after MS login
   const [msPicture, setMsPicture] = useState<string | null>(null);
 
   // True while we're attempting to restore a session from a stored refresh token
   const [sessionRestoring, setSessionRestoring] = useState(
-    () => !hasValidSession() && getStoredRefreshToken() !== null,
+    () => navigator.onLine && !hasValidSession() && hasRecoverableSession(),
   );
 
   const googleActive = googleCredential !== null && isGoogleAuthenticated();
@@ -187,21 +196,51 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('wordsprout:session-expired', handler);
   }, []);
 
-  // On mount: if access token is expired but a refresh token exists, proactively
-  // refresh the session so the user isn't bounced to /login unnecessarily.
+  // Restore an expired backend session on startup and whenever an offline device
+  // reconnects. A network failure preserves the locally identifiable session;
+  // an explicit refresh rejection clears it inside getAccessToken().
   useEffect(() => {
-    if (!sessionActive && getStoredRefreshToken()) {
+    let cancelled = false;
+
+    async function restoreSession() {
+      if (hasValidSession()) {
+        if (!cancelled) {
+          setSessionActive(true);
+          setSessionRestoring(false);
+        }
+        return;
+      }
+
+      if (!hasRecoverableSession()) {
+        if (!cancelled) {
+          setSessionActive(false);
+          setSessionRestoring(false);
+        }
+        return;
+      }
+
+      if (!navigator.onLine) {
+        if (!cancelled) {
+          setSessionActive(true);
+          setSessionRestoring(false);
+        }
+        return;
+      }
+
       setSessionRestoring(true);
-      getAccessToken().then((token) => {
-        if (token) setSessionActive(true);
-      }).catch(() => {
-        // Refresh failed — user will see login page
-      }).finally(() => {
+      const token = await getAccessToken().catch(() => null);
+      if (!cancelled) {
+        setSessionActive(token !== null || hasRecoverableSession());
         setSessionRestoring(false);
-      });
+      }
     }
-  // Only run once on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    void restoreSession();
+    window.addEventListener('online', restoreSession);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online', restoreSession);
+    };
   }, []);
 
   // Backward-compatible alias

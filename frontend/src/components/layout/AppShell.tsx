@@ -1,13 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Link, Outlet, useLocation } from 'react-router-dom';
 import { useTheme } from '../../store/ThemeContext';
 import { useBackButtonExit } from '../../hooks/useBackButtonExit';
+import useOnlineStatus from '../../hooks/useOnlineStatus';
 import { InstallPromptProvider } from '../../hooks/InstallPromptContext';
 import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 import { QuotaProvider } from '../../hooks/useQuota';
+import { IS_DEV } from '../../config/env';
+import DevelopmentNotice from '../common/DevelopmentNotice';
 import ExitToast from '../common/ExitToast';
 import InstallBanner from '../common/InstallBanner';
-import OfflineIndicator from '../common/OfflineIndicator';
+import OfflineIndicator, { OfflineStatusIcon } from '../common/OfflineIndicator';
 import SyncIndicator from '../common/SyncIndicator';
 import UserMenu from './UserMenu';
 import styles from './AppShell.module.css';
@@ -33,6 +36,9 @@ function EngagementTracker() {
 export default function AppShell() {
   const { theme, toggleTheme } = useTheme();
   const { showExitToast } = useBackButtonExit();
+  const { online, offlineGeneration } = useOnlineStatus();
+  const [dismissedOfflineGeneration, setDismissedOfflineGeneration] = useState<number | null>(null);
+  const offlineNoticeDismissed = dismissedOfflineGeneration === offlineGeneration;
 
   return (
     <InstallPromptProvider>
@@ -41,7 +47,7 @@ export default function AppShell() {
       <header className={styles.header}>
         <NavLink to="/" className={styles.logo}>
           <img src="/icons/wordsprout-logo-192.png" alt="" aria-hidden="true" className={styles.logoIcon} />
-          WordSprout
+          <span className={styles.logoText}>WordSprout</span>
         </NavLink>
         <nav className={styles.nav}>
           <NavLink to="/" end className={({ isActive }) => isActive ? styles.activeLink : styles.link}>
@@ -63,6 +69,9 @@ export default function AppShell() {
         </nav>
         <div className={styles.actions}>
           <SyncIndicator />
+          {!online && (
+            <OfflineStatusIcon onShowNotice={() => setDismissedOfflineGeneration(null)} />
+          )}
           <button
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
@@ -73,6 +82,14 @@ export default function AppShell() {
           <UserMenu />
         </div>
       </header>
+      {(IS_DEV || (!online && !offlineNoticeDismissed)) && (
+        <div className={styles.noticeStack}>
+          {!online && !offlineNoticeDismissed && (
+            <OfflineIndicator onDismiss={() => setDismissedOfflineGeneration(offlineGeneration)} />
+          )}
+          {IS_DEV && <DevelopmentNotice />}
+        </div>
+      )}
       <main className={styles.content}>
         <Outlet />
       </main>
@@ -83,7 +100,6 @@ export default function AppShell() {
         <span aria-hidden="true" className={styles.footerSep}>·</span>
         <Link to="/terms" className={styles.footerLink}>Terms &amp; Conditions</Link>
       </footer>
-      <OfflineIndicator />
       <InstallBanner />
       <ExitToast visible={showExitToast} />
       <nav className={styles.bottomNav} aria-label="Main navigation">

@@ -27,14 +27,26 @@
   font-size: 0.75rem;
 }
 
+.pillLabel {
+  white-space: nowrap;
+}
+
+.pendingCount {
+  font-variant-numeric: tabular-nums;
+}
+
 .spinning {
   display: inline-block;
   animation: spin 1.5s linear infinite;
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .details {
@@ -108,9 +120,8 @@
 
 .url {
   color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   flex: 1;
 }
 
@@ -189,4 +200,17 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   margin: 0 0 var(--space-3);
+}
+
+@media (max-width: 360px) {
+  .pill {
+    min-width: 40px;
+    height: 32px;
+    justify-content: center;
+    padding: 0 var(--space-1);
+  }
+
+  .pillLabel {
+    display: none;
+  }
 }

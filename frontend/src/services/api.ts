@@ -20,6 +20,18 @@ interface SessionResponse {
   expiresIn: number;
 }
 
+const SESSION_FETCH_TIMEOUT_MS = 10_000;
+
+async function sessionFetch(input: RequestInfo | URL, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), SESSION_FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 // Deduplication: only one exchange request in-flight at a time
 let exchangeInFlight: Promise<SessionResponse | null> | null = null;
 
@@ -27,7 +39,7 @@ export async function exchangeOidcForSession(oidcToken: string): Promise<Session
   if (exchangeInFlight) return exchangeInFlight;
   exchangeInFlight = (async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/session`, {
+      const res = await sessionFetch(`${API_BASE}/auth/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${oidcToken}` },
       });
@@ -55,7 +67,7 @@ async function refreshSessionTokens(refreshToken: string): Promise<SessionRespon
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/refresh`, {
+      const res = await sessionFetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),

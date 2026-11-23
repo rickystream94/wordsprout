@@ -2,8 +2,8 @@
 <#
 .SYNOPSIS
     Creates the Azure AD app registration used by GitHub Actions for OIDC
-    (Workload Identity Federation). Assigns Contributor on wordsprout-prod
-    and saves the client ID to infra/config.json.
+    (Workload Identity Federation). Assigns Contributor on the WordSprout DEV
+    and PROD resource groups and saves the client ID to infra/config.json.
 
 .DESCRIPTION
     Automates runbook §2 — replaces the manual portal and CLI steps for setting
@@ -46,6 +46,7 @@ $Config     = Get-Content $ConfigPath -Raw | ConvertFrom-Json
 
 $TenantId       = $Config.tenantId
 $SubscriptionId = $Config.subscriptionId
+$DevRG          = $Config.environments.dev.resourceGroup
 $ProdRG         = $Config.environments.prod.resourceGroup
 $Region         = $Config.region
 
@@ -154,28 +155,28 @@ if ($existing) {
     Write-Success "Federated credential created  (subject: repo:$GitHubOrg/$($GitHubRepo):ref:refs/heads/master)"
 }
 
-# ─── Assign Contributor role on PROD resource groups ─────────────────────────
-# GitHub Actions deploys Bicep (storage + cosmos + funcapp + swa + RBAC) all to the
-# single PROD resource group — Contributor on that one RG is sufficient.
+# ─── Assign Contributor role on deployment resource groups ───────────────────
 
-Write-Step "Assigning Contributor role on $ProdRG"
+foreach ($resourceGroup in @($DevRG, $ProdRG)) {
+    Write-Step "Assigning Contributor role on $resourceGroup"
 
-$scope         = "/subscriptions/$SubscriptionId/resourceGroups/$ProdRG"
-$existingRoles = az role assignment list `
-    --assignee $app.appId `
-    --role 'Contributor' `
-    --scope $scope `
-    --output json | ConvertFrom-Json
-
-if ($existingRoles.Count -gt 0) {
-    Write-Host "  Contributor role already assigned on $ProdRG" -ForegroundColor Yellow
-} else {
-    az role assignment create `
+    $scope         = "/subscriptions/$SubscriptionId/resourceGroups/$resourceGroup"
+    $existingRoles = az role assignment list `
         --assignee $app.appId `
         --role 'Contributor' `
         --scope $scope `
-        --output none
-    Write-Success "Contributor role assigned on $ProdRG"
+        --output json | ConvertFrom-Json
+
+    if ($existingRoles.Count -gt 0) {
+        Write-Host "  Contributor role already assigned on $resourceGroup" -ForegroundColor Yellow
+    } else {
+        az role assignment create `
+            --assignee $app.appId `
+            --role 'Contributor' `
+            --scope $scope `
+            --output none
+        Write-Success "Contributor role assigned on $resourceGroup"
+    }
 }
 
 # ─── Update infra/config.json ─────────────────────────────────────────────────

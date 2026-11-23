@@ -1,4 +1,6 @@
-import DOMPurify from 'dompurify';
+import { useRef, useState } from 'react';
+import { MAX_TAGS_PER_ENTRY } from '../../utils/tags';
+import TagPickerDialog from './TagPickerDialog';
 import styles from './TagInput.module.css';
 
 interface TagInputProps {
@@ -8,46 +10,23 @@ interface TagInputProps {
   maxTags?: number;
 }
 
-function sanitiseTag(raw: string): string {
-  return DOMPurify.sanitize(raw.toLowerCase().replace(/\s+/g, '-')).trim().slice(0, 50);
-}
-
 export default function TagInput({
   tags,
   onChange,
   suggestions = [],
-  maxTags = 20,
+  maxTags = MAX_TAGS_PER_ENTRY,
 }: TagInputProps) {
-  function addTag(raw: string) {
-    const tag = sanitiseTag(raw);
-    if (tag && !tags.includes(tag) && tags.length < maxTags) {
-      onChange([...tags, tag]);
-    }
-  }
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   function removeTag(tag: string) {
     onChange(tags.filter((t) => t !== tag));
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    const input = e.currentTarget;
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addTag(input.value);
-      input.value = '';
-    } else if (e.key === 'Backspace' && input.value === '' && tags.length > 0) {
-      onChange(tags.slice(0, -1));
-    }
+  function closePicker() {
+    setPickerOpen(false);
+    requestAnimationFrame(() => triggerRef.current?.focus());
   }
-
-  function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
-    if (e.currentTarget.value.trim()) {
-      addTag(e.currentTarget.value);
-      e.currentTarget.value = '';
-    }
-  }
-
-  const filteredSuggestions = suggestions.filter((s) => !tags.includes(s));
 
   return (
     <div className={styles.wrapper}>
@@ -65,34 +44,26 @@ export default function TagInput({
             </button>
           </span>
         ))}
-        {tags.length < maxTags && (
-          <input
-            type="text"
-            className={styles.input}
-            onKeyDown={handleKeyDown}
-            onBlur={handleBlur}
-            placeholder={tags.length === 0 ? 'Add tags (Enter or comma)…' : ''}
-            aria-label="Add tag"
-          />
-        )}
+        {tags.length === 0 && <span className={styles.empty}>No tags selected</span>}
       </div>
 
-      {filteredSuggestions.length > 0 && (
-        <div className={styles.suggestions}>
-          {filteredSuggestions.slice(0, 10).map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={styles.suggestion}
-              onClick={() => addTag(s)}
-            >
-              #{s}
-            </button>
-          ))}
-        </div>
-      )}
+      <button ref={triggerRef} type="button" className={styles.pickerButton} onClick={() => setPickerOpen(true)}>
+        Choose tags
+      </button>
+      <p className={styles.hint}>{tags.length} of {maxTags} tags selected.</p>
 
-      <p className={styles.hint}>Press Enter or comma to add. Max {maxTags} tags, 50 chars each.</p>
+      {pickerOpen && (
+        <TagPickerDialog
+          availableTags={suggestions}
+          selectedTags={tags}
+          maxTags={maxTags}
+          onApply={nextTags => {
+            onChange(nextTags);
+            closePicker();
+          }}
+          onCancel={closePicker}
+        />
+      )}
     </div>
   );
 }

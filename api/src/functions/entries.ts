@@ -20,7 +20,7 @@ function sanitiseArray(values: string[]): string[] {
  * Characters like parentheses, +, @, etc. are rejected — users should use
  * the notes field for annotations.
  */
-const ENTRY_TEXT_PATTERN = /^[\p{L}\p{N}\p{M}\s'\u2019\-.,!?:;\u2013\u2014\u2026\/]+$/u;
+const ENTRY_TEXT_PATTERN = /^[\p{L}\p{N}\p{M}\s'\u2019\-.,!?:;\u2013\u2014\u2026\u002f]+$/u;
 
 function validateEntryTextField(text: string): boolean {
   const trimmed = text.trim();

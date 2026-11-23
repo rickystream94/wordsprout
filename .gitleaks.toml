@@ -1,13 +1,15 @@
 title = "WordSprout Gitleaks Configuration"
 
+[extend]
+  useDefault = true
+
 [allowlist]
   description = "Allowed false-positives"
   # Allow test/example values in config templates
   paths = [
-    ".gitleaks.toml",
-    "*.example",
-    "*.sample",
-    "README.md",
+    '''(^|/)\.gitleaks\.toml$''',
+    '''\.(example|sample)$''',
+    '''(^|/)README\.md$''',
   ]
   regexes = [
     # Azure Functions local settings template placeholder values

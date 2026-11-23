@@ -1,32 +1,82 @@
 .banner {
-  position: fixed;
-  bottom: var(--space-4);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--neutral-800);
-  color: #fff;
-  padding: var(--space-2) var(--space-5);
-  border-radius: var(--radius-full);
-  font-size: var(--text-sm);
-  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  box-shadow: var(--shadow-lg);
-  z-index: 500;
-  white-space: nowrap;
-  animation: slideUp 0.2s ease-out;
+  width: 100%;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-6);
+  border-bottom: 1px solid #fdba74;
+  background: #7c2d12;
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  animation: slideDown 0.2s ease-out;
+}
 
-  @media (prefers-color-scheme: dark) {
-    background: var(--neutral-700);
+.bannerIcon {
+  flex-shrink: 0;
+}
+
+.message {
+  min-width: 0;
+  flex: 1;
+  line-height: 1.45;
+}
+
+.dismiss,
+.statusButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+.dismiss {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: inherit;
+  font-size: 1.5rem;
+}
+
+.dismiss:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.statusButton {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #fdba74;
+  border-radius: var(--radius-full);
+  background: #7c2d12;
+  color: #fff;
+}
+
+.dismiss:focus-visible,
+.statusButton:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .banner {
+    align-items: flex-start;
+    padding: var(--space-3) var(--space-4);
   }
-}
 
-.icon {
-  font-size: 1rem;
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .dismiss {
+    width: 44px;
+    height: 44px;
+    margin: calc(var(--space-1) * -1) calc(var(--space-2) * -1) calc(var(--space-1) * -1) 0;
+  }
 }

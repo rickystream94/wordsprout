@@ -1,12 +1,19 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 
+interface SwipeOptions {
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
+}
+
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 
 const { mockUseLiveQuery, mockUseSwipe } = vi.hoisted(() => ({
   mockUseLiveQuery: vi.fn(() => []),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mockUseSwipe: vi.fn<any>(() => ({ current: null as null })),
+  mockUseSwipe: vi.fn((options: SwipeOptions) => {
+    void options;
+    return { current: null };
+  }),
 }));
 
 vi.mock('dexie-react-hooks', () => ({

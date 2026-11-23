@@ -62,7 +62,6 @@ export default function RehearseSession({ entries, onDone, targetLanguageName, s
       aria-label="Rehearse session"
       onKeyDown={handleKeyDown}
       tabIndex={0}
-      // eslint-disable-next-line jsx-a11y/no-autofocus
       autoFocus
     >
       <header className={styles.header}>

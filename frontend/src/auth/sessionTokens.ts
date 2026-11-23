@@ -61,6 +61,15 @@ export function hasValidSession(): boolean {
 }
 
 /**
+ * Returns true when this device has enough stored session state to identify an
+ * existing user while offline. The expired access token supplies identity
+ * claims; the refresh token proves the session can be restored when online.
+ */
+export function hasRecoverableSession(): boolean {
+  return getStoredRefreshToken() !== null && getSessionClaims() !== null;
+}
+
+/**
  * Returns true if the stored access token expires within `bufferMs` milliseconds.
  * Returns true if there is no stored token (caller should treat as expired).
  */

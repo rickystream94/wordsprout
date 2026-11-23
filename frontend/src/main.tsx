@@ -2,13 +2,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
-import { clearSession, getStoredAccessToken, getStoredRefreshToken, getSessionClaims } from './auth/sessionTokens';
+import { clearSession, getStoredRefreshToken, getSessionClaims } from './auth/sessionTokens';
 import { initializeMsal } from './auth/msalConfig';
 import { ThemeProvider } from './store/ThemeContext';
 import { replayQueue, pullFromServer, SYNC_INTERVAL_MS, PULL_TTL_MS } from './services/sync';
 import { rebuildIndex } from './services/search';
-import { applyDecayRound } from './services/decay';
-import { API_BASE } from './config/env';
+import { runStartupSync } from './services/startupSync';
 import AppShell from './components/layout/AppShell';
 import ScrollToTop from './components/common/ScrollToTop';
 import AuthGuard from './components/auth/AuthGuard';
@@ -33,22 +32,17 @@ import './styles/global.css';
 const PUBLIC_ROUTES = ['/login', '/about', '/privacy', '/terms', '/access-blocked', '/request-access'];
 const isPublicRoute = () => PUBLIC_ROUTES.some(r => window.location.pathname.startsWith(r));
 
-// ─── T016: Wire sync replay + inbound pull to online + visibilitychange events ─
-window.addEventListener('online', () => {
-  if (!getStoredRefreshToken()) return;
-  replayQueue().catch(console.error);
-  pullFromServer().catch(console.error);
+function reconcileAfterReconnect() {
+  if (!navigator.onLine || !getStoredRefreshToken()) return;
   const userId = getSessionClaims()?.sub;
-  if (userId) applyDecayRound(userId, API_BASE).catch(console.error);
-});
+  if (userId) runStartupSync(userId).catch(console.error);
+}
+
+// Reconcile queued offline work and decay when connectivity returns.
+window.addEventListener('online', reconcileAfterReconnect);
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && navigator.onLine && getStoredRefreshToken()) {
-    replayQueue().catch(console.error);
-    pullFromServer().catch(console.error);
-    const userId = getSessionClaims()?.sub;
-    if (userId) applyDecayRound(userId, API_BASE).catch(console.error);
-  }
+  if (document.visibilityState === 'visible') reconcileAfterReconnect();
 });
 
 // Periodic outbound sync so queued mutations don't wait for events
@@ -94,12 +88,6 @@ async function bootstrap() {
 
   // T033: Build MiniSearch index on startup (best-effort, non-blocking)
   rebuildIndex().catch(console.error);
-
-  // Apply learning score decay on app load (once per calendar day, no-ops if already run today)
-  const userId = getSessionClaims()?.sub;
-  if (userId && getStoredAccessToken()) {
-    applyDecayRound(userId, API_BASE).catch(console.error);
-  }
 
   const root = document.getElementById('root');
   if (!root) throw new Error('Root element not found');
